@@ -1,6 +1,6 @@
 
 from pyannote.audio.pipelines.utils.hook import ProgressHook
-
+import whisper
 from pyannote.audio import Pipeline
 import pandas as pd
 pipeline = Pipeline.from_pretrained(
