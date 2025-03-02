@@ -11,7 +11,7 @@ import torch
 pipeline.to(torch.device("cuda"))
 # apply pretrained pipeline
 with ProgressHook() as hook:
-    diarization = pipeline("test.wav", hook=hook)
+    diarization = pipeline("q-mit.wav", hook=hook)
 # print the result
 with open("audio.rttm", "w") as rttm:
     diarization.write_rttm(rttm)

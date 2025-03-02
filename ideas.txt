@@ -1,0 +1,18 @@
+Timestamp Hyperlinks:
+
+In a front-end, embed an audio or video player. On each bullet point with “(12.5s)”, you can jump the player to 12.5s on click.
+Real-Time “Important Word” Detection:
+
+If you want to highlight “deadline,” “exam,” “important,” you could do a quick keyword scan or ask the LLM to highlight them.
+Hierarchical Summaries (for Very Long Recordings):
+
+If you have 2+ hour recordings, chunk your transcript (maybe 10–15 minutes each). Summarize each chunk, then summarize the partial summaries into a final “executive summary.”
+Search:
+
+If you store each segment’s text in a vector database (e.g., FAISS, Pinecone), you can implement a “search for a topic” feature. Users can type “deadline,” and you find relevant segments with the speaker/timestamp context.
+Speaker Overlap:
+
+If people talk simultaneously, pyannote might yield overlapping segments. Decide how to handle that. Possibly transcribe both segments or choose whichever is “louder” or “dominant.”
+Confidence Intervals:
+
+Some STT solutions provide confidence scores. You might highlight or re-check low-confidence sections.
