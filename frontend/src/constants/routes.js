@@ -4,6 +4,7 @@
 
 const ROUTES = {
     HOME: '/',
+    DASHBOARD: '/dashboard',
     AUTH: {
       REGISTER: '/register',
       LOGIN: '/login',

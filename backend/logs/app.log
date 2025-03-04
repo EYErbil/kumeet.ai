@@ -37,3 +37,42 @@
 2025-03-04 20:14:31,329 - main - INFO - Firebase initialized successfully
 2025-03-04 20:26:45,305 - main - INFO - Firebase initialized successfully
 2025-03-04 20:35:20,394 - main - INFO - Firebase initialized successfully
+2025-03-04 21:40:54,012 - main - INFO - Firebase initialized successfully
+2025-03-04 21:41:58,562 - main - INFO - OPTIONS /api/auth/verify-token completed in 0.00s with status 200
+2025-03-04 21:41:58,887 - routes.auth - INFO - Received token verification request
+2025-03-04 21:41:58,888 - services.auth_service - INFO - Verifying Firebase ID token
+2025-03-04 21:41:59,567 - services.auth_service - INFO - Successfully verified token for uid: LjH8wa4tPjf0xilSiAY3GFls6ec2
+2025-03-04 21:41:59,568 - routes.auth - INFO - Successfully verified token for user: LjH8wa4tPjf0xilSiAY3GFls6ec2
+2025-03-04 21:41:59,572 - main - INFO - POST /api/auth/verify-token completed in 0.69s with status 200
+2025-03-04 21:56:40,655 - main - INFO - Firebase initialized successfully
+2025-03-04 21:57:10,494 - main - INFO - OPTIONS /api/auth/verify-token completed in 0.00s with status 200
+2025-03-04 21:57:10,811 - routes.auth - INFO - Received token verification request
+2025-03-04 21:57:10,812 - services.auth_service - INFO - Verifying Firebase ID token
+2025-03-04 21:57:11,369 - services.auth_service - INFO - Successfully verified token for uid: LjH8wa4tPjf0xilSiAY3GFls6ec2
+2025-03-04 21:57:11,370 - routes.auth - INFO - Successfully verified token for user: LjH8wa4tPjf0xilSiAY3GFls6ec2
+2025-03-04 21:57:11,372 - main - INFO - POST /api/auth/verify-token completed in 0.56s with status 200
+2025-03-04 21:59:14,231 - routes.auth - INFO - Received token verification request
+2025-03-04 21:59:14,232 - services.auth_service - INFO - Verifying Firebase ID token
+2025-03-04 21:59:14,239 - services.auth_service - INFO - Successfully verified token for uid: LjH8wa4tPjf0xilSiAY3GFls6ec2
+2025-03-04 21:59:14,240 - routes.auth - INFO - Successfully verified token for user: LjH8wa4tPjf0xilSiAY3GFls6ec2
+2025-03-04 21:59:14,241 - main - INFO - POST /api/auth/verify-token completed in 0.01s with status 200
+2025-03-04 22:32:18,561 - main - INFO - Firebase initialized successfully
+2025-03-04 22:44:25,107 - main - INFO - OPTIONS /api/auth/verify-token completed in 0.00s with status 200
+2025-03-04 22:44:25,425 - routes.auth - INFO - Received token verification request
+2025-03-04 22:44:25,426 - services.auth_service - INFO - Verifying Firebase ID token
+2025-03-04 22:44:25,830 - services.auth_service - INFO - Successfully verified token for uid: LjH8wa4tPjf0xilSiAY3GFls6ec2
+2025-03-04 22:44:25,830 - routes.auth - INFO - Successfully verified token for user: LjH8wa4tPjf0xilSiAY3GFls6ec2
+2025-03-04 22:44:25,832 - main - INFO - POST /api/auth/verify-token completed in 0.41s with status 200
+2025-03-04 23:01:18,265 - main - INFO - Firebase initialized successfully
+2025-03-04 23:03:39,290 - main - INFO - OPTIONS /api/auth/verify-token completed in 0.00s with status 200
+2025-03-04 23:03:39,610 - routes.auth - INFO - Received token verification request
+2025-03-04 23:03:39,611 - services.auth_service - INFO - Verifying Firebase ID token
+2025-03-04 23:03:39,962 - services.auth_service - INFO - Successfully verified token for uid: dFMgVQdHOBeEpnKvVmwaflVUt6d2
+2025-03-04 23:03:39,963 - routes.auth - INFO - Successfully verified token for user: dFMgVQdHOBeEpnKvVmwaflVUt6d2
+2025-03-04 23:03:39,964 - main - INFO - POST /api/auth/verify-token completed in 0.36s with status 200
+2025-03-04 23:10:51,859 - main - INFO - Firebase initialized successfully
+2025-03-04 23:12:38,358 - routes.auth - INFO - Received token verification request
+2025-03-04 23:12:38,358 - services.auth_service - INFO - Verifying Firebase ID token
+2025-03-04 23:12:38,732 - services.auth_service - INFO - Successfully verified token for uid: 51u8ffVquGNCHl8q1V5sYBqCKxi1
+2025-03-04 23:12:38,732 - routes.auth - INFO - Successfully verified token for user: 51u8ffVquGNCHl8q1V5sYBqCKxi1
+2025-03-04 23:12:38,733 - main - INFO - POST /api/auth/verify-token completed in 0.38s with status 200
