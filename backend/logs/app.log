@@ -1,0 +1,39 @@
+2025-03-04 17:07:09,375 - main - INFO - Root endpoint accessed
+2025-03-04 17:07:09,375 - main - INFO - GET / completed in 0.00s with status 200
+2025-03-04 17:07:09,523 - main - INFO - GET /favicon.ico completed in 0.00s with status 404
+2025-03-04 17:18:14,114 - main - INFO - OPTIONS /api/auth/register completed in 0.00s with status 200
+2025-03-04 17:18:14,426 - routes.auth - INFO - Received registration request for email: sgurbuz20@ku.edu.tr
+2025-03-04 17:18:14,428 - routes.auth - DEBUG - Registration data: {'email': 'sgurbuz20@ku.edu.tr', 'firstName': 'Sera', 'lastName': 'Gürbüz'}
+2025-03-04 17:18:14,428 - services.auth_service - INFO - Creating new user with email: sgurbuz20@ku.edu.tr
+2025-03-04 17:18:14,428 - services.auth_service - ERROR - Invalid input data: The default Firebase app does not exist. Make sure to initialize the SDK by calling initialize_app().
+2025-03-04 17:18:14,429 - routes.auth - ERROR - HTTP error during registration: 400: Invalid input data: The default Firebase app does not exist. Make sure to initialize the SDK by calling initialize_app().
+2025-03-04 17:18:14,429 - main - INFO - POST /api/auth/register completed in 0.01s with status 400
+2025-03-04 17:23:07,508 - main - ERROR - Failed to initialize Firebase: Failed to initialize Firebase: The default Firebase app already exists. This means you called initialize_app() more than once without providing an app name as the second argument. In most cases you only need to call initialize_app() once. But if you do want to initialize multiple apps, pass a second argument to initialize_app() to give each app a unique name.
+2025-03-04 17:24:37,093 - main - INFO - Firebase initialized successfully
+2025-03-04 17:24:54,743 - main - INFO - Firebase initialized successfully
+2025-03-04 17:25:53,474 - main - INFO - Firebase initialized successfully
+2025-03-04 17:26:15,597 - routes.auth - INFO - Received registration request for email: sgurbuz20@ku.edu.tr
+2025-03-04 17:26:15,597 - routes.auth - DEBUG - Registration data: {'email': 'sgurbuz20@ku.edu.tr', 'firstName': 'Sera', 'lastName': 'Gürbüz'}
+2025-03-04 17:26:15,598 - services.auth_service - INFO - Creating new user with email: sgurbuz20@ku.edu.tr
+2025-03-04 17:26:16,720 - services.auth_service - ERROR - Email already exists: sgurbuz20@ku.edu.tr
+2025-03-04 17:26:16,720 - routes.auth - ERROR - HTTP error during registration: 400: Email already exists: sgurbuz20@ku.edu.tr
+2025-03-04 17:26:16,721 - main - INFO - POST /api/auth/register completed in 1.13s with status 400
+2025-03-04 17:27:06,903 - routes.auth - INFO - Received registration request for email: serasu@windowslive.com
+2025-03-04 17:27:06,904 - routes.auth - DEBUG - Registration data: {'email': 'serasu@windowslive.com', 'firstName': 'Sera', 'lastName': 'Gürbüz'}
+2025-03-04 17:27:06,904 - services.auth_service - INFO - Creating new user with email: serasu@windowslive.com
+2025-03-04 17:27:07,228 - services.auth_service - ERROR - Email already exists: serasu@windowslive.com
+2025-03-04 17:27:07,228 - routes.auth - ERROR - HTTP error during registration: 400: Email already exists: serasu@windowslive.com
+2025-03-04 17:27:07,229 - main - INFO - POST /api/auth/register completed in 0.33s with status 400
+2025-03-04 17:28:34,256 - main - INFO - Firebase initialized successfully
+2025-03-04 17:28:34,268 - main - INFO - Firebase initialized successfully
+2025-03-04 17:29:56,022 - main - INFO - Firebase initialized successfully
+2025-03-04 17:29:56,033 - main - INFO - Firebase initialized successfully
+2025-03-04 17:31:08,337 - main - INFO - Firebase initialized successfully
+2025-03-04 17:39:15,819 - main - INFO - Firebase initialized successfully
+2025-03-04 18:18:16,918 - main - INFO - Firebase initialized successfully
+2025-03-04 18:29:23,893 - main - INFO - Firebase initialized successfully
+2025-03-04 18:35:33,262 - main - INFO - Firebase initialized successfully
+2025-03-04 19:31:27,980 - main - INFO - Firebase initialized successfully
+2025-03-04 20:14:31,329 - main - INFO - Firebase initialized successfully
+2025-03-04 20:26:45,305 - main - INFO - Firebase initialized successfully
+2025-03-04 20:35:20,394 - main - INFO - Firebase initialized successfully

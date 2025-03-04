@@ -5,7 +5,8 @@ import {
   Dashboard,
   MeetingList,
   MeetingDetail,
-  NewMeeting
+  NewMeeting,
+  VerifyEmail
 } from './pages';
 import Register from './pages/Register';
 import Login from './pages/Login';
@@ -20,6 +21,7 @@ function App() {
             <Routes>
                 <Route path={ROUTES.AUTH.REGISTER} element={<Register />} />
                 <Route path={ROUTES.AUTH.LOGIN} element={<Login />} />
+                <Route path={ROUTES.AUTH.VERIFY_EMAIL} element={<VerifyEmail />} />
                 <Route element={<MainLayout />}>
                     <Route path={ROUTES.HOME} element={<Dashboard />} />
                     <Route path={ROUTES.MEETINGS.LIST} element={<MeetingList />} />

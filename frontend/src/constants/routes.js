@@ -6,7 +6,8 @@ const ROUTES = {
     HOME: '/',
     AUTH: {
       REGISTER: '/register',
-      LOGIN: '/login'
+      LOGIN: '/login',
+      VERIFY_EMAIL: '/verify-email'
     },
     MEETINGS: {
       LIST: '/meetings',
