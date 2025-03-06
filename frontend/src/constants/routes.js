@@ -4,6 +4,10 @@
 
 const ROUTES = {
     HOME: '/',
+    AUTH: {
+      REGISTER: '/register',
+      LOGIN: '/login'
+    },
     MEETINGS: {
       LIST: '/meetings',
       DETAIL: (id = ':id') => `/meetings/${id}`,
