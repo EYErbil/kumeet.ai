@@ -9,16 +9,20 @@ const Login = () => {
     email: '',
     password: '',
   });
-
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    const { name, value, type, checked } = e.target;
+    if (type === 'checkbox') {
+      setRememberMe(checked);
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
     // Clear error when user types
     if (error) setError('');
   };
@@ -29,7 +33,7 @@ const Login = () => {
     setError('');
 
     try {
-      await login(formData.email, formData.password);
+      await login(formData.email, formData.password, rememberMe);
       // If login is successful, navigate to dashboard
       navigate(ROUTES.DASHBOARD);
     } catch (error) {
@@ -118,6 +122,8 @@ const Login = () => {
                 name="remember-me"
                 type="checkbox"
                 className="form-checkbox"
+                checked={rememberMe}
+                onChange={handleChange}
                 disabled={loading}
               />
               <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">

@@ -21,12 +21,12 @@ function App() {
         <Router>
             <Routes>
                 {/* Root redirect */}
-                <Route path="/" element={<Navigate to={ROUTES.AUTH.LOGIN} replace />} />
+                <Route path={ROUTES.HOME} element={<Navigate to={ROUTES.DASHBOARD} replace />} />
 
-                {/* Public Routes */}
-                <Route path={ROUTES.AUTH.REGISTER} element={<Register />} />
-                <Route path={ROUTES.AUTH.LOGIN} element={<Login />} />
-                <Route path={ROUTES.AUTH.VERIFY_EMAIL} element={<VerifyEmail />} />
+                {/* Public Routes - wrapped in ProtectedRoute to redirect if user is logged in */}
+                <Route path={ROUTES.AUTH.REGISTER} element={<ProtectedRoute><Register /></ProtectedRoute>} />
+                <Route path={ROUTES.AUTH.LOGIN} element={<ProtectedRoute><Login /></ProtectedRoute>} />
+                <Route path={ROUTES.AUTH.VERIFY_EMAIL} element={<ProtectedRoute><VerifyEmail /></ProtectedRoute>} />
 
                 {/* Protected Routes */}
                 <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
@@ -34,11 +34,17 @@ function App() {
                     <Route path={ROUTES.MEETINGS.LIST} element={<MeetingList />} />
                     <Route path={ROUTES.MEETINGS.DETAIL()} element={<MeetingDetail />} />
                     <Route path={ROUTES.MEETINGS.NEW} element={<NewMeeting />} />
-                    {/* Add more routes as needed */}
+                    <Route path={ROUTES.SNIPPETS} element={<div>Snippets Page</div>} />
+                    <Route path={ROUTES.ACTION_ITEMS} element={<div>Action Items Page</div>} />
+                    <Route path={ROUTES.AI_TAGS} element={<div>AI Tags Page</div>} />
+                    <Route path={ROUTES.ANALYTICS} element={<div>Analytics Page</div>} />
+                    <Route path={ROUTES.SETTINGS} element={<div>Settings Page</div>} />
+                    <Route path={ROUTES.MEMBERS} element={<div>Members Page</div>} />
+                    <Route path={ROUTES.INTEGRATIONS} element={<div>Integrations Page</div>} />
                 </Route>
 
                 {/* Catch all unknown routes */}
-                <Route path="*" element={<Navigate to={ROUTES.AUTH.LOGIN} replace />} />
+                <Route path="*" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
             </Routes>
         </Router>
     );

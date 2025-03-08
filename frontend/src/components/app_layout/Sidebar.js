@@ -46,7 +46,7 @@ const Sidebar = () => {
             
             <nav className="flex-1 px-2 py-4">
                 <ul>
-                    <NavItem to={ROUTES.HOME} icon={<FaHome size={16} />} label="Home" active={path === ROUTES.HOME} />
+                    <NavItem to={ROUTES.DASHBOARD} icon={<FaHome size={16} />} label="Home" active={path === ROUTES.DASHBOARD} />
                     <NavItem to={ROUTES.MEETINGS.LIST} icon={<FaVideo size={16} />} label="Meetings" active={path.includes('/meetings')} />
                     <NavItem to={ROUTES.SNIPPETS} icon={<FaClipboardList size={16} />} label="Snippets" active={path.includes('/snippets')} />
                     <NavItem to={ROUTES.ACTION_ITEMS} icon={<FaListAlt size={16} />} label="Action Items" active={path.includes('/action-items')} />

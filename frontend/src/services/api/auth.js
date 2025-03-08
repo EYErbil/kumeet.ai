@@ -7,7 +7,10 @@ import {
   sendPasswordResetEmail,
   GoogleAuthProvider,
   signInWithPopup,
-  updateProfile
+  updateProfile,
+  browserLocalPersistence,
+  browserSessionPersistence,
+  setPersistence
 } from "firebase/auth";
 import { auth } from "../../config/firebase";
 import ROUTES from "../../constants/routes";
@@ -151,8 +154,16 @@ export const signInWithGoogle = async () => {
 };
 
 // Login function
-export const login = async (email, password) => {
+export const login = async (email, password, rememberMe = false) => {
   try {
+    // Clear any existing session data
+    localStorage.removeItem('loginTimestamp');
+    localStorage.removeItem('sessionLength');
+
+    // Set persistence based on rememberMe
+    const persistenceType = rememberMe ? browserLocalPersistence : browserSessionPersistence;
+    await setPersistence(auth, persistenceType);
+
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
@@ -163,23 +174,12 @@ export const login = async (email, password) => {
       throw new Error('Please verify your email before logging in. Check your inbox for the verification link.');
     }
 
-    // Get the user's ID token for backend verification
-    const idToken = await user.getIdToken();
-    
-    // Verify token with backend
-    const response = await fetch(`${API_URL}/auth/verify-token`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ idToken }),
-      credentials: 'include'
-    });
-
-    if (!response.ok) {
-      // If backend verification fails, sign out the user
-      await signOut(auth);
-      throw new Error('Authentication failed. Please try again.');
+    // If remember me is enabled, store login timestamp
+    if (rememberMe) {
+      const loginTimestamp = Date.now();
+      localStorage.setItem('loginTimestamp', loginTimestamp.toString());
+      // Set session length to 1 month (in milliseconds)
+      localStorage.setItem('sessionLength', (30 * 24 * 60 * 60 * 1000).toString());
     }
 
     return user;
@@ -209,6 +209,9 @@ export const login = async (email, password) => {
 export const logout = async () => {
   try {
     await signOut(auth);
+    // Clear session storage
+    localStorage.removeItem('loginTimestamp');
+    localStorage.removeItem('sessionLength');
     console.log("User logged out");
   } catch (error) {
     console.error("Error logging out:", error.message);
@@ -223,7 +226,17 @@ export const getCurrentUser = () => {
 
 // Auth state change listener
 export const onAuthStateChangedListener = (callback) => {
-  return onAuthStateChanged(auth, callback);
+  return onAuthStateChanged(auth, (user) => {
+    // Only check session expiry if remember me is enabled (loginTimestamp exists)
+    if (user && localStorage.getItem('loginTimestamp')) {
+      const isExpired = checkSessionExpiry();
+      if (isExpired) {
+        logout().then(() => callback(null));
+        return;
+      }
+    }
+    callback(user);
+  });
 };
 
 // Password reset function
@@ -235,4 +248,32 @@ export const resetPassword = async (email) => {
     console.error("Error resetting password:", error.message);
     throw error;
   }
+};
+
+// Add a function to check session expiry
+export const checkSessionExpiry = () => {
+  const loginTimestamp = localStorage.getItem('loginTimestamp');
+  const sessionLength = localStorage.getItem('sessionLength');
+
+  if (loginTimestamp && sessionLength) {
+    const now = Date.now();
+    const expiryTime = parseInt(loginTimestamp) + parseInt(sessionLength);
+    console.log('Session check:', {
+      now,
+      loginTimestamp: parseInt(loginTimestamp),
+      sessionLength: parseInt(sessionLength),
+      expiryTime,
+      timeLeft: expiryTime - now
+    });
+
+    if (now > expiryTime) {
+      // Clear storage first
+      localStorage.removeItem('loginTimestamp');
+      localStorage.removeItem('sessionLength');
+      // Then sign out
+      signOut(auth).catch(console.error);
+      return true;
+    }
+  }
+  return false;
 };

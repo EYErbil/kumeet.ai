@@ -38,28 +38,35 @@ const ProtectedRoute = ({ children }) => {
   
   const isPublicRoute = publicRoutes.includes(location.pathname);
 
-  console.log('Route protection check:', {
-    currentPath: location.pathname,
-    isPublicRoute,
-    publicRoutes,
-    isAuthenticated: !!user
-  });
-
-  // If user is not authenticated and trying to access a protected route
-  if (!user && !isPublicRoute) {
-    console.log('Redirecting to login: User not authenticated and route is protected');
-    // Redirect to login page with the return url
+  // If user is not authenticated and trying to access any route
+  if (!user) {
+    // Allow access to public routes
+    if (isPublicRoute) {
+      return children;
+    }
+    // Redirect to login for all other routes
+    console.log('Redirecting to login: User not authenticated');
     return <Navigate to={ROUTES.AUTH.LOGIN} state={{ from: location }} replace />;
   }
 
-  // If user is authenticated and trying to access auth pages
-  if (user && isPublicRoute) {
-    console.log('Redirecting to dashboard: User is authenticated and trying to access public route');
-    // Redirect to dashboard page
-    return <Navigate to={ROUTES.DASHBOARD} replace />;
+  // If user is authenticated
+  if (user) {
+    // Redirect away from public routes (login, register, etc.)
+    if (isPublicRoute) {
+      console.log('Redirecting to dashboard: User is authenticated and trying to access public route');
+      return <Navigate to={ROUTES.DASHBOARD} replace />;
+    }
+    
+    // For root path, redirect to dashboard
+    if (location.pathname === ROUTES.HOME) {
+      return <Navigate to={ROUTES.DASHBOARD} replace />;
+    }
+    
+    // Allow access to all other routes when authenticated
+    return children;
   }
 
-  // Render the protected route
+  // This should never be reached, but just in case
   return children;
 };
 
