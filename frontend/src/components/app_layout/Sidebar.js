@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
     FaHome, 
     FaVideo, 
@@ -9,11 +9,27 @@ import {
     FaChartBar,
     FaUsers,
     FaPuzzlePiece,
-    FaCog
+    FaCog,
+    FaSignOutAlt
 } from 'react-icons/fa';
+import { logout } from '../../services/api/auth';
 import ROUTES from '../../constants/routes';
 
-const NavItem = ({ to, icon, label, active }) => {
+const NavItem = ({ to, icon, label, active, onClick }) => {
+    if (onClick) {
+        return (
+            <li className="mb-1">
+                <button 
+                    onClick={onClick}
+                    className={`w-full flex items-center py-2 px-4 text-sm text-gray-700 hover:bg-purple-50`}
+                >
+                    {icon}
+                    <span className="ml-3">{label}</span>
+                </button>
+            </li>
+        );
+    }
+
     return (
         <li className="mb-1">
             <Link 
@@ -33,7 +49,17 @@ const NavItem = ({ to, icon, label, active }) => {
 
 const Sidebar = () => {
     const location = useLocation();
+    const navigate = useNavigate();
     const path = location.pathname;
+    
+    const handleLogout = async () => {
+        try {
+            await logout();
+            navigate(ROUTES.AUTH.LOGIN);
+        } catch (error) {
+            console.error('Logout error:', error);
+        }
+    };
     
     return (
         <div className="w-64 bg-white border-r border-gray-200 h-screen overflow-y-auto flex flex-col">
@@ -66,6 +92,15 @@ const Sidebar = () => {
                     <NavItem to={ROUTES.SETTINGS} icon={<FaCog size={16} />} label="Settings" active={path.includes('/settings')} />
                 </ul>
             </nav>
+
+            {/* Logout button at the bottom */}
+            <div className="p-4 border-t border-gray-200">
+                <NavItem 
+                    icon={<FaSignOutAlt size={16} />} 
+                    label="Logout" 
+                    onClick={handleLogout}
+                />
+            </div>
         </div>
     );
 };
