@@ -33,7 +33,9 @@ const ProtectedRoute = ({ children }) => {
   const publicRoutes = [
     ROUTES.AUTH.LOGIN,
     ROUTES.AUTH.REGISTER,
-    ROUTES.AUTH.VERIFY_EMAIL
+    ROUTES.AUTH.VERIFY_EMAIL,
+    ROUTES.AUTH.FORGOT_PASSWORD,
+    ROUTES.AUTH.RESET_PASSWORD
   ];
   
   const isPublicRoute = publicRoutes.includes(location.pathname);
