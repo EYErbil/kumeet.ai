@@ -10,6 +10,8 @@ import {
 } from './pages';
 import Register from './pages/Register';
 import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import ProtectedRoute from './components/ProtectedRoute';
 import ROUTES from './constants/routes';
 
@@ -27,6 +29,8 @@ function App() {
                 <Route path={ROUTES.AUTH.REGISTER} element={<ProtectedRoute><Register /></ProtectedRoute>} />
                 <Route path={ROUTES.AUTH.LOGIN} element={<ProtectedRoute><Login /></ProtectedRoute>} />
                 <Route path={ROUTES.AUTH.VERIFY_EMAIL} element={<ProtectedRoute><VerifyEmail /></ProtectedRoute>} />
+                <Route path={ROUTES.AUTH.FORGOT_PASSWORD} element={<ProtectedRoute><ForgotPassword /></ProtectedRoute>} />
+                <Route path={ROUTES.AUTH.RESET_PASSWORD} element={<ProtectedRoute><ResetPassword /></ProtectedRoute>} />
 
                 {/* Protected Routes */}
                 <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
