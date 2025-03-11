@@ -4,6 +4,7 @@ from routes import auth
 from utils.logger import setup_logger
 from config.firebase import initialize_firebase
 import time
+import db
 
 # Set up logger
 logger = setup_logger(__name__)
