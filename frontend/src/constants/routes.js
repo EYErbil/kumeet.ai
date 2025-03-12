@@ -13,17 +13,14 @@ const ROUTES = {
       RESET_PASSWORD: '/reset-password'
     },
     MEETINGS: {
+      ROOT: '/meetings',
       LIST: '/meetings',
+      NEW: '/meetings/new',
       DETAIL: (id = ':id') => `/meetings/${id}`,
-      NEW: '/new-meeting',
     },
     ACTION_ITEMS: '/action-items',
     SNIPPETS: '/snippets',
-    AI_TAGS: '/ai-tags',
-    ANALYTICS: '/analytics',
     SETTINGS: '/settings',
-    MEMBERS: '/members',
-    INTEGRATIONS: '/integrations',
   };
   
   export default ROUTES;

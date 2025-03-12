@@ -24,6 +24,7 @@ const NewMeeting = () => {
   const [meetingName, setMeetingName] = useState('');
   const [selectedLanguage, setSelectedLanguage] = useState('English');
   const [botName, setBotName] = useState('Meetmind Bot');
+  const [selectedFile, setSelectedFile] = useState(null);
 
   // Today's meetings data
   const todayMeetings = [
@@ -64,210 +65,138 @@ const NewMeeting = () => {
     // Add implementation for starting the capture
   };
 
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    setSelectedFile(file);
+  };
+
   return (
-    <div className="flex h-full">
-      <div className="flex-1 p-8">
-        <div className="mb-2">
-          <Link to="/" className="inline-flex items-center text-gray-500 hover:text-gray-700">
-            <FaChevronLeft className="mr-1" size={14} />
-            <span>Back</span>
-          </Link>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Header */}
+      <div className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+        <div className="px-6 py-4">
+          <div className="flex items-center">
+            <Link to="/meetings" className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200">
+              <FaChevronLeft size={16} />
+            </Link>
+            <h1 className="ml-4 text-xl font-semibold text-gray-900 dark:text-white">New Meeting</h1>
+          </div>
         </div>
-        
-        <h1 className="text-2xl font-semibold text-gray-900 mb-6">New meeting</h1>
-        
-        {/* Meeting type tabs */}
-        <div className="flex space-x-4 mb-8">
-          <MeetingTypeTab 
-            icon={<FaVideo className="text-purple-600" />} 
-            label="Online meeting" 
-            active={activeTab === 'online'} 
-            onClick={() => setActiveTab('online')} 
-          />
-          <MeetingTypeTab 
-            icon={<FaMicrophone className="text-gray-600" />} 
-            label="In-person meeting" 
-            active={activeTab === 'in-person'} 
-            onClick={() => setActiveTab('in-person')} 
-          />
-          <MeetingTypeTab 
-            icon={<FaUpload className="text-gray-600" />} 
-            label="Upload meeting" 
-            active={activeTab === 'upload'} 
-            onClick={() => setActiveTab('upload')} 
-          />
-        </div>
-        
-        {/* Meeting URL input */}
-        <div className="bg-white p-6 rounded-lg mb-8">
-          {activeTab === 'online' && (
-            <div>
-              <div className="flex items-center border rounded-lg p-3 mb-6">
-                <input 
-                  type="text" 
-                  className="flex-1 outline-none text-gray-700 placeholder-gray-400" 
-                  placeholder="Paste your meeting URL here"
-                  value={meetingUrl}
-                  onChange={(e) => setMeetingUrl(e.target.value)}
-                />
-                <div className="flex space-x-3 ml-2">
-                  <FaGoogle className="text-blue-500" size={20} />
-                  <FaVideo className="text-blue-400" size={20} />
-                  <FaMicrosoft className="text-blue-600" size={20} />
+      </div>
+
+      {/* Content */}
+      <div className="px-10 py-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+          <div className="p-6">
+            {/* Meeting Name */}
+            <div className="mb-6">
+              <label htmlFor="meetingName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Meeting name
+              </label>
+              <input
+                type="text"
+                id="meetingName"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                placeholder="E.g. Team Sync"
+                value={meetingName}
+                onChange={(e) => setMeetingName(e.target.value)}
+              />
+            </div>
+
+            {/* Upload Section */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Upload recording
+              </label>
+              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-purple-300 dark:hover:border-purple-500 transition-colors">
+                <div className="space-y-1 text-center">
+                  <FaUpload className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
+                  <div className="flex text-sm text-gray-600 dark:text-gray-400">
+                    <label htmlFor="file-upload" className="relative cursor-pointer rounded-md font-medium text-purple-600 dark:text-purple-400 hover:text-purple-500">
+                      <span>Upload a file</span>
+                      <input id="file-upload" name="file-upload" type="file" className="sr-only" onChange={handleFileChange} accept="video/*" />
+                    </label>
+                    <p className="pl-1">or drag and drop</p>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    MP4, WebM, or MOV up to 2GB
+                  </p>
+                  {selectedFile && (
+                    <p className="text-sm text-purple-600 dark:text-purple-400 mt-2">
+                      Selected: {selectedFile.name}
+                    </p>
+                  )}
                 </div>
               </div>
-              
-              <button 
-                className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-6 rounded-lg transition-colors"
-                onClick={handleStartCapturing}
+            </div>
+
+            {/* Language Selection */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Meeting language
+              </label>
+              <div className="relative">
+                <select 
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white appearance-none"
+                  value={selectedLanguage}
+                  onChange={(e) => setSelectedLanguage(e.target.value)}
+                >
+                  <option>English</option>
+                  <option>Spanish</option>
+                  <option>French</option>
+                  <option>German</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                  <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end space-x-4">
+              <Link
+                to="/meetings"
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               >
-                Start capturing
+                Cancel
+              </Link>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors"
+              >
+                Create Meeting
               </button>
             </div>
-          )}
-          
-          {activeTab === 'in-person' && (
-            <div className="text-center py-8 text-gray-500">
-              <FaMicrophone className="mx-auto mb-4 text-gray-400" size={32} />
-              <p>Set up an in-person meeting recording</p>
-            </div>
-          )}
-          
-          {activeTab === 'upload' && (
-            <div className="text-center py-8 text-gray-500">
-              <FaUpload className="mx-auto mb-4 text-gray-400" size={32} />
-              <p>Upload a recorded meeting file</p>
-            </div>
-          )}
-        </div>
-        
-        {/* Meeting configuration */}
-        <div className="grid grid-cols-3 gap-6 mb-8">
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">Name your meeting <span className="text-gray-400">(optional)</span></label>
-            <input 
-              type="text" 
-              className="w-full p-2 border rounded-lg" 
-              placeholder="E.g. Team Sync"
-              value={meetingName}
-              onChange={(e) => setMeetingName(e.target.value)}
-            />
           </div>
-          
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">Meeting language</label>
-            <div className="relative">
-              <select 
-                className="w-full p-2 border rounded-lg appearance-none pr-8"
-                value={selectedLanguage}
-                onChange={(e) => setSelectedLanguage(e.target.value)}
+        </div>
+
+        {/* Recent Meetings Section */}
+        <div className="mt-8">
+          <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Recent meetings</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Sample meeting cards - you can map through actual data here */}
+            {[1, 2].map((index) => (
+              <Link 
+                to={`/meetings/${index}`} 
+                key={index} 
+                className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow cursor-pointer"
               >
-                <option>English</option>
-                <option>Spanish</option>
-                <option>French</option>
-                <option>German</option>
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
-          </div>
-          
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">Bot name</label>
-            <input 
-              type="text" 
-              className="w-full p-2 border rounded-lg" 
-              value={botName}
-              onChange={(e) => setBotName(e.target.value)}
-            />
-          </div>
-        </div>
-        
-        {/* Recent meetings */}
-        <MeetingList />
-      </div>
-      
-      {/* Right sidebar - Today's schedule */}
-      <div className="w-80 border-l border-gray-200 bg-white p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold">Today</h2>
-          <button className="text-gray-400 p-1 hover:text-gray-600">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </button>
-        </div>
-        
-        <div className="mb-2">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-sm font-medium text-gray-700">Meetings</h3>
-            <button className="text-xs text-gray-500 hover:text-gray-700">Capture all</button>
-          </div>
-          
-          {/* Today's meetings list */}
-          <div className="space-y-4">
-            {todayMeetings.map(meeting => (
-              <div key={meeting.id} className="flex items-center">
-                <div className="flex-1 mr-3">
-                  <h4 className="text-sm font-medium">{meeting.title}</h4>
-                  <div className="flex items-center text-xs text-gray-500 mt-1">
-                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="text-base font-medium text-gray-900 dark:text-white">Team Sync Meeting</h3>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">2 hours ago</span>
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">Weekly team sync to discuss project progress and upcoming milestones.</p>
+                <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+                  <span className="flex items-center">
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span>{meeting.timeRange}</span>
-                    
-                    {meeting.platform === 'google' && (
-                      <FaGoogle className="ml-2 text-blue-500" size={12} />
-                    )}
-                    {meeting.platform === 'teams' && (
-                      <FaMicrosoft className="ml-2 text-blue-600" size={12} />
-                    )}
-                    {meeting.platform === 'zoom' && (
-                      <FaVideo className="ml-2 text-blue-400" size={12} />
-                    )}
-                  </div>
-                  <div className="flex items-center text-xs text-gray-500 mt-1">
-                    <FaUserCircle className="mr-1" size={12} />
-                    <span>{meeting.hostName}</span>
-                  </div>
+                    45 minutes
+                  </span>
                 </div>
-                
-                {/* Toggle switch for recording */}
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    className="sr-only peer" 
-                    checked={meeting.recordingEnabled}
-                  />
-                  <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:bg-purple-600 peer-focus:outline-none peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
-                </label>
-              </div>
-            ))}
-          </div>
-        </div>
-        
-        {/* To-do section */}
-        <div className="mt-8">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-sm font-medium text-gray-700">To do</h3>
-            <Link to="/action-items" className="text-xs text-purple-600 hover:text-purple-700 flex items-center">
-              Go to Action Items <FaChevronRight className="ml-1" size={8} />
-            </Link>
-          </div>
-          
-          <div className="space-y-3">
-            {todos.map(todo => (
-              <div key={todo.id} className="flex items-start">
-                <input 
-                  type="checkbox" 
-                  className="mt-1 mr-3 h-4 w-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
-                  checked={todo.completed}
-                />
-                <span className="text-sm text-gray-600">{todo.text}</span>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
