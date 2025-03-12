@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { FaPlus, FaChevronRight, FaGoogle, FaMicrosoft, FaVideo, FaListAlt, FaClock, FaUsers } from 'react-icons/fa';
+import ROUTES from '../constants/routes';
 
 // Meeting card component
 const MeetingCard = ({ meeting }) => {
@@ -19,23 +20,23 @@ const MeetingCard = ({ meeting }) => {
   };
 
   return (
-    <Link to={`/meetings/${id}`} className="block">
-      <div className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow duration-200">
+    <Link to={ROUTES.MEETINGS.DETAIL(id)} className="block">
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow duration-200">
         <div className="flex justify-between items-start mb-2">
-          <h3 className="text-lg font-medium text-gray-900">{title}</h3>
-          <button className="text-gray-400 hover:text-gray-600">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">{title}</h3>
+          <button className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
               <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
             </svg>
           </button>
         </div>
         
-        <div className="flex items-center text-sm text-gray-500 mb-3">
+        <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mb-3">
           <div className="mr-4 flex items-center">
             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            <span>{date}</span>
+            <span>{date} {time}</span>
           </div>
           <div className="flex items-center">
             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -46,18 +47,18 @@ const MeetingCard = ({ meeting }) => {
           <div className="ml-3">{getPlatformIcon()}</div>
         </div>
         
-        <p className="text-sm text-gray-600 mb-3 line-clamp-2">{description}</p>
+        <p className="text-sm text-gray-600 dark:text-gray-300 mb-3 line-clamp-2">{description}</p>
         
         <div className="flex justify-between items-center">
           <div>
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
               {category}
             </span>
           </div>
           
           <div className="flex -space-x-2">
             {attendees.map((attendee, index) => (
-              <div key={index} className="w-6 h-6 rounded-full bg-gray-300 border border-white flex items-center justify-center text-xs font-medium text-gray-600 overflow-hidden">
+              <div key={index} className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 border border-white dark:border-gray-800 flex items-center justify-center text-xs font-medium text-gray-600 dark:text-gray-300 overflow-hidden">
                 {attendee.avatar ? (
                   <img src={attendee.avatar} alt={attendee.name} className="w-full h-full object-cover" />
                 ) : (
@@ -66,7 +67,7 @@ const MeetingCard = ({ meeting }) => {
               </div>
             ))}
             {attendees.length > 3 && (
-              <div className="w-6 h-6 rounded-full bg-gray-100 border border-white flex items-center justify-center text-xs text-gray-500">
+              <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 border border-white dark:border-gray-800 flex items-center justify-center text-xs text-gray-500 dark:text-gray-400">
                 +{attendees.length - 3}
               </div>
             )}
@@ -80,23 +81,23 @@ const MeetingCard = ({ meeting }) => {
 // Stat card component
 const StatCard = ({ title, value, icon, description, trend, trendValue }) => {
   return (
-    <div className="bg-white rounded-lg p-4 shadow-sm">
+    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
       <div className="flex items-start justify-between mb-2">
-        <h3 className="text-sm font-medium text-gray-500">{title}</h3>
-        <div className="p-2 rounded-lg bg-purple-100 text-purple-600">
+        <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">{title}</h3>
+        <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-300">
           {icon}
         </div>
       </div>
       <div className="flex items-baseline mb-1">
-        <span className="text-2xl font-semibold text-gray-800">{value}</span>
+        <span className="text-2xl font-semibold text-gray-800 dark:text-white">{value}</span>
         {trend && (
-          <span className={`ml-2 text-xs font-medium ${trend === 'up' ? 'text-green-500' : 'text-red-500'}`}>
+          <span className={`ml-2 text-xs font-medium ${trend === 'up' ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
             {trendValue}
             {trend === 'up' ? ' ↑' : ' ↓'}
           </span>
         )}
       </div>
-      <p className="text-xs text-gray-500">{description}</p>
+      <p className="text-xs text-gray-500 dark:text-gray-400">{description}</p>
     </div>
   );
 };
@@ -104,25 +105,25 @@ const StatCard = ({ title, value, icon, description, trend, trendValue }) => {
 // Action item component
 const ActionItem = ({ item }) => {
   return (
-    <div className="flex items-start p-3 border-b border-gray-100">
+    <div className="flex items-start p-3 border-b border-gray-100 dark:border-gray-700">
       <input 
         type="checkbox" 
-        className="mt-0.5 mr-3 h-4 w-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+        className="mt-0.5 mr-3 h-4 w-4 text-purple-600 rounded border-gray-300 dark:border-gray-600 focus:ring-purple-500"
         checked={item.completed}
       />
       <div className="flex-1">
-        <p className="text-sm text-gray-700">{item.text}</p>
+        <p className="text-sm text-gray-700 dark:text-gray-300">{item.text}</p>
         <div className="flex items-center mt-1">
-          <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-xs mr-1 overflow-hidden">
+          <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs mr-1 overflow-hidden">
             {item.assignee.avatar ? (
               <img src={item.assignee.avatar} alt={item.assignee.name} className="w-full h-full object-cover" />
             ) : (
-              item.assignee.name.charAt(0)
+              <span className="text-gray-600 dark:text-gray-300">{item.assignee.name.charAt(0)}</span>
             )}
           </div>
-          <span className="text-xs text-gray-500">{item.assignee.name}</span>
-          <span className="mx-2 text-xs text-gray-400">•</span>
-          <span className="text-xs text-gray-500">{item.dueDate}</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">{item.assignee.name}</span>
+          <span className="mx-2 text-xs text-gray-400 dark:text-gray-500">•</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">{item.dueDate}</span>
         </div>
       </div>
     </div>
@@ -162,78 +163,61 @@ const Dashboard = () => {
         { name: 'Michael Johnson', avatar: null },
         { name: 'Alex Brown', avatar: null },
       ]
-    },
-    {
-      id: 3,
-      title: 'Product roadmap planning',
-      date: 'Tue, April 30, 2024',
-      time: '11:00 AM',
-      duration: '90m',
-      description: 'Discussion about Q3 product roadmap priorities and customer feedback implementation plan.',
-      category: 'Product',
-      platform: 'zoom',
-      attendees: [
-        { name: 'Emily Chen', avatar: null },
-        { name: 'David Wilson', avatar: null },
-        { name: 'Sarah Lee', avatar: null },
-        { name: 'John Doe', avatar: null },
-      ]
-    },
-    {
-      id: 4,
-      title: 'UX design review',
-      date: 'Wed, May 1, 2024',
-      time: '2:30 PM',
-      duration: '45m',
-      description: 'Review of new dashboard UI concepts and mobile app navigation improvements.',
-      category: 'Design',
-      platform: 'google',
-      attendees: [
-        { name: 'Sarah Lee', avatar: null },
-        { name: 'Emma Rodriguez', avatar: null },
-        { name: 'Alex Brown', avatar: null },
-      ]
     }
   ];
 
-  // Sample action items
-  const actionItems = [
+  // Today's meetings data
+  const todayMeetings = [
     {
       id: 1,
-      text: 'Finalize authentication flow for the mobile app',
-      completed: false,
-      assignee: { name: 'Jane Smith', avatar: null },
-      dueDate: 'May 5'
+      title: 'Daily Standup',
+      time: '10:00 AM',
+      platform: 'google',
     },
     {
       id: 2,
-      text: 'Create wireframes for new dashboard layout',
-      completed: true,
-      assignee: { name: 'Sarah Lee', avatar: null },
-      dueDate: 'May 3'
-    },
-    {
-      id: 3,
-      text: 'Research third-party API alternatives for geolocation',
-      completed: false,
-      assignee: { name: 'Alex Brown', avatar: null },
-      dueDate: 'May 7'
-    },
-    {
-      id: 4,
-      text: 'Document updated feature requirements for SmartSync',
-      completed: false,
-      assignee: { name: 'John Doe', avatar: null },
-      dueDate: 'Today'
+      title: 'Product Review',
+      time: '2:00 PM',
+      platform: 'teams',
     }
   ];
 
+  // Action items data
+  const actionItems = [
+    {
+      id: 1,
+      text: 'Review sprint backlog',
+      meeting: 'Sprint Planning',
+      completed: false,
+      dueDate: 'today'
+    },
+    {
+      id: 2,
+      text: 'Update API documentation',
+      meeting: 'Team Sync',
+      completed: false,
+      dueDate: 'today'
+    }
+  ];
+
+  // Platform icon helper function
+  const getPlatformIcon = (platform) => {
+    switch(platform) {
+      case 'google':
+        return <FaGoogle className="text-blue-500" />;
+      case 'teams':
+        return <FaMicrosoft className="text-blue-600" />;
+      default:
+        return <FaVideo className="text-purple-500" />;
+    }
+  };
+
   return (
-    <div className="p-6">
+    <div className="p-6 dark:bg-gray-900">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Dashboard</h1>
         <Link 
-          to="/new-meeting" 
+          to={ROUTES.MEETINGS.NEW} 
           className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center transition-colors"
         >
           <FaPlus className="mr-2" size={12} />
@@ -281,9 +265,9 @@ const Dashboard = () => {
         {/* Recent meetings section */}
         <div className="lg:col-span-2">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-medium text-gray-900">Recent meetings</h2>
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white">Recent meetings</h2>
             <Link 
-              to="/meetings" 
+              to={ROUTES.MEETINGS.ROOT} 
               className="text-purple-600 text-sm font-medium hover:text-purple-700 flex items-center"
             >
               See all <FaChevronRight className="ml-1" size={12} />
@@ -296,59 +280,115 @@ const Dashboard = () => {
             ))}
           </div>
         </div>
-        
-        {/* Action items section */}
-        <div className="bg-white rounded-lg shadow-sm">
-          <div className="flex justify-between items-center p-4 border-b border-gray-100">
-            <h2 className="text-lg font-medium text-gray-900">Action items</h2>
-            <Link 
-              to="/action-items" 
-              className="text-purple-600 text-sm font-medium hover:text-purple-700 flex items-center"
-            >
-              See all <FaChevronRight className="ml-1" size={12} />
-            </Link>
-          </div>
-          
-          <div className="max-h-96 overflow-y-auto">
-            {actionItems.map(item => (
-              <ActionItem key={item.id} item={item} />
-            ))}
-          </div>
-          
-          <div className="p-4 border-t border-gray-100">
-            <button className="w-full py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
-              Add action item
-            </button>
+
+        {/* Today's Section */}
+        <div className="lg:col-span-1">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+            <div className="flex justify-between items-center p-4 border-b border-gray-100 dark:border-gray-700">
+              <h2 className="text-lg font-medium text-gray-900 dark:text-white">Today's Plan</h2>
+            </div>
+            
+            {/* Today's Meetings */}
+            <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Meetings</h3>
+              <div className="space-y-3">
+                {todayMeetings.map((meeting, index) => (
+                  <div key={index} className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="flex-shrink-0">
+                        {getPlatformIcon(meeting.platform)}
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">{meeting.title}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">{meeting.time}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Today's Action Items */}
+            <div className="p-4">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Action Items</h3>
+              <div className="space-y-3">
+                {actionItems.filter(item => item.dueDate === 'today').map((item, index) => (
+                  <div key={index} className="flex items-start space-x-3">
+                    <input
+                      type="checkbox"
+                      checked={item.completed}
+                      className="mt-1 h-4 w-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                    />
+                    <div>
+                      <div className="text-sm text-gray-900 dark:text-white">{item.text}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{item.meeting}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
-      
-      {/* Upcoming meetings quick access section */}
+
+      {/* Action Items Section */}
       <div className="mt-8">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Upcoming meetings</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-medium text-gray-900 dark:text-white">Action Items</h2>
+          <Link 
+            to={ROUTES.ACTION_ITEMS} 
+            className="text-purple-600 text-sm font-medium hover:text-purple-700 flex items-center"
+          >
+            See all <FaChevronRight className="ml-1" size={12} />
+          </Link>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {actionItems.map((item, index) => (
+            <div key={index} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
+              <div className="flex items-start space-x-3">
+                <input
+                  type="checkbox"
+                  checked={item.completed}
+                  className="mt-1 h-4 w-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                />
+                <div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">{item.text}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{item.meeting}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Due: {item.dueDate}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Upcoming meetings section */}
+      <div className="mt-8">
+        <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Upcoming meetings</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {/* Tomorrow's meetings */}
-          <div className="bg-gradient-to-r from-purple-100 to-blue-100 rounded-lg p-4">
+          <div className="bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900 dark:to-blue-900 rounded-lg p-4">
             <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-medium text-gray-700">Tomorrow</h3>
-              <div className="text-xs text-gray-500">May 2, 2024</div>
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200">Tomorrow</h3>
+              <div className="text-xs text-gray-500 dark:text-gray-400">May 2, 2024</div>
             </div>
-            <div className="text-sm font-medium">Team standup</div>
-            <div className="text-xs text-gray-500 mt-1">10:00 AM - 10:30 AM</div>
+            <div className="text-sm font-medium dark:text-white">Team standup</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">10:00 AM - 10:30 AM</div>
             <div className="mt-3 flex -space-x-2">
-              <div className="w-6 h-6 rounded-full bg-gray-300 border border-white"></div>
-              <div className="w-6 h-6 rounded-full bg-gray-300 border border-white"></div>
-              <div className="w-6 h-6 rounded-full bg-gray-300 border border-white"></div>
-              <div className="w-6 h-6 rounded-full bg-gray-100 border border-white flex items-center justify-center text-xs">+2</div>
+              <div className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 border border-white dark:border-gray-800"></div>
+              <div className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 border border-white dark:border-gray-800"></div>
+              <div className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 border border-white dark:border-gray-800"></div>
+              <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 border border-white dark:border-gray-800 flex items-center justify-center text-xs text-gray-600 dark:text-gray-300">+2</div>
             </div>
           </div>
           
           {/* Add meeting quick access */}
-          <Link to="/new-meeting" className="flex flex-col items-center justify-center bg-white rounded-lg p-4 border-2 border-dashed border-gray-300 hover:border-purple-300 transition-colors">
-            <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center mb-2">
-              <FaPlus className="text-purple-600" size={12} />
+          <Link to={ROUTES.MEETINGS.NEW} className="flex flex-col items-center justify-center bg-white dark:bg-gray-800 rounded-lg p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-purple-300 dark:hover:border-purple-500 transition-colors">
+            <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center mb-2">
+              <FaPlus className="text-purple-600 dark:text-purple-400" size={12} />
             </div>
-            <span className="text-sm font-medium text-gray-700">Schedule new meeting</span>
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Schedule new meeting</span>
           </Link>
         </div>
       </div>

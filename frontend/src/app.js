@@ -38,13 +38,9 @@ function App() {
                     <Route path={ROUTES.MEETINGS.LIST} element={<MeetingList />} />
                     <Route path={ROUTES.MEETINGS.DETAIL()} element={<MeetingDetail />} />
                     <Route path={ROUTES.MEETINGS.NEW} element={<NewMeeting />} />
-                    <Route path={ROUTES.SNIPPETS} element={<div>Snippets Page</div>} />
+                    <Route path={ROUTES.SNIPPETS} element={<div>Notes Page</div>} />
                     <Route path={ROUTES.ACTION_ITEMS} element={<div>Action Items Page</div>} />
-                    <Route path={ROUTES.AI_TAGS} element={<div>AI Tags Page</div>} />
-                    <Route path={ROUTES.ANALYTICS} element={<div>Analytics Page</div>} />
                     <Route path={ROUTES.SETTINGS} element={<div>Settings Page</div>} />
-                    <Route path={ROUTES.MEMBERS} element={<div>Members Page</div>} />
-                    <Route path={ROUTES.INTEGRATIONS} element={<div>Integrations Page</div>} />
                 </Route>
 
                 {/* Catch all unknown routes */}

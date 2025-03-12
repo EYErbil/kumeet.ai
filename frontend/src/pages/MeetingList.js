@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FaChevronRight, FaGoogle, FaMicrosoft, FaVideo } from 'react-icons/fa';
+import { FaGoogle, FaMicrosoft, FaVideo, FaPlus, FaEllipsisH } from 'react-icons/fa';
+import ROUTES from '../constants/routes';
 
 // Reusable meeting card component
 const MeetingCard = ({ meeting }) => {
@@ -19,18 +20,16 @@ const MeetingCard = ({ meeting }) => {
   };
 
   return (
-    <Link to={`/meetings/${id}`} className="block">
-      <div className="bg-white rounded-lg p-4 mb-4 shadow-sm hover:shadow-md transition-shadow duration-200">
+    <Link to={ROUTES.MEETINGS.DETAIL(id)} className="block">
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 mb-4 shadow-sm hover:shadow-md transition-shadow duration-200">
         <div className="flex justify-between items-start mb-2">
-          <h3 className="text-lg font-medium text-gray-900">{title}</h3>
-          <button className="text-gray-400 hover:text-gray-600">
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-            </svg>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">{title}</h3>
+          <button className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
+            <FaEllipsisH />
           </button>
         </div>
         
-        <div className="flex items-center text-sm text-gray-500 mb-3">
+        <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mb-3">
           <div className="mr-4 flex items-center">
             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -41,23 +40,23 @@ const MeetingCard = ({ meeting }) => {
             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span>{duration}</span>
+            <span>{time} ({duration})</span>
           </div>
           <div className="ml-3">{getPlatformIcon()}</div>
         </div>
         
-        <p className="text-sm text-gray-600 mb-3 line-clamp-2">{description}</p>
+        <p className="text-sm text-gray-600 dark:text-gray-300 mb-3 line-clamp-2">{description}</p>
         
         <div className="flex justify-between items-center">
           <div>
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
               {category}
             </span>
           </div>
           
           <div className="flex -space-x-2">
             {attendees.map((attendee, index) => (
-              <div key={index} className="w-6 h-6 rounded-full bg-gray-300 border border-white flex items-center justify-center text-xs font-medium text-gray-600 overflow-hidden">
+              <div key={index} className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 border border-white dark:border-gray-800 flex items-center justify-center text-xs font-medium text-gray-600 dark:text-gray-300 overflow-hidden">
                 {attendee.avatar ? (
                   <img src={attendee.avatar} alt={attendee.name} className="w-full h-full object-cover" />
                 ) : (
@@ -66,7 +65,7 @@ const MeetingCard = ({ meeting }) => {
               </div>
             ))}
             {attendees.length > 3 && (
-              <div className="w-6 h-6 rounded-full bg-gray-100 border border-white flex items-center justify-center text-xs text-gray-500">
+              <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 border border-white dark:border-gray-800 flex items-center justify-center text-xs text-gray-500 dark:text-gray-400">
                 +{attendees.length - 3}
               </div>
             )}
@@ -114,18 +113,19 @@ const MeetingList = () => {
   ];
 
   return (
-    <div className="px-8 py-6">
+    <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Recent meetings</h1>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Meetings</h1>
         <Link 
-          to="/meetings" 
-          className="text-purple-600 flex items-center text-sm font-medium hover:text-purple-700"
+          to={ROUTES.MEETINGS.NEW}
+          className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center transition-colors"
         >
-          Go to Meetings <FaChevronRight className="ml-1" size={12} />
+          <FaPlus className="mr-2" size={12} />
+          New Meeting
         </Link>
       </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {recentMeetings.map(meeting => (
           <MeetingCard key={meeting.id} meeting={meeting} />
         ))}
