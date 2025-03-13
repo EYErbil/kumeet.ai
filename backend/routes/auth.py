@@ -15,6 +15,12 @@ class UserCreate(BaseModel):
     firstName: str
     lastName: str
 
+class GoogleSignInData(BaseModel):
+    email: EmailStr
+    firstName: str
+    lastName: str
+    idToken: str
+
 class TokenVerify(BaseModel):
     idToken: str
 
@@ -77,6 +83,33 @@ async def verify_auth_token(token_data: TokenVerify):
         raise HTTPException(
             status_code=500,
             detail=f"An unexpected error occurred during token verification: {str(e)}"
+        )
+
+@router.post("/google-signin", response_model=AuthResponse)
+async def google_signin(user_data: GoogleSignInData):
+    try:
+        logger.info(f"Received Google sign-in request for email: {user_data.email}")
+        logger.debug(f"Google sign-in data: {user_data.dict(exclude={'idToken'})}")
+        
+        # First verify the token
+        decoded_token = await verify_token(user_data.idToken)
+        
+        # If token is valid, create/update user in database
+        user = await create_user(user_data)
+        logger.info(f"Successfully processed Google sign-in for email: {user_data.email}")
+        
+        return {
+            "success": True,
+            "user": user
+        }
+    except HTTPException as e:
+        logger.error(f"HTTP error during Google sign-in: {str(e)}")
+        raise e
+    except Exception as e:
+        logger.error(f"Unexpected error during Google sign-in: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred during Google sign-in: {str(e)}"
         )
 
 @router.get("/user/{uid}", response_model=AuthResponse)

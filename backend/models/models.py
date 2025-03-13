@@ -106,6 +106,33 @@ CREATE TABLE IF NOT EXISTS speaker_statistics (
 );
 """
 
+def drop_tables():
+    """Drop all tables in the correct order (respecting foreign key constraints)."""
+    try:
+        with conn.cursor() as cur:
+            # Drop tables in reverse order of dependencies
+            tables = [
+                'speaker_statistics',
+                'decisions',
+                'action_items',
+                'meeting_summaries',
+                'speakers',
+                'speaker_segments',
+                'meetings',
+                'users'
+            ]
+            
+            for table in tables:
+                logger.info(f"Dropping table {table}")
+                cur.execute(f"DROP TABLE IF EXISTS {table} CASCADE")
+            
+            conn.commit()
+            logger.info("All tables dropped successfully")
+    except Exception as e:
+        logger.error(f"Error dropping tables: {e}")
+        conn.rollback()
+        raise
+
 def check_db_connection():
     """Check if we can connect to the database."""
     try:
@@ -131,13 +158,18 @@ def check_table_exists(cursor, table_name):
         logger.error(f"Error checking if table {table_name} exists: {e}")
         return False
 
-def init_db():
+def init_db(drop_existing=False):
     """Initialize the database by creating tables if they don't exist."""
     if not check_db_connection():
         raise Exception("Cannot initialize database - connection failed")
 
     try:
         with conn.cursor() as cur:
+            if drop_existing:
+                logger.info("Dropping existing tables...")
+                drop_tables()
+                logger.info("Tables dropped successfully")
+
             # List of tables and their creation statements
             tables = {
                 'users': CREATE_USERS_TABLE,
@@ -153,7 +185,7 @@ def init_db():
             # Create each table if it doesn't exist
             for table_name, create_statement in tables.items():
                 exists = check_table_exists(cur, table_name)
-                if exists:
+                if exists and not drop_existing:
                     logger.info(f"Table {table_name} already exists")
                 else:
                     logger.info(f"Creating table {table_name}")
@@ -168,6 +200,6 @@ def init_db():
         conn.rollback()
         raise
 
-# Initialize tables when this module is imported
 if __name__ == "__main__":
-    init_db() 
+    # Drop and recreate all tables
+    init_db(drop_existing=True) 

@@ -27,7 +27,7 @@ class UserService:
         try:
             with conn.cursor() as cur:
                 query = """
-                SELECT firebase_uid, email, first_name, last_name, created_at, last_active
+                SELECT firebase_uid, email, first_name, last_name, created_at
                 FROM users
                 WHERE firebase_uid = %s;
                 """
@@ -39,31 +39,14 @@ class UserService:
                         'email': result[1],
                         'first_name': result[2],
                         'last_name': result[3],
-                        'created_at': result[4],
-                        'last_active': result[5]
+                        'created_at': result[4]
                     }
                 return None
         except psycopg2.Error as e:
             print(f"Error getting user: {e}")
             raise
 
-    @staticmethod
-    def update_user_last_active(firebase_uid):
-        """Update user's last active timestamp."""
-        try:
-            with conn.cursor() as cur:
-                query = """
-                UPDATE users
-                SET last_active = CURRENT_TIMESTAMP
-                WHERE firebase_uid = %s;
-                """
-                cur.execute(query, (firebase_uid,))
-                conn.commit()
-        except psycopg2.Error as e:
-            print(f"Error updating last active timestamp: {e}")
-            conn.rollback()
-            raise
-
+ 
     @staticmethod
     def update_user_profile(firebase_uid, first_name=None, last_name=None):
         """Update user's profile information."""
