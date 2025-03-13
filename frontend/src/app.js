@@ -6,7 +6,8 @@ import {
   MeetingList,
   MeetingDetail,
   NewMeeting,
-  VerifyEmail
+  VerifyEmail,
+  ActionItems
 } from './pages';
 import Register from './pages/Register';
 import Login from './pages/Login';
@@ -39,7 +40,7 @@ function App() {
                     <Route path={ROUTES.MEETINGS.DETAIL()} element={<MeetingDetail />} />
                     <Route path={ROUTES.MEETINGS.NEW} element={<NewMeeting />} />
                     <Route path={ROUTES.SNIPPETS} element={<div>Notes Page</div>} />
-                    <Route path={ROUTES.ACTION_ITEMS} element={<div>Action Items Page</div>} />
+                    <Route path={ROUTES.ACTION_ITEMS} element={<ActionItems />} />
                     <Route path={ROUTES.SETTINGS} element={<div>Settings Page</div>} />
                 </Route>
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FaPlus, FaChevronRight, FaGoogle, FaMicrosoft, FaVideo, FaListAlt, FaClock, FaUsers } from 'react-icons/fa';
 import ROUTES from '../constants/routes';
@@ -103,26 +103,22 @@ const StatCard = ({ title, value, icon, description, trend, trendValue }) => {
 };
 
 // Action item component
-const ActionItem = ({ item }) => {
+const ActionItem = ({ item, onToggleComplete }) => {
   return (
     <div className="flex items-start p-3 border-b border-gray-100 dark:border-gray-700">
       <input 
         type="checkbox" 
         className="mt-0.5 mr-3 h-4 w-4 text-purple-600 rounded border-gray-300 dark:border-gray-600 focus:ring-purple-500"
         checked={item.completed}
+        onChange={() => onToggleComplete && onToggleComplete(item.id)}
       />
       <div className="flex-1">
-        <p className="text-sm text-gray-700 dark:text-gray-300">{item.text}</p>
+        <p className={`text-sm text-gray-700 dark:text-gray-300 ${item.completed ? 'line-through text-gray-400 dark:text-gray-500' : ''}`}>
+          {item.text}
+        </p>
         <div className="flex items-center mt-1">
-          <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs mr-1 overflow-hidden">
-            {item.assignee.avatar ? (
-              <img src={item.assignee.avatar} alt={item.assignee.name} className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-gray-600 dark:text-gray-300">{item.assignee.name.charAt(0)}</span>
-            )}
-          </div>
-          <span className="text-xs text-gray-500 dark:text-gray-400">{item.assignee.name}</span>
-          <span className="mx-2 text-xs text-gray-400 dark:text-gray-500">•</span>
+          {item.meeting && <span className="text-xs text-gray-500 dark:text-gray-400">{item.meeting}</span>}
+          {item.meeting && <span className="mx-2 text-xs text-gray-400 dark:text-gray-500">•</span>}
           <span className="text-xs text-gray-500 dark:text-gray-400">{item.dueDate}</span>
         </div>
       </div>
@@ -183,7 +179,7 @@ const Dashboard = () => {
   ];
 
   // Action items data
-  const actionItems = [
+  const [actionItems, setActionItems] = useState([
     {
       id: 1,
       text: 'Review sprint backlog',
@@ -198,7 +194,14 @@ const Dashboard = () => {
       completed: false,
       dueDate: 'today'
     }
-  ];
+  ]);
+
+  // Handle toggling action item completion
+  const handleToggleComplete = (id) => {
+    setActionItems(actionItems.map(item => 
+      item.id === id ? { ...item, completed: !item.completed } : item
+    ));
+  };
 
   // Platform icon helper function
   const getPlatformIcon = (platform) => {
@@ -317,10 +320,13 @@ const Dashboard = () => {
                     <input
                       type="checkbox"
                       checked={item.completed}
+                      onChange={() => handleToggleComplete(item.id)}
                       className="mt-1 h-4 w-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
                     />
                     <div>
-                      <div className="text-sm text-gray-900 dark:text-white">{item.text}</div>
+                      <div className={`text-sm ${item.completed ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
+                        {item.text}
+                      </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{item.meeting}</div>
                     </div>
                   </div>
@@ -350,10 +356,13 @@ const Dashboard = () => {
                 <input
                   type="checkbox"
                   checked={item.completed}
+                  onChange={() => handleToggleComplete(item.id)}
                   className="mt-1 h-4 w-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
                 />
                 <div>
-                  <div className="text-sm font-medium text-gray-900 dark:text-white">{item.text}</div>
+                  <div className={`text-sm ${item.completed ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
+                    {item.text}
+                  </div>
                   <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{item.meeting}</div>
                   <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Due: {item.dueDate}</div>
                 </div>
