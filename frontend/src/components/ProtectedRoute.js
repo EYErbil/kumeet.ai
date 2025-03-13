@@ -40,46 +40,27 @@ const ProtectedRoute = ({ children }) => {
   
   const isPublicRoute = publicRoutes.includes(location.pathname);
 
-  // If user is not authenticated and trying to access any route
+  // Not logged in: can access public routes, redirected to login for protected routes
   if (!user) {
-    // Allow access to public routes
     if (isPublicRoute) {
       return children;
     }
-    // Redirect to login for all other routes
     console.log('Redirecting to login: User not authenticated');
     return <Navigate to={ROUTES.AUTH.LOGIN} state={{ from: location }} replace />;
   }
 
-  // If user is authenticated
-  if (user) {
-    // Special case: Allow access to verify-email page if email is not verified
-    if (location.pathname === ROUTES.AUTH.VERIFY_EMAIL && !user.emailVerified) {
-      return children;
-    }
-    
-    // Redirect away from public routes (login, register, etc.)
-    if (isPublicRoute) {
-      console.log('Redirecting to dashboard: User is authenticated and trying to access public route');
-      return <Navigate to={ROUTES.DASHBOARD} replace />;
-    }
-    
-    // For root path, redirect to dashboard
-    if (location.pathname === ROUTES.HOME) {
-      return <Navigate to={ROUTES.DASHBOARD} replace />;
-    }
-    
-    // Check if email is verified for all other routes
-    if (!user.emailVerified && location.pathname !== ROUTES.AUTH.VERIFY_EMAIL) {
-      console.log('Redirecting to verify-email: Email not verified');
-      return <Navigate to={ROUTES.AUTH.VERIFY_EMAIL} replace />;
-    }
-    
-    // Allow access to all other routes when authenticated and email verified
-    return children;
+  // If user is logged in but email not verified, only allow verify-email page
+  if (user && !user.emailVerified && location.pathname !== ROUTES.AUTH.VERIFY_EMAIL) {
+    console.log('Redirecting to verify-email: Email not verified');
+    return <Navigate to={ROUTES.AUTH.VERIFY_EMAIL} replace />;
   }
 
-  // This should never be reached, but just in case
+  // Logged in and email verified: can access protected routes, redirected to dashboard for public routes
+  if (user &&user.emailVerified && isPublicRoute) {
+    console.log('Redirecting to dashboard: User is authenticated and trying to access public route');
+    return <Navigate to={ROUTES.DASHBOARD} replace />;
+  }
+
   return children;
 };
 
