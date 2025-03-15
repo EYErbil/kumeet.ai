@@ -4,6 +4,7 @@ import MeetingDetail from './MeetingDetail';
 import NewMeeting from './NewMeeting';
 import VerifyEmail from './VerifyEmail';
 import ActionItems from './ActionItems';
+import Notes from './Notes';
 
 export {
   Dashboard,
@@ -11,5 +12,6 @@ export {
   MeetingDetail,
   NewMeeting,
   VerifyEmail,
-  ActionItems
+  ActionItems,
+  Notes
 };
