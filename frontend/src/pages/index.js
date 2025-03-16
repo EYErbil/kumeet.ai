@@ -5,6 +5,7 @@ import NewMeeting from './NewMeeting';
 import VerifyEmail from './VerifyEmail';
 import ActionItems from './ActionItems';
 import Notes from './Notes';
+import Settings from './Settings';
 
 export {
   Dashboard,
@@ -13,5 +14,6 @@ export {
   NewMeeting,
   VerifyEmail,
   ActionItems,
-  Notes
+  Notes,
+  Settings
 };
