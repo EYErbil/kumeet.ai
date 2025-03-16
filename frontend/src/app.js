@@ -8,7 +8,8 @@ import {
   NewMeeting,
   VerifyEmail,
   ActionItems,
-  Notes
+  Notes,
+  Settings
 } from './pages';
 import Register from './pages/Register';
 import Login from './pages/Login';
@@ -42,7 +43,7 @@ function App() {
                     <Route path={ROUTES.MEETINGS.NEW} element={<NewMeeting />} />
                     <Route path={ROUTES.SNIPPETS} element={<Notes />} />
                     <Route path={ROUTES.ACTION_ITEMS} element={<ActionItems />} />
-                    <Route path={ROUTES.SETTINGS} element={<div>Settings Page</div>} />
+                    <Route path={ROUTES.SETTINGS} element={<Settings />} />
                 </Route>
 
                 {/* Catch all unknown routes */}
