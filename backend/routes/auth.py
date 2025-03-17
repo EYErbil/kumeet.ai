@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends, Header
 from pydantic import BaseModel, EmailStr
 from services.auth_service import create_user, verify_token, get_user_by_id, update_user
 from utils.logger import setup_logger
+from typing import Optional
 
 # Set up logger
 logger = setup_logger(__name__)
@@ -27,6 +28,28 @@ class UserResponse(BaseModel):
 class AuthResponse(BaseModel):
     success: bool
     user: UserResponse | dict
+
+# Dependency to get the current user from the Authorization header
+async def get_current_user(authorization: Optional[str] = Header(None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        logger.warning("Missing or invalid Authorization header")
+        raise HTTPException(
+            status_code=401,
+            detail="Missing or invalid Authorization header"
+        )
+    
+    token = authorization.replace("Bearer ", "")
+    
+    try:
+        decoded_token = await verify_token(token)
+        logger.info(f"Successfully authenticated user: {decoded_token.get('uid')}")
+        return decoded_token.get('uid')
+    except Exception as e:
+        logger.error(f"Authentication error: {str(e)}")
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid authentication credentials"
+        )
 
 @router.post("/register", response_model=AuthResponse)
 async def register(user_data: UserCreate):

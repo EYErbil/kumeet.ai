@@ -1,0 +1,15 @@
+{
+  "id": "mock_cred_id",
+  "user_id": "mock_user_id",
+  "calendar_type": "google",
+  "access_token": "mock_access_token",
+  "refresh_token": "mock_refresh_token",
+  "token_expiry": "2025-03-17T09:16:53.441386",
+  "created_at": "2025-03-17T11:16:54.204046",
+  "updated_at": "2025-03-17T11:16:54.441559",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "client_id": "YOUR_CLIENT_ID_HERE",
+  "client_secret": "YOUR_CLIENT_SECRET_HERE",
+  "scopes": ["https://www.googleapis.com/auth/calendar", "https://www.googleapis.com/auth/calendar.events"],
+  "email": "example@example.com"
+} 

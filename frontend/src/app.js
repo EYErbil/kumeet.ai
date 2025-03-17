@@ -16,6 +16,7 @@ import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import ProtectedRoute from './components/ProtectedRoute';
+import CalendarCallback from './components/calendar/CalendarCallback';
 import ROUTES from './constants/routes';
 
 // Import CSS
@@ -34,6 +35,10 @@ function App() {
                 <Route path={ROUTES.AUTH.VERIFY_EMAIL} element={<ProtectedRoute><VerifyEmail /></ProtectedRoute>} />
                 <Route path={ROUTES.AUTH.FORGOT_PASSWORD} element={<ProtectedRoute><ForgotPassword /></ProtectedRoute>} />
                 <Route path={ROUTES.AUTH.RESET_PASSWORD} element={<ProtectedRoute><ResetPassword /></ProtectedRoute>} />
+
+                {/* Calendar OAuth Callback Routes */}
+                <Route path={ROUTES.CALENDAR.GOOGLE_CALLBACK} element={<CalendarCallback />} />
+                <Route path={ROUTES.CALENDAR.OUTLOOK_CALLBACK} element={<CalendarCallback />} />
 
                 {/* Protected Routes */}
                 <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>

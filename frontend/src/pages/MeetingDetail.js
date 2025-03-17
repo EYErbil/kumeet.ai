@@ -16,6 +16,7 @@ import {
   FaCalendarAlt
 } from 'react-icons/fa';
 import useNotes from '../hooks/useNotes';
+import { AddToCalendarButton } from '../components/calendar';
 
 // Collapsible section component
 const CollapsibleSection = ({ icon, title, children, defaultOpen = true }) => {
@@ -68,9 +69,18 @@ const MeetingDetail = () => {
 
   // Sample meeting data
   const meetingData = {
+    id: id,
     date: 'Mon, April 29, 2024',
     title: 'Weekly dev sync',
-    time: '3:00 PM - 4:00 PM (60m)'
+    time: '3:00 PM - 4:00 PM (60m)',
+    startTime: '2024-04-29T15:00:00',
+    endTime: '2024-04-29T16:00:00',
+    description: 'Weekly development team sync meeting to discuss progress and blockers.',
+    attendees: [
+      { email: 'john.doe@example.com', name: 'John Doe' },
+      { email: 'alex.brown@example.com', name: 'Alex Brown' },
+      { email: 'michael.johnson@example.com', name: 'Michael Johnson' }
+    ]
   };
 
   const { date, title, time } = meetingData;
@@ -117,6 +127,10 @@ const MeetingDetail = () => {
               <div className="text-xl font-semibold text-gray-900 dark:text-white">{title}</div>
             </div>
             <div className="flex items-center space-x-4">
+              <AddToCalendarButton 
+                item={meetingData} 
+                type="meeting" 
+              />
               <button className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200">
                 <FaShareAlt size={16} />
               </button>

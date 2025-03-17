@@ -277,3 +277,18 @@ export const checkSessionExpiry = () => {
   }
   return false;
 };
+
+// Get authentication token from current user
+export const getAuthToken = async () => {
+  const user = getCurrentUser();
+  if (!user) {
+    return null;
+  }
+  
+  try {
+    return await user.getIdToken();
+  } catch (error) {
+    console.error("Error getting auth token:", error);
+    return null;
+  }
+};

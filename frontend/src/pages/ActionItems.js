@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { FaPlus, FaTimes } from 'react-icons/fa';
+import { FaPlus, FaTimes, FaCalendarPlus } from 'react-icons/fa';
 import ROUTES from '../constants/routes';
+import { AddToCalendarButton } from '../components/calendar';
 
 // Modal component for adding new action items
 const AddActionItemModal = ({ isOpen, onClose, onAdd }) => {
@@ -104,6 +105,20 @@ const AddActionItemModal = ({ isOpen, onClose, onAdd }) => {
 
 // Action item component
 const ActionItem = ({ item, onToggleComplete }) => {
+  // Format the due date for the calendar
+  const formattedItem = {
+    ...item,
+    id: item.id.toString(),
+    title: item.text,
+    dueDate: typeof item.dueDate === 'string' 
+      ? (item.dueDate === 'Today' 
+          ? new Date() 
+          : item.dueDate === 'Tomorrow' 
+            ? new Date(Date.now() + 24 * 60 * 60 * 1000) 
+            : new Date(item.dueDate))
+      : new Date(item.dueDate)
+  };
+
   return (
     <div className="flex items-start p-4 border-b border-gray-100 dark:border-gray-700">
       <input 
@@ -124,6 +139,14 @@ const ActionItem = ({ item, onToggleComplete }) => {
           <span className="text-xs text-gray-500 dark:text-gray-400">Due: {item.dueDate}</span>
         </div>
       </div>
+      {!item.completed && (
+        <AddToCalendarButton 
+          item={formattedItem} 
+          type="action-item" 
+          buttonText=""
+          className="ml-2 px-2 py-1"
+        />
+      )}
     </div>
   );
 };
@@ -149,15 +172,15 @@ const ActionItems = () => {
       id: 3,
       text: 'Fix authentication bug',
       meeting: 'Bug Triage',
-      completed: false,
-      dueDate: 'May 15, 2024'
+      completed: true,
+      dueDate: '2024-04-25'
     },
     {
       id: 4,
-      text: 'Prepare demo for client meeting',
-      meeting: 'Product Review',
-      completed: true,
-      dueDate: 'May 10, 2024'
+      text: 'Prepare demo for stakeholders',
+      meeting: 'Sprint Review',
+      completed: false,
+      dueDate: '2024-04-30'
     }
   ]);
 

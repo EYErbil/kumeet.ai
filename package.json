@@ -4,7 +4,7 @@
   "description": "AI-powered meeting management platform",
   "scripts": {
     "start": "concurrently \"npm run server\" \"npm run client\"",
-    "server": "cd backend && set PYTHONDONTWRITEBYTECODE=1 && python -m uvicorn main:app --reload",
+    "server": "cd backend && set PYTHONDONTWRITEBYTECODE=1 && python3 -m uvicorn main:app --reload",
     "client": "cd frontend && npm start",
     "install-all": "npm install && cd frontend && npm install && cd ../backend && pip install -r requirements.txt"
   },
