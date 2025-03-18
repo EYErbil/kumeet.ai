@@ -3,11 +3,17 @@ import MeetingList from './MeetingList';
 import MeetingDetail from './MeetingDetail';
 import NewMeeting from './NewMeeting';
 import VerifyEmail from './VerifyEmail';
+import ActionItems from './ActionItems';
+import Notes from './Notes';
+import Settings from './Settings';
 
 export {
   Dashboard,
   MeetingList,
   MeetingDetail,
   NewMeeting,
-  VerifyEmail
+  VerifyEmail,
+  ActionItems,
+  Notes,
+  Settings
 };
