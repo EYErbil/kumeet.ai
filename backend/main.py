@@ -5,6 +5,7 @@ from utils.logger import setup_logger
 from config.firebase import initialize_firebase
 import time
 import db
+from models.models import init_db
 
 # Set up logger
 logger = setup_logger(__name__)
@@ -15,6 +16,14 @@ try:
     logger.info("Firebase initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize Firebase: {str(e)}")
+    raise
+
+# Initialize Database
+try:
+    init_db()
+    logger.info("Database tables initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize database tables: {str(e)}")
     raise
 
 app = FastAPI()

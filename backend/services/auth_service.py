@@ -4,6 +4,7 @@ from fastapi import HTTPException
 from typing import Dict, Any, Optional
 from pydantic import BaseModel, EmailStr
 from utils.logger import setup_logger
+from services.user_service import UserService
 
 # Set up logger for this module
 logger = setup_logger(__name__)
@@ -17,12 +18,13 @@ class UserData(BaseModel):
 class UserResponse(BaseModel):
     uid: str
     email: str
-    displayName: str
-    emailVerified: bool = False
+    firstName: str
+    lastName: str
+    created_at: Optional[str] = None
 
 async def create_user(user_data: UserData) -> Dict[str, Any]:
     """
-    Create a new user in Firebase Authentication.
+    Create a new user in both Firebase Authentication and local database.
     
     Args:
         user_data: UserData object containing user information
@@ -35,18 +37,38 @@ async def create_user(user_data: UserData) -> Dict[str, Any]:
     """
     try:
         logger.info(f"Creating new user with email: {user_data.email}")
+        user_service = UserService()
         
         # First check if user exists in Firebase
         try:
             existing_user = auth.get_user_by_email(user_data.email)
             logger.warning(f"User already exists in Firebase with email: {user_data.email}")
             
-            # If we get here, user exists in Firebase
+            # Check if user exists in our database
+            if not user_service.user_exists(existing_user.uid):
+                # User exists in Firebase but not in our database, create in database
+                logger.info(f"Creating user in database for existing Firebase user: {existing_user.uid}")
+                user_service.create_user(
+                    firebase_uid=existing_user.uid,
+                    email=existing_user.email,
+                    first_name=user_data.firstName,
+                    last_name=user_data.lastName
+                )
+            
+            # Get user from our database to return consistent response
+            db_user = user_service.get_user_by_firebase_uid(existing_user.uid)
+            if not db_user:
+                raise HTTPException(
+                    status_code=500,
+                    detail="User exists in Firebase but not in database"
+                )
+            
             return {
-                "uid": existing_user.uid,
-                "email": existing_user.email,
-                "displayName": existing_user.display_name,
-                "emailVerified": existing_user.email_verified
+                "uid": db_user['firebase_uid'],
+                "email": db_user['email'],
+                "firstName": db_user['first_name'],
+                "lastName": db_user['last_name'],
+                "created_at": db_user['created_at'].isoformat() if db_user['created_at'] else None
             }
             
         except auth.UserNotFoundError:
@@ -54,21 +76,51 @@ async def create_user(user_data: UserData) -> Dict[str, Any]:
             logger.info(f"User not found in Firebase, creating new user: {user_data.email}")
             
             # Create user in Firebase
-            user = auth.create_user(
+            firebase_user = auth.create_user(
                 email=user_data.email,
                 password=user_data.password,
-                display_name=f"{user_data.firstName} {user_data.lastName}",
+                display_name=f"{user_data.firstName} {user_data.lastName}",  # Keep display_name in Firebase for UI
                 email_verified=False
             )
             
-            logger.info(f"Successfully created user with uid: {user.uid}")
+            logger.info(f"Successfully created user in Firebase with uid: {firebase_user.uid}")
             
-            return {
-                "uid": user.uid,
-                "email": user.email,
-                "displayName": user.display_name,
-                "emailVerified": user.email_verified
-            }
+            # Create user in our database
+            try:
+                logger.info(f"Creating user in database with uid: {firebase_user.uid}")
+                user_service.create_user(
+                    firebase_uid=firebase_user.uid,
+                    email=user_data.email,
+                    first_name=user_data.firstName,
+                    last_name=user_data.lastName
+                )
+                logger.info(f"Successfully created user in database with uid: {firebase_user.uid}")
+                
+                # Get the created user from database to return consistent response
+                db_user = user_service.get_user_by_firebase_uid(firebase_user.uid)
+                if not db_user:
+                    raise Exception("User was created but could not be retrieved")
+                
+                return {
+                    "uid": db_user['firebase_uid'],
+                    "email": db_user['email'],
+                    "firstName": db_user['first_name'],
+                    "lastName": db_user['last_name'],
+                    "created_at": db_user['created_at'].isoformat() if db_user['created_at'] else None
+                }
+                
+            except Exception as db_error:
+                # If database creation fails, delete the user from Firebase
+                logger.error(f"Failed to create user in database: {str(db_error)}")
+                try:
+                    auth.delete_user(firebase_user.uid)
+                    logger.info(f"Rolled back Firebase user creation for uid: {firebase_user.uid}")
+                except:
+                    logger.error(f"Failed to rollback Firebase user creation for uid: {firebase_user.uid}")
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to create user in database"
+                )
             
     except auth.EmailAlreadyExistsError as e:
         error_msg = f"Email already exists: {user_data.email}"
@@ -94,22 +146,57 @@ async def create_user(user_data: UserData) -> Dict[str, Any]:
 
 async def verify_token(id_token: str) -> Dict[str, Any]:
     """
-    Verify Firebase ID token.
+    Verify Firebase ID token and ensure user exists in our database.
     
     Args:
         id_token: Firebase ID token to verify
         
     Returns:
-        Dict containing decoded token information
+        Dict containing user information from our database
         
     Raises:
-        HTTPException: If token verification fails
+        HTTPException: If token verification fails or user not found in database
     """
     try:
         logger.info("Verifying Firebase ID token")
         decoded_token = auth.verify_id_token(id_token)
-        logger.info(f"Successfully verified token for uid: {decoded_token.get('uid')}")
-        return decoded_token
+        firebase_uid = decoded_token.get('uid')
+        
+        # Get user from Firebase
+        firebase_user = auth.get_user(firebase_uid)
+        
+        # Check if user exists in our database
+        user_service = UserService()
+        db_user = user_service.get_user_by_firebase_uid(firebase_uid)
+        
+        if not db_user:
+            # If user doesn't exist in our database, create them
+            # This handles Google Sign-in users
+            logger.info(f"Creating database entry for Firebase user: {firebase_uid}")
+            
+            # Split display name into first and last name
+            names = firebase_user.display_name.split(' ') if firebase_user.display_name else ['', '']
+            first_name = names[0]
+            last_name = ' '.join(names[1:]) if len(names) > 1 else ''
+            
+            user_service.create_user(
+                firebase_uid=firebase_uid,
+                email=firebase_user.email,
+                first_name=first_name,
+                last_name=last_name
+            )
+            
+            db_user = user_service.get_user_by_firebase_uid(firebase_uid)
+        
+        logger.info(f"Successfully verified token for uid: {firebase_uid}")
+        
+        return {
+            "uid": db_user['firebase_uid'],
+            "email": db_user['email'],
+            "firstName": db_user['first_name'],
+            "lastName": db_user['last_name'],
+            "created_at": db_user['created_at'].isoformat() if db_user['created_at'] else None
+        }
         
     except auth.InvalidIdTokenError as e:
         error_msg = "Invalid or expired authentication token"

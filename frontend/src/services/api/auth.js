@@ -87,23 +87,55 @@ export const register = async (userData) => {
     // Send verification email if we created a new user
     if (userCredential && userCredential.user) {
       console.log('Preparing to send verification email to:', userCredential.user.email);
+      
       try {
         // First update the profile
         await updateProfile(userCredential.user, {
           displayName: `${userData.firstName} ${userData.lastName}`
         });
         console.log('User profile updated successfully');
+
+        // Get the ID token to send to backend
+        const idToken = await userCredential.user.getIdToken();
+        
+        // Create user in backend database
+        console.log('Creating user in backend database...');
+        const response = await fetch(`${API_URL}/auth/register`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: userData.email,
+            password: userData.password,
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            created_at: new Date().toISOString() // Include the creation timestamp
+          }),
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.detail || 'Failed to create user in database');
+        }
+
+        // Get the response data
+        const responseData = await response.json();
+        console.log('User created in database:', responseData);
         
         // Then send verification email
         await sendVerificationEmail(userCredential.user);
         
       } catch (error) {
         console.error('Error during post-registration process:', error);
-        // Log specific error type
-        if (error.code) {
-          console.error('Firebase error code:', error.code);
+        // If backend creation fails, delete the user from Firebase
+        try {
+          await auth.currentUser.delete();
+        } catch (deleteError) {
+          console.error('Error deleting Firebase user after backend failure:', deleteError);
         }
-        throw error; // Propagate the error to show it to the user
+        throw error;
       }
     }
 
@@ -126,29 +158,47 @@ export const signInWithGoogle = async () => {
     console.log('Getting ID token...');
     const idToken = await result.user.getIdToken();
     
-    // Verify token with backend
-    console.log('Verifying token with backend...');
-    const response = await fetch(`${API_URL}/auth/verify-token`, {
+    // Extract user data from Google sign-in result
+    const names = result.user.displayName ? result.user.displayName.split(' ') : ['', ''];
+    const firstName = names[0];
+    const lastName = names.slice(1).join(' ');
+    
+    // Create or verify user in backend
+    console.log('Creating/verifying user in backend...');
+    const response = await fetch(`${API_URL}/auth/google-signin`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ idToken }),
+      body: JSON.stringify({
+        email: result.user.email,
+        firstName: firstName,
+        lastName: lastName,
+        idToken: idToken
+      }),
       credentials: 'include'
     });
 
-    console.log('Backend response status:', response.status);
-    const data = await response.json();
-    console.log('Backend response data:', data);
-
     if (!response.ok) {
+      const data = await response.json();
       throw new Error(data.detail || 'Google sign-in failed');
     }
 
-    console.log('Google sign-in completed successfully');
+    // Get the response data
+    const userData = await response.json();
+    console.log('User created/verified in database:', userData);
+
     return result.user;
   } catch (error) {
     console.error('Google sign-in error:', error);
+    // If the error is from our backend, try to clean up the Firebase user
+    if (error.message.includes('Google sign-in failed')) {
+      try {
+        await auth.currentUser?.delete();
+      } catch (deleteError) {
+        console.error('Error deleting Firebase user after backend failure:', deleteError);
+      }
+    }
     throw error;
   }
 };
