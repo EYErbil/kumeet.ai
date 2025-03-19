@@ -1,5 +1,4 @@
 from datetime import datetime
-import psycopg2
 from psycopg2 import sql
 from db import conn
 from utils.logger import setup_logger
@@ -29,6 +28,8 @@ CREATE TABLE IF NOT EXISTS meetings (
     duration_seconds INTEGER,
     original_video_path VARCHAR(500),
     audio_path VARCHAR(500),
+    start_time TIMESTAMP WITH TIME ZONE,
+    end_time TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_user FOREIGN KEY (firebase_uid) REFERENCES users(firebase_uid)
 );
@@ -62,24 +63,37 @@ CREATE_MEETING_SUMMARIES_TABLE = """
 CREATE TABLE IF NOT EXISTS meeting_summaries (
     summary_id SERIAL PRIMARY KEY,
     meeting_id INTEGER NOT NULL REFERENCES meetings(meeting_id) ON DELETE CASCADE,
-    summary_type VARCHAR(100) NOT NULL, -- e.g., "general", "action_items", "decisions"
+    summary_type VARCHAR(100), -- e.g., "general", "action_items", "decisions"
     content TEXT NOT NULL,              -- the actual summary content
-    generated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_meeting FOREIGN KEY (meeting_id) REFERENCES meetings(meeting_id)
+);
+"""
+
+CREATE_NOTES_TABLE = """
+CREATE TABLE IF NOT EXISTS notes (
+    note_id SERIAL PRIMARY KEY,
+    firebase_uid VARCHAR(128) NOT NULL REFERENCES users(firebase_uid) ON DELETE CASCADE,
+    meeting_id INTEGER REFERENCES meetings(meeting_id) ON DELETE CASCADE,
+    note_text TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_meeting FOREIGN KEY (meeting_id) REFERENCES meetings(meeting_id),
+    CONSTRAINT fk_user FOREIGN KEY (firebase_uid) REFERENCES users(firebase_uid)
 );
 """
 
 CREATE_ACTION_ITEMS_TABLE = """
 CREATE TABLE IF NOT EXISTS action_items (
     item_id SERIAL PRIMARY KEY,
-    meeting_id INTEGER NOT NULL REFERENCES meetings(meeting_id) ON DELETE CASCADE,
+    firebase_uid VARCHAR(128) NOT NULL REFERENCES users(firebase_uid) ON DELETE CASCADE,
+    meeting_id INTEGER REFERENCES meetings(meeting_id) ON DELETE CASCADE,
     description TEXT NOT NULL,
-    assignee VARCHAR(255),
     due_date DATE,
-    status VARCHAR(50) DEFAULT 'pending',
+    status VARCHAR(10) DEFAULT 'pending' CHECK (status IN ('pending', 'completed')),
     segment_id INTEGER REFERENCES speaker_segments(segment_id), -- to link back to the exact moment
     CONSTRAINT fk_meeting FOREIGN KEY (meeting_id) REFERENCES meetings(meeting_id),
-    CONSTRAINT fk_segment FOREIGN KEY (segment_id) REFERENCES speaker_segments(segment_id)
+    CONSTRAINT fk_segment FOREIGN KEY (segment_id) REFERENCES speaker_segments(segment_id),
+    CONSTRAINT fk_user FOREIGN KEY (firebase_uid) REFERENCES users(firebase_uid)
 );
 """
 
@@ -103,6 +117,16 @@ CREATE TABLE IF NOT EXISTS speaker_statistics (
     speaking_percentage DECIMAL(5, 2),           -- percentage of total meeting
     interruption_count INTEGER DEFAULT 0,
     CONSTRAINT fk_meeting FOREIGN KEY (meeting_id) REFERENCES meetings(meeting_id)
+);
+"""
+CREATE_FEEDBACK_TABLE = """
+CREATE TABLE IF NOT EXISTS feedback (
+    feedback_id SERIAL PRIMARY KEY,
+    firebase_uid VARCHAR(128) NOT NULL REFERENCES users(firebase_uid) ON DELETE CASCADE,
+    feedback_text TEXT NOT NULL,
+    feedback_type VARCHAR(20) NOT NULL CHECK (feedback_type IN ('general feedback', 'bug report', 'feature request', 'question')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_user FOREIGN KEY (firebase_uid) REFERENCES users(firebase_uid)
 );
 """
 
@@ -145,9 +169,11 @@ def init_db():
                 'speaker_segments': CREATE_SPEAKER_SEGMENTS_TABLE,
                 'speakers': CREATE_SPEAKERS_TABLE,
                 'meeting_summaries': CREATE_MEETING_SUMMARIES_TABLE,
+                'notes': CREATE_NOTES_TABLE,
                 'action_items': CREATE_ACTION_ITEMS_TABLE,
                 'decisions': CREATE_DECISIONS_TABLE,
-                'speaker_statistics': CREATE_SPEAKER_STATISTICS_TABLE
+                'speaker_statistics': CREATE_SPEAKER_STATISTICS_TABLE,
+                'feedback': CREATE_FEEDBACK_TABLE
             }
 
             # Create each table if it doesn't exist
