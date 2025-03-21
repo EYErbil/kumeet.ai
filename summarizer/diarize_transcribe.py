@@ -23,7 +23,7 @@ def get_whisper_model_name(quality_setting="normal", language=None):
     # Map language codes to English variants
     english_codes = {"en", "eng", "english"}
     is_english = language and language.lower() in english_codes
-    
+
     if quality_setting == "normal":
         # For normal quality, use base model
         return "base.en" if is_english else "base"
@@ -48,14 +48,14 @@ def single_pass_whisper(audio_file, quality_setting="normal", language=None):
     """
     # Get the appropriate model name based on settings
     whisper_model_name = get_whisper_model_name(quality_setting, language)
-    
+
     # Initialize faster-whisper model
     model = WhisperModel(
         whisper_model_name,
         device="cuda" if USE_GPU else "cpu",
         compute_type="float16" if USE_GPU else "int8"
     )
-    
+
     # Transcribe with faster-whisper
     segments, info = model.transcribe(
         audio_file,
@@ -63,7 +63,7 @@ def single_pass_whisper(audio_file, quality_setting="normal", language=None):
         vad_filter=True,
         vad_parameters=dict(min_silence_duration_ms=500)
     )
-    
+
     # Convert segments to the expected format
     result = {
         "segments": [
@@ -78,7 +78,7 @@ def single_pass_whisper(audio_file, quality_setting="normal", language=None):
         "language": info.language,  # This will be a 2-letter code like "en", "tr"
         "language_probability": info.language_probability
     }
-    
+
     return result
 
 
@@ -103,44 +103,44 @@ def merge_close_segments(segments, max_gap=GAP_THRESHOLD):
     """
     if not segments:
         return segments
-        
+
     # Sort segments by start time
     sorted_segments = sorted(segments, key=lambda x: x["start"])
     merged = []
     i = 0
-    
+
     while i < len(sorted_segments):
         current = sorted_segments[i]
         j = i + 1
-        
+
         # Look ahead to find segments from same speaker within max_gap
         while j < len(sorted_segments):
             next_seg = sorted_segments[j]
-            
+
             # Check if there are any other speakers between current and next_seg
             has_other_speaker = False
             for k in range(i + 1, j):
                 if sorted_segments[k]["speaker"] != current["speaker"]:
                     has_other_speaker = True
                     break
-            
+
             # Only merge if:
             # 1. Same speaker
             # 2. Within max_gap
             # 3. No other speakers between them
-            if (next_seg["speaker"] == current["speaker"] and 
-                next_seg["start"] - current["end"] <= max_gap and
-                not has_other_speaker):
+            if (next_seg["speaker"] == current["speaker"] and
+                    next_seg["start"] - current["end"] <= max_gap and
+                    not has_other_speaker):
                 # Merge the segments
                 current["end"] = next_seg["end"]
                 current["text"] = current["text"] + " " + next_seg["text"]
                 j += 1
             else:
                 break
-        
+
         merged.append(current)
         i = j
-    
+
     return merged
 
 
@@ -188,13 +188,13 @@ def combine_whisper_and_diarization(whisper_segments, diarization_annotation, mi
             spk_seg = speaker_segments[check_idx]
             seg_start = max(wstart, spk_seg["start"])
             seg_end = min(wend, spk_seg["end"])
-            
+
             if seg_end - seg_start > 0:
                 # Calculate the duration of this speaker's segment
                 duration = seg_end - seg_start
                 # Calculate the proportion of the whisper segment this speaker covers
                 proportion = duration / (wend - wstart)
-                
+
                 # Only add if this speaker has a significant portion of the segment
                 if proportion > 0.3:  # At least 30% of the segment
                     overlapping_speakers.append({
@@ -209,7 +209,7 @@ def combine_whisper_and_diarization(whisper_segments, diarization_annotation, mi
         if overlapping_speakers:
             # Sort by proportion (highest first) to prioritize the main speaker
             overlapping_speakers.sort(key=lambda x: x["proportion"], reverse=True)
-            
+
             # Only use the speaker with the highest proportion
             main_speaker = overlapping_speakers[0]
             final_segments.append({
@@ -228,10 +228,10 @@ def combine_whisper_and_diarization(whisper_segments, diarization_annotation, mi
 
     # sort by start
     filtered_final.sort(key=lambda x: x["start"])
-    
+
     # Merge close segments from the same speaker
     merged_final = merge_close_segments(filtered_final)
-    
+
     return merged_final
 
 
