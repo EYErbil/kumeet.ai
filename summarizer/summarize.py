@@ -5,8 +5,6 @@ import pandas as pd
 import json
 
 from transformers import pipeline
-# This import only works if you installed the correct library:
-#   pip install google-genai
 from google import genai
 
 from config import (
@@ -16,34 +14,22 @@ from config import (
     FOCUS_REQUEST
 )
 from db import load_transcript_from_db, save_summary_in_db
+from analysis import extract_items_with_scores_gemini, save_extracted_items_in_db
 
 ##############################################################################
-# Initialize Summarizers
+# Summarizer: Hugging Face
 ##############################################################################
-
-# If you still want HF summarizer
 hf_summarizer = pipeline("summarization", model=HF_SUMMARY_MODEL)
 
-# "gemini-2.0-flash" model
+# gemini is used for second partial summary
+GEMINI_API_KEY = "AIzaSyBcizqje0iym5bPHx-OoepPbGqGcuLADKM"
 gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 
-##############################################################################
-# Chunk Transcript
-##############################################################################
-
 def chunk_transcript_data(transcript, max_lines=10):
-    """
-    Splits the transcript (list of dicts) into chunk_text blocks, each up to `max_lines`.
-    Returns a list of:
-      [
-        {"chunk_text": str, "start": float, "end": float},
-        ...
-      ]
-    """
     chunks = []
     current_lines = []
     chunk_start = None
-    chunk_end = None
+    chunk_end   = None
 
     for entry in transcript:
         line_str = f"[{entry['start']:.2f}-{entry['end']:.2f}] {entry['speaker']}: {entry['text']}"
@@ -61,9 +47,8 @@ def chunk_transcript_data(transcript, max_lines=10):
             })
             current_lines = []
             chunk_start = None
-            chunk_end = None
+            chunk_end   = None
 
-    # leftover lines
     if current_lines:
         chunk_text = "\n".join(current_lines)
         s = chunk_start if chunk_start else 0.0
@@ -73,70 +58,49 @@ def chunk_transcript_data(transcript, max_lines=10):
             "start": s,
             "end": e
         })
-
     return chunks
 
-##############################################################################
-# Summarizer: Hugging Face
-##############################################################################
-
 def summarize_chunk_hf(chunk_text: str) -> str:
-    """
-    Summarize with Hugging Face pipeline
-    """
     result = hf_summarizer(chunk_text, max_length=200, min_length=50, do_sample=False)
     return result[0]["summary_text"]
-
-##############################################################################
-# Summarizer: Gemini w/ Custom Prompt
-##############################################################################
 
 def summarize_chunk_gemini(chunk_text: str, meeting_type: str, focus: str) -> str:
     """
     Summarize a chunk using gemini-2.0-flash, providing a custom prompt.
-    We'll embed `meeting_type` and `focus` instructions.
+    We'll embed `meeting_type` and `focus` instructions, and also
+    demand an importance_score for each bullet item.
+    We instruct gemini to keep all major details from the chunk.
     """
-    # Build your prompt
+
     prompt = (
         f"You are an AI assistant. This is a {meeting_type}.\n\n"
+        "IMPORTANT:\n"
+        "1) Keep every major detail from the transcript below. Do NOT omit or rephrase crucial facts.\n"
+        "2) Highlight tasks, decisions, deadlines, referencing approximate timestamps.\n"
+        "3) Assign an importance_score (1–10) to each bullet, indicating how critical it is.\n"
+        "4) Output bullet points in the format:\n\n"
+        "   * Bullet text (timestamp range) [score=X]\n"
+        "   Possibly multiple bullets.\n"
+        "5) If there's a single bullet, it must still follow the format.\n"
+        "6) None of the chunk's important details should be lost.\n\n"
         f"Transcript Chunk:\n{chunk_text}\n\n"
-        f"{focus}\n\n"
-        "Please summarize the chunk into bullet points, highlighting tasks, decisions, deadlines, "
-        "and referencing approximate timestamps if relevant."
+        f"Additional Focus: {focus}\n\n"
+        "Now produce bullet points per the instructions above."
     )
 
-    # Call gemini
     response = gemini_client.models.generate_content(
         model="gemini-2.0-flash",
         contents=prompt
     )
     return response.text
 
-##############################################################################
-# Combine Summaries
-##############################################################################
 
 def combine_summaries_simple(hf_summary: str, gemini_summary: str) -> str:
-    """
-    Simple merge of the two partial summaries.
-    """
     merged = "HuggingFace Summary:\n" + hf_summary.strip()
     merged += "\n\nGemini Summary:\n" + gemini_summary.strip()
     return merged
 
-##############################################################################
-# Summarize Transcript
-##############################################################################
-
 def summarize_transcript(session_id, output_dir):
-    """
-    1) Load transcript from DB
-    2) chunk
-    3) Summarize each chunk with HF + gemini
-    4) Combine partial summaries
-    5) Save final bullet list referencing chunk times
-    6) Store in DB + local file
-    """
     transcript = load_transcript_from_db(session_id)
     if not transcript:
         return None
@@ -145,14 +109,17 @@ def summarize_transcript(session_id, output_dir):
     final_data = []
 
     for idx, ch in enumerate(chunks):
-        # Summarize chunk with HF
-        hf_sum = summarize_chunk_hf(ch["chunk_text"])
-
-        # Summarize chunk with gemini, passing the meeting_type & focus from config
+        hf_sum  = summarize_chunk_hf(ch["chunk_text"])
         gem_sum = summarize_chunk_gemini(ch["chunk_text"], MEETING_TYPE, FOCUS_REQUEST)
 
-        # unify
+        # unify HF + gemini
         merged_summary = combine_summaries_simple(hf_sum, gem_sum)
+
+        # next, parse bullet items with importance score
+        items = extract_items_with_scores_gemini(merged_summary, idx+1, ch["start"], ch["end"])
+        # store them in DB
+        if items:
+            save_extracted_items_in_db(session_id, idx+1, items)
 
         final_data.append({
             "idx": idx + 1,
@@ -169,19 +136,10 @@ def summarize_transcript(session_id, output_dir):
         )
     final_summary = "\n".join(lines)
 
-    # store in DB
     save_summary_in_db(session_id, final_summary)
 
-    # store locally
     out_path = os.path.join(output_dir, "multimodel_summary.txt")
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(final_summary)
 
     return final_summary
-
-##############################################################################
-# End
-##############################################################################
-
-if __name__ == "__main__":
-    pass
