@@ -1,10 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { FaGoogle, FaMicrosoft, FaVideo, FaPlus, FaEllipsisH } from 'react-icons/fa';
+import { useTranslation } from 'react-i18next';
 import ROUTES from '../constants/routes';
 
 // Reusable meeting card component
 const MeetingCard = ({ meeting }) => {
+  const { t } = useTranslation();
   const { id, title, date, time, duration, description, category, attendees, platform } = meeting;
   
   // Platform icon based on meeting platform
@@ -50,7 +52,7 @@ const MeetingCard = ({ meeting }) => {
         <div className="flex justify-between items-center">
           <div>
             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
-              {category}
+              {t(`meetings.categories.${category.toLowerCase()}`)}
             </span>
           </div>
           
@@ -77,6 +79,8 @@ const MeetingCard = ({ meeting }) => {
 };
 
 const MeetingList = () => {
+  const { t } = useTranslation();
+
   // Sample meeting data
   const recentMeetings = [
     {
@@ -115,20 +119,26 @@ const MeetingList = () => {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Meetings</h1>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{t('meetings.list.title')}</h1>
         <Link 
           to={ROUTES.MEETINGS.NEW}
           className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center transition-colors"
         >
           <FaPlus className="mr-2" size={12} />
-          New Meeting
+          {t('meetings.list.newMeeting')}
         </Link>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {recentMeetings.map(meeting => (
-          <MeetingCard key={meeting.id} meeting={meeting} />
-        ))}
+        {recentMeetings.length > 0 ? (
+          recentMeetings.map(meeting => (
+            <MeetingCard key={meeting.id} meeting={meeting} />
+          ))
+        ) : (
+          <div className="col-span-3 text-center py-8">
+            <p className="text-gray-500 dark:text-gray-400">{t('meetings.list.noMeetings')}</p>
+          </div>
+        )}
       </div>
     </div>
   );

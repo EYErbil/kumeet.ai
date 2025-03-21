@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { FaBell, FaEnvelope, FaCheck } from 'react-icons/fa';
+import { useTranslation } from 'react-i18next';
 
 const NotificationSettings = () => {
+  const { t } = useTranslation();
+  
   // Notification settings state
   const [emailNotifications, setEmailNotifications] = useState({
     meetingReminders: true,
@@ -26,7 +29,7 @@ const NotificationSettings = () => {
     });
     
     // Here you would update the user's notification preferences in your backend
-    showNotification('Email notification settings updated', 'success');
+    showNotification(t('settings.notifications.settingsUpdated'), 'success');
   };
 
   // Handle in-app notification toggle
@@ -37,7 +40,7 @@ const NotificationSettings = () => {
     });
     
     // Here you would update the user's notification preferences in your backend
-    showNotification('In-app notification settings updated', 'success');
+    showNotification(t('settings.notifications.settingsUpdated'), 'success');
   };
 
   // Show notification
@@ -71,7 +74,7 @@ const NotificationSettings = () => {
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Notification Settings</h2>
+      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">{t('settings.notifications.title')}</h2>
       
       {/* Notification */}
       {notification && (
@@ -91,19 +94,19 @@ const NotificationSettings = () => {
       <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg mb-8">
         <div className="flex items-center mb-4">
           <FaEnvelope className="text-gray-700 dark:text-gray-300 mr-2" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">Email Notifications</h3>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">{t('settings.notifications.emailNotifications')}</h3>
         </div>
         
         <p className="text-gray-600 dark:text-gray-400 mb-4">
-          Control which email notifications you receive from kumeet.ai.
+          {t('settings.notifications.emailDescription')}
         </p>
         
         <div className="space-y-2 border-t border-gray-200 dark:border-gray-600 pt-4">
           <ToggleSwitch 
             checked={emailNotifications.meetingReminders} 
             onChange={() => handleEmailToggle('meetingReminders')}
-            label="Meeting Reminders"
-            description="Receive email reminders before your scheduled meetings"
+            label={t('settings.notifications.meetingAlerts')}
+            description={t('settings.notifications.meetingAlertsDescription')}
           />
           
           <div className="border-t border-gray-200 dark:border-gray-600"></div>
@@ -111,8 +114,8 @@ const NotificationSettings = () => {
           <ToggleSwitch 
             checked={emailNotifications.actionItemReminders} 
             onChange={() => handleEmailToggle('actionItemReminders')}
-            label="Action Item Reminders"
-            description="Receive reminders about your upcoming and overdue action items"
+            label={t('settings.notifications.actionItemReminders')}
+            description={t('settings.notifications.actionItemRemindersDescription')}
           />
           
           <div className="border-t border-gray-200 dark:border-gray-600"></div>
@@ -120,8 +123,8 @@ const NotificationSettings = () => {
           <ToggleSwitch 
             checked={emailNotifications.meetingSummaries} 
             onChange={() => handleEmailToggle('meetingSummaries')}
-            label="Meeting Summaries"
-            description="Receive email summaries after your meetings"
+            label={t('settings.notifications.meetingSummaries')}
+            description={t('settings.notifications.meetingSummariesDescription')}
           />
           
           <div className="border-t border-gray-200 dark:border-gray-600"></div>
@@ -129,8 +132,8 @@ const NotificationSettings = () => {
           <ToggleSwitch 
             checked={emailNotifications.mentions} 
             onChange={() => handleEmailToggle('mentions')}
-            label="Mentions in Notes"
-            description="Receive notifications when you are mentioned in meeting notes"
+            label={t('settings.notifications.mentions')}
+            description={t('settings.notifications.mentionsDescription')}
           />
         </div>
       </div>
@@ -139,19 +142,19 @@ const NotificationSettings = () => {
       <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg">
         <div className="flex items-center mb-4">
           <FaBell className="text-gray-700 dark:text-gray-300 mr-2" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">In-app Notifications</h3>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">{t('settings.notifications.inAppNotifications')}</h3>
         </div>
         
         <p className="text-gray-600 dark:text-gray-400 mb-4">
-          Control which notifications you see while using kumeet.ai.
+          {t('settings.notifications.inAppDescription')}
         </p>
         
         <div className="space-y-2 border-t border-gray-200 dark:border-gray-600 pt-4">
           <ToggleSwitch 
             checked={inAppNotifications.meetingAlerts} 
             onChange={() => handleInAppToggle('meetingAlerts')}
-            label="Meeting Start Alerts"
-            description="Receive alerts when your meetings are about to start"
+            label={t('settings.notifications.meetingAlerts')}
+            description={t('settings.notifications.meetingAlertsDescription')}
           />
           
           <div className="border-t border-gray-200 dark:border-gray-600"></div>
@@ -159,8 +162,8 @@ const NotificationSettings = () => {
           <ToggleSwitch 
             checked={inAppNotifications.actionItemDueDate} 
             onChange={() => handleInAppToggle('actionItemDueDate')}
-            label="Action Item Due Date Reminders"
-            description="Receive reminders when action items are due"
+            label={t('settings.notifications.actionItemReminders')}
+            description={t('settings.notifications.actionItemRemindersDescription')}
           />
           
           <div className="border-t border-gray-200 dark:border-gray-600"></div>
@@ -168,8 +171,8 @@ const NotificationSettings = () => {
           <ToggleSwitch 
             checked={inAppNotifications.newSharedNotes} 
             onChange={() => handleInAppToggle('newSharedNotes')}
-            label="New Shared Notes"
-            description="Receive notifications when new notes are shared with you"
+            label={t('settings.notifications.sharedNotes')}
+            description={t('settings.notifications.sharedNotesDescription')}
           />
         </div>
       </div>

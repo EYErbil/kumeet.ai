@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { FaCommentDots, FaCheck, FaExclamationTriangle, FaLightbulb, FaBug, FaQuestionCircle } from 'react-icons/fa';
+import { useTranslation } from 'react-i18next';
 
 const FeedbackSettings = () => {
+  const { t } = useTranslation();
+  
   // Feedback state
   const [feedbackType, setFeedbackType] = useState('general');
   const [feedbackText, setFeedbackText] = useState('');
@@ -23,7 +26,7 @@ const FeedbackSettings = () => {
     e.preventDefault();
     
     if (!feedbackText.trim()) {
-      showNotification('Please enter your feedback', 'error');
+      showNotification(t('settings.feedback.enterFeedback'), 'error');
       return;
     }
     
@@ -34,7 +37,7 @@ const FeedbackSettings = () => {
     setTimeout(() => {
       setFeedbackText('');
       setSubmitting(false);
-      showNotification('Thank you for your feedback!', 'success');
+      showNotification(t('settings.feedback.feedbackSent'), 'success');
     }, 1000);
   };
 
@@ -48,33 +51,33 @@ const FeedbackSettings = () => {
   const feedbackTypes = [
     {
       id: 'general',
-      label: 'General Feedback',
+      label: t('settings.feedback.generalFeedback'),
       icon: <FaCommentDots />,
-      description: 'Share your overall experience with kumeet.ai',
+      description: t('settings.feedback.generalFeedbackDescription'),
     },
     {
       id: 'feature',
-      label: 'Feature Request',
+      label: t('settings.feedback.featureRequest'),
       icon: <FaLightbulb />,
-      description: 'Suggest new features or improvements',
+      description: t('settings.feedback.featureRequestDescription'),
     },
     {
       id: 'bug',
-      label: 'Bug Report',
+      label: t('settings.feedback.bugReport'),
       icon: <FaBug />,
-      description: 'Report issues or unexpected behavior',
+      description: t('settings.feedback.bugReportDescription'),
     },
     {
       id: 'question',
-      label: 'Question',
+      label: t('settings.feedback.question'),
       icon: <FaQuestionCircle />,
-      description: 'Ask a question about how to use kumeet.ai',
+      description: t('settings.feedback.questionDescription'),
     },
   ];
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Feedback</h2>
+      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">{t('settings.feedback.title')}</h2>
       
       {/* Notification */}
       {notification && (
@@ -98,17 +101,17 @@ const FeedbackSettings = () => {
       <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg mb-8">
         <div className="flex items-center mb-4">
           <FaCommentDots className="text-gray-700 dark:text-gray-300 mr-2" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">Share Your Feedback</h3>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">{t('settings.feedback.yourFeedback')}</h3>
         </div>
         
         <p className="text-gray-600 dark:text-gray-400 mb-6">
-          We value your feedback and are constantly working to improve kumeet.ai. Please share your thoughts, suggestions, or report any issues you've encountered.
+          {t('settings.feedback.generalFeedbackDescription')}
         </p>
         
         <form onSubmit={handleSubmitFeedback}>
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Feedback Type
+              {t('settings.feedback.feedbackType')}
             </label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {feedbackTypes.map((type) => (
@@ -140,7 +143,7 @@ const FeedbackSettings = () => {
           
           <div className="mb-6">
             <label htmlFor="feedback-text" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Your Feedback
+              {t('settings.feedback.yourFeedback')}
             </label>
             <textarea
               id="feedback-text"
@@ -148,12 +151,11 @@ const FeedbackSettings = () => {
               onChange={handleFeedbackTextChange}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               rows="5"
-              placeholder={`Share your ${feedbackType === 'general' ? 'thoughts' : feedbackType === 'feature' ? 'feature idea' : feedbackType === 'bug' ? 'bug details' : 'question'} here...`}
-              required
+              placeholder={t(`settings.feedback.placeholders.${feedbackType}`)}
             ></textarea>
             {feedbackType === 'bug' && (
               <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                Please include steps to reproduce the issue, expected behavior, and any error messages you received.
+                {t('settings.feedback.bugReportHelp')}
               </p>
             )}
           </div>
@@ -161,10 +163,10 @@ const FeedbackSettings = () => {
           <div className="flex justify-end">
             <button
               type="submit"
-              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 flex items-center"
               disabled={submitting}
+              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {submitting ? 'Submitting...' : 'Submit Feedback'}
+              {submitting ? t('settings.feedback.submitting') : t('settings.feedback.submitFeedback')}
             </button>
           </div>
         </form>
@@ -174,50 +176,33 @@ const FeedbackSettings = () => {
       <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg">
         <div className="flex items-center mb-4">
           <FaQuestionCircle className="text-gray-700 dark:text-gray-300 mr-2" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">Help Resources</h3>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">{t('settings.feedback.helpResources.title')}</h3>
         </div>
         
-        <p className="text-gray-600 dark:text-gray-400 mb-6">
-          Need help with kumeet.ai? Check out these resources:
-        </p>
-        
-        <div className="space-y-4">
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
-            <h4 className="font-medium text-gray-900 dark:text-white mb-2">Knowledge Base</h4>
-            <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
-              Find answers to common questions and learn how to use kumeet.ai effectively.
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-white dark:bg-gray-800 p-5 rounded-lg border border-gray-200 dark:border-gray-700">
+            <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">{t('settings.feedback.helpResources.faq')}</h4>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              {t('settings.feedback.helpResources.faqDescription')}
             </p>
             <a 
               href="#" 
-              className="text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 text-sm font-medium"
+              className="text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 font-medium"
             >
-              Browse Knowledge Base
+              {t('settings.legal.view')}
             </a>
           </div>
           
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
-            <h4 className="font-medium text-gray-900 dark:text-white mb-2">Video Tutorials</h4>
-            <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
-              Watch step-by-step tutorials on how to use kumeet.ai features.
+          <div className="bg-white dark:bg-gray-800 p-5 rounded-lg border border-gray-200 dark:border-gray-700">
+            <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">{t('settings.feedback.helpResources.documentation')}</h4>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              {t('settings.feedback.helpResources.documentationDescription')}
             </p>
             <a 
               href="#" 
-              className="text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 text-sm font-medium"
+              className="text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 font-medium"
             >
-              View Tutorials
-            </a>
-          </div>
-          
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
-            <h4 className="font-medium text-gray-900 dark:text-white mb-2">Contact Support</h4>
-            <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
-              Need personalized help? Our support team is ready to assist you.
-            </p>
-            <a 
-              href="mailto:support@kumeet.ai" 
-              className="text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 text-sm font-medium"
-            >
-              Contact Support
+              {t('settings.legal.view')}
             </a>
           </div>
         </div>

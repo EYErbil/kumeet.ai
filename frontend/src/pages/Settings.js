@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FaUser, FaGlobe, FaBell, FaPlug, FaCreditCard, FaCommentDots, FaFileContract } from 'react-icons/fa';
+import { useTranslation } from 'react-i18next';
 
 // Settings page components
 import ProfileSettings from '../components/settings/ProfileSettings';
@@ -11,6 +12,7 @@ import FeedbackSettings from '../components/settings/FeedbackSettings';
 import LegalSettings from '../components/settings/LegalSettings';
 
 const Settings = () => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('profile');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
@@ -26,13 +28,13 @@ const Settings = () => {
 
   // Tab configuration
   const tabs = [
-    { id: 'profile', label: 'Profile', icon: <FaUser /> },
-    { id: 'language', label: 'Language', icon: <FaGlobe /> },
-    { id: 'notifications', label: 'Notifications', icon: <FaBell /> },
-    { id: 'integrations', label: 'Integrations', icon: <FaPlug /> },
-    { id: 'billing', label: 'Billing', icon: <FaCreditCard /> },
-    { id: 'feedback', label: 'Feedback', icon: <FaCommentDots /> },
-    { id: 'legal', label: 'Legal', icon: <FaFileContract /> },
+    { id: 'profile', label: t('settings.profile.title'), icon: <FaUser /> },
+    { id: 'language', label: t('settings.language.title'), icon: <FaGlobe /> },
+    { id: 'notifications', label: t('settings.notifications.title'), icon: <FaBell /> },
+    { id: 'integrations', label: t('settings.integrations.title'), icon: <FaPlug /> },
+    { id: 'billing', label: t('settings.billing.title'), icon: <FaCreditCard /> },
+    { id: 'feedback', label: t('settings.feedback.title'), icon: <FaCommentDots /> },
+    { id: 'legal', label: t('settings.legal.title'), icon: <FaFileContract /> },
   ];
 
   // Render the active tab content
@@ -59,7 +61,7 @@ const Settings = () => {
 
   return (
     <div className="h-full flex flex-col">
-      <h1 className="text-2xl font-semibold text-gray-900 dark:text-white p-6 pb-4">Settings</h1>
+      <h1 className="text-2xl font-semibold text-gray-900 dark:text-white p-6 pb-4">{t('settings.title')}</h1>
       
       <div className="flex-1 bg-white dark:bg-gray-800 rounded-lg shadow mx-6 mb-6 overflow-hidden flex flex-col">
         <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} h-full`}>

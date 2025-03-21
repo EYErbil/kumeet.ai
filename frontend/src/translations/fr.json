@@ -1,0 +1,258 @@
+{
+  "common": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "success": "Succès",
+    "languageChanged": "Langue changée en {{language}}",
+    "darkMode": "Mode Sombre"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "integrations": {
+      "title": "Intégrations",
+      "description": "Connecter avec des services tiers"
+    },
+    "language": {
+      "title": "Paramètres de Langue",
+      "description": "Sélectionnez votre langue préférée pour l'interface kumeet.ai",
+      "applicationLanguage": "Langue de l'Application",
+      "meetingLanguage": "Langue des Réunions",
+      "meetingDescription": "Sélectionnez la langue par défaut pour les nouvelles réunions",
+      "languageChanged": "Langue changée en {{language}}"
+    },
+    "profile": {
+      "title": "Paramètres du Profil",
+      "description": "Gérez vos informations personnelles",
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "emailAddress": "Adresse Email",
+      "userInformation": "Informations Utilisateur",
+      "passwordManagement": "Gestion du Mot de Passe",
+      "changePassword": "Changer le Mot de Passe",
+      "currentPassword": "Mot de Passe Actuel",
+      "newPassword": "Nouveau Mot de Passe",
+      "confirmPassword": "Confirmer le Nouveau Mot de Passe",
+      "updatePassword": "Mettre à Jour le Mot de Passe",
+      "passwordLastChanged": "Votre mot de passe a été changé pour la dernière fois le",
+      "verified": "Vérifié",
+      "verifyEmail": "Vérifier l'Email",
+      "saveChanges": "Enregistrer les Modifications",
+      "profileUpdated": "Profil mis à jour avec succès",
+      "passwordChanged": "Mot de passe changé avec succès",
+      "passwordsDoNotMatch": "Les nouveaux mots de passe ne correspondent pas",
+      "pictureUpdated": "Photo de profil mise à jour"
+    },
+    "notifications": {
+      "title": "Paramètres de Notification",
+      "description": "Contrôlez vos préférences de notification",
+      "emailNotifications": "Notifications par Email",
+      "emailDescription": "Choisissez quelles notifications par email recevoir",
+      "inAppNotifications": "Notifications dans l'Application",
+      "inAppDescription": "Contrôlez quelles notifications vous voyez en utilisant kumeet.ai",
+      "meetingAlerts": "Alertes de Réunion",
+      "meetingAlertsDescription": "Soyez notifié lorsque vos réunions commencent",
+      "actionItemReminders": "Rappels d'Éléments d'Action",
+      "actionItemRemindersDescription": "Recevez des rappels lorsque vos éléments d'action sont dus",
+      "sharedNotes": "Notes Partagées",
+      "sharedNotesDescription": "Soyez notifié lorsque de nouvelles notes sont partagées avec vous"
+    },
+    "feedback": {
+      "title": "Retour d'Information",
+      "generalFeedback": "Retour Général",
+      "generalFeedbackDescription": "Partagez votre expérience avec kumeet.ai",
+      "featureRequest": "Demande de Fonctionnalité",
+      "featureRequestDescription": "Suggérez de nouvelles fonctionnalités ou améliorations",
+      "bugReport": "Signalement de Bug",
+      "bugReportDescription": "Signalez des problèmes ou comportements inattendus",
+      "question": "Question",
+      "questionDescription": "Posez une question sur l'utilisation de kumeet.ai",
+      "yourFeedback": "Votre Retour",
+      "submitFeedback": "Soumettre le Retour",
+      "submitting": "Soumission en cours...",
+      "feedbackSent": "Retour envoyé avec succès",
+      "feedbackType": "Type de Retour",
+      "bugReportHelp": "Veuillez inclure les étapes pour reproduire le problème, le comportement attendu et tout message d'erreur que vous avez reçu.",
+      "placeholders": {
+        "general": "Partagez vos pensées ici...",
+        "feature": "Décrivez votre idée de fonctionnalité ici...",
+        "bug": "Partagez les détails du bug ici...",
+        "question": "Que souhaitez-vous savoir ?"
+      },
+      "helpResources": {
+        "title": "Ressources d'Aide",
+        "faq": "Questions Fréquemment Posées",
+        "faqDescription": "Trouvez des réponses aux questions courantes sur kumeet.ai",
+        "documentation": "Documentation",
+        "documentationDescription": "Guides détaillés sur l'utilisation des fonctionnalités de kumeet.ai"
+      }
+    },
+    "billing": {
+      "title": "Facturation et Abonnement",
+      "currentPlan": "Plan Actuel",
+      "upgrade": "Mettre à Niveau",
+      "downgrade": "Rétrograder",
+      "planUpdated": "Votre plan a été mis à jour vers",
+      "paymentMethodAdded": "Méthode de paiement ajoutée avec succès",
+      "defaultPaymentMethodUpdated": "Méthode de paiement par défaut mise à jour",
+      "paymentMethodRemoved": "Méthode de paiement supprimée",
+      "invoiceDownloaded": "Facture téléchargée",
+      "usageStats": {
+        "title": "Statistiques d'Utilisation",
+        "meetingsThisMonth": "Réunions Ce Mois",
+        "meetingMinutes": "Minutes de Réunion",
+        "actionItems": "Éléments d'Action",
+        "transcriptionMinutes": "Minutes de Transcription",
+        "increaseFromLastMonth": "{{percentage}}% par rapport au mois dernier",
+        "viewAnalytics": "Voir les Analyses Détaillées"
+      },
+      "plans": {
+        "basic": {
+          "name": "Basique",
+          "description": "Plan gratuit avec fonctionnalités limitées",
+          "features": {
+            "0": "5 réunions par mois",
+            "1": "Résumés IA basiques",
+            "2": "Suivi des éléments d'action"
+          }
+        },
+        "pro": {
+          "name": "Pro",
+          "description": "Idéal pour les professionnels et petites équipes",
+          "features": {
+            "0": "Réunions illimitées",
+            "1": "Résumés IA avancés",
+            "2": "Suivi des éléments d'action",
+            "3": "Intégrations de calendrier",
+            "4": "Collaboration d'équipe"
+          }
+        },
+        "enterprise": {
+          "name": "Entreprise",
+          "description": "Pour les grandes organisations avec des besoins avancés",
+          "features": {
+            "0": "Tout ce qui est dans Pro",
+            "1": "Analyses avancées",
+            "2": "Intégrations personnalisées",
+            "3": "Support dédié",
+            "4": "SSO et sécurité avancée"
+          }
+        }
+      }
+    },
+    "legal": {
+      "title": "Paramètres Légaux",
+      "termsAndConditions": "Conditions d'Utilisation",
+      "termsDescription": "Les conditions qui régissent l'utilisation de kumeet.ai",
+      "privacyPolicy": "Politique de Confidentialité",
+      "privacyDescription": "Comment nous collectons, utilisons et protégeons vos données personnelles",
+      "cookiePolicy": "Politique des Cookies",
+      "cookieDescription": "Comment nous utilisons les cookies et technologies similaires",
+      "dataProcessing": "Accord de Traitement des Données",
+      "dataProcessingDescription": "Comment nous traitons et protégeons vos données conformément aux réglementations",
+      "lastUpdated": "Dernière mise à jour :",
+      "view": "Voir"
+    }
+  },
+  "meetings": {
+    "newMeeting": "Nouvelle Réunion",
+    "title": "Titre de la Réunion",
+    "meetingName": "Nom de la Réunion",
+    "description": "Description",
+    "date": "Date",
+    "time": "Heure",
+    "participants": "Participants",
+    "language": "Langue",
+    "uploadRecording": "Télécharger l'Enregistrement",
+    "dragAndDrop": "ou glissez-déposez",
+    "uploadFile": "Télécharger un Fichier",
+    "fileFormats": "MP4, WebM ou MOV, maximum 2 GB",
+    "selected": "Sélectionné :",
+    "create": "Créer la Réunion",
+    "recentMeetings": "Réunions Récentes",
+    "cancel": "Annuler",
+    "list": {
+      "title": "Réunions", 
+      "newMeeting": "Nouvelle Réunion",
+      "noMeetings": "Aucune réunion trouvée",
+      "viewAll": "Voir Tout",
+      "filter": "Filtrer les Réunions",
+      "upcoming": "À venir",
+      "past": "Passées",
+      "all": "Toutes"
+    }
+  },
+  "sidebar": {
+    "home": "Accueil",
+    "meetings": "Réunions",
+    "notes": "Notes",
+    "actionItems": "Tâches",
+    "settings": "Paramètres",
+    "logout": "Déconnexion"
+  },
+  "actionItems": {
+    "title": "Éléments d'Action",
+    "newActionItem": "Nouvel Élément d'Action",
+    "all": "Tous",
+    "active": "Actifs",
+    "completed": "Terminés",
+    "noActionItems": "Aucun élément d'action trouvé.",
+    "dueDate": "Date d'Échéance",
+    "description": "Description",
+    "status": "Statut",
+    "add": "Ajouter un Élément",
+    "update": "Mettre à jour",
+    "delete": "Supprimer",
+    "whatToBeDone": "Que faut-il faire ?",
+    "relatedMeeting": "Réunion Associée",
+    "meetingNameOptional": "Nom de la réunion (facultatif)"
+  },
+  "dashboard": {
+    "title": "Tableau de Bord",
+    "newMeeting": "Nouvelle Réunion",
+    "stats": {
+      "totalMeetings": "Total Réunions",
+      "meetingTime": "Temps de Réunion",
+      "actionItems": "Tâches",
+      "participants": "Participants",
+      "last30Days": "30 derniers jours",
+      "completed": "complétées",
+      "activeContributors": "Contributeurs actifs"
+    },
+    "recentMeetings": {
+      "title": "Réunions récentes",
+      "seeAll": "Voir tout",
+      "noMeetings": "Aucune réunion récente"
+    },
+    "todaysPlan": {
+      "title": "Plan du Jour",
+      "meetings": "Réunions",
+      "actionItems": "Tâches",
+      "dueToday": "À faire aujourd'hui"
+    },
+    "upcomingMeetings": {
+      "title": "Réunions à venir",
+      "tomorrow": "Demain",
+      "scheduleNew": "Planifier une nouvelle réunion"
+    }
+  },
+  "notes": {
+    "title": "Notes de Réunion",
+    "newNote": "Nouvelle Note",
+    "searchPlaceholder": "Rechercher des notes...",
+    "noNotesFound": "Aucune note trouvée. Essayez un terme de recherche différent ou créez une nouvelle note.",
+    "noNoteSelected": "Aucune note sélectionnée",
+    "selectOrCreate": "Sélectionnez une note dans la liste ou créez-en une nouvelle",
+    "createNewNote": "Créer une Nouvelle Note",
+    "noteTitle": "Titre",
+    "noteDate": "Date",
+    "noteContent": "Contenu",
+    "titlePlaceholder": "Entrez le titre de la note",
+    "datePlaceholder": "Entrez la date (ex: 15 mai 2024)",
+    "contentPlaceholder": "Entrez le contenu de la note ici...",
+    "updated": "Mis à jour"
+  }
+} 

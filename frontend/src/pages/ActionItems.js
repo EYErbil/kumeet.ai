@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { FaPlus, FaTimes } from 'react-icons/fa';
+import { useTranslation } from 'react-i18next';
 import ROUTES from '../constants/routes';
 
 // Modal component for adding new action items
 const AddActionItemModal = ({ isOpen, onClose, onAdd }) => {
+  const { t } = useTranslation();
   const [newItem, setNewItem] = useState({
     text: '',
     meeting: '',
@@ -31,7 +33,7 @@ const AddActionItemModal = ({ isOpen, onClose, onAdd }) => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-md">
         <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-medium text-gray-900 dark:text-white">Add New Action Item</h2>
+          <h2 className="text-lg font-medium text-gray-900 dark:text-white">{t('actionItems.newActionItem')}</h2>
           <button 
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
@@ -43,34 +45,34 @@ const AddActionItemModal = ({ isOpen, onClose, onAdd }) => {
         <form onSubmit={handleSubmit} className="p-4">
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Action Item
+              {t('actionItems.description')}
             </label>
             <input
               type="text"
               value={newItem.text}
               onChange={(e) => setNewItem({...newItem, text: e.target.value})}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white"
-              placeholder="What needs to be done?"
+              placeholder={t('actionItems.whatToBeDone')}
               required
             />
           </div>
           
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Related Meeting
+              {t('actionItems.relatedMeeting')}
             </label>
             <input
               type="text"
               value={newItem.meeting}
               onChange={(e) => setNewItem({...newItem, meeting: e.target.value})}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white"
-              placeholder="Meeting name (optional)"
+              placeholder={t('actionItems.meetingNameOptional')}
             />
           </div>
           
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Due Date
+              {t('actionItems.dueDate')}
             </label>
             <input
               type="date"
@@ -81,19 +83,19 @@ const AddActionItemModal = ({ isOpen, onClose, onAdd }) => {
             />
           </div>
           
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="mr-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+              className="px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-md hover:bg-gray-400 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
             >
-              Add Item
+              {t('actionItems.add')}
             </button>
           </div>
         </form>
@@ -104,6 +106,7 @@ const AddActionItemModal = ({ isOpen, onClose, onAdd }) => {
 
 // Action item component
 const ActionItem = ({ item, onToggleComplete }) => {
+  const { t } = useTranslation();
   return (
     <div className="flex items-start p-4 border-b border-gray-100 dark:border-gray-700">
       <input 
@@ -121,7 +124,7 @@ const ActionItem = ({ item, onToggleComplete }) => {
             <span className="text-xs text-gray-500 dark:text-gray-400">{item.meeting}</span>
           )}
           {item.meeting && <span className="mx-2 text-xs text-gray-400 dark:text-gray-500">•</span>}
-          <span className="text-xs text-gray-500 dark:text-gray-400">Due: {item.dueDate}</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">{t('actionItems.dueDate')}: {item.dueDate}</span>
         </div>
       </div>
     </div>
@@ -129,6 +132,8 @@ const ActionItem = ({ item, onToggleComplete }) => {
 };
 
 const ActionItems = () => {
+  const { t } = useTranslation();
+  
   // Sample action items data - in a real app, this would come from an API
   const [actionItems, setActionItems] = useState([
     {
@@ -183,13 +188,13 @@ const ActionItems = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Action Items</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('actionItems.title')}</h1>
         <button
           onClick={() => setIsModalOpen(true)}
           className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
         >
           <FaPlus className="mr-2" size={12} />
-          New Action Item
+          {t('actionItems.newActionItem')}
         </button>
       </div>
 
@@ -203,7 +208,7 @@ const ActionItems = () => {
             }`}
             onClick={() => setFilter('all')}
           >
-            All
+            {t('actionItems.all')}
           </button>
           <button
             className={`px-4 py-3 text-sm font-medium ${
@@ -213,7 +218,7 @@ const ActionItems = () => {
             }`}
             onClick={() => setFilter('active')}
           >
-            Active
+            {t('actionItems.active')}
           </button>
           <button
             className={`px-4 py-3 text-sm font-medium ${
@@ -223,7 +228,7 @@ const ActionItems = () => {
             }`}
             onClick={() => setFilter('completed')}
           >
-            Completed
+            {t('actionItems.completed')}
           </button>
         </div>
 
@@ -238,7 +243,7 @@ const ActionItems = () => {
             ))
           ) : (
             <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-              No action items found.
+              {t('actionItems.noActionItems')}
             </div>
           )}
         </div>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FaChevronLeft, FaChevronRight, FaGoogle, FaMicrosoft, FaVideo, FaUpload, FaMicrophone, FaUserCircle } from 'react-icons/fa';
+import { useTranslation } from 'react-i18next';
 import MeetingList from './MeetingList';
 
 // Tab component for meeting creation options
@@ -19,12 +20,31 @@ const MeetingTypeTab = ({ icon, label, active, onClick }) => {
 };
 
 const NewMeeting = () => {
+  const { t, i18n } = useTranslation();
   const [activeTab, setActiveTab] = useState('online');
   const [meetingUrl, setMeetingUrl] = useState('');
   const [meetingName, setMeetingName] = useState('');
-  const [selectedLanguage, setSelectedLanguage] = useState('English');
-  const [botName, setBotName] = useState('Meetmind Bot');
   const [selectedFile, setSelectedFile] = useState(null);
+  const [botName, setBotName] = useState('Meetmind Bot');
+
+  // Available languages with their flags - using the same list as in LanguageSettings
+  const languages = [
+    { code: 'en', name: 'English', nativeName: 'English', flag: '🇺🇸' },
+    { code: 'es', name: 'Spanish', nativeName: 'Español', flag: '🇪🇸' },
+    { code: 'de', name: 'German', nativeName: 'Deutsch', flag: '🇩🇪' },
+    { code: 'tr', name: 'Turkish', nativeName: 'Türkçe', flag: '🇹🇷' },
+    { code: 'it', name: 'Italian', nativeName: 'Italiano', flag: '🇮🇹' },
+    { code: 'fr', name: 'French', nativeName: 'Français', flag: '🇫🇷' },
+  ];
+
+  // Get proper language display name
+  const getLanguageDisplayName = (language) => {
+    if (i18n.language === 'en') {
+      return language.name;
+    } else {
+      return language.nativeName;
+    }
+  };
 
   // Today's meetings data
   const todayMeetings = [
@@ -79,7 +99,7 @@ const NewMeeting = () => {
             <Link to="/meetings" className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200">
               <FaChevronLeft size={16} />
             </Link>
-            <h1 className="ml-4 text-xl font-semibold text-gray-900 dark:text-white">New Meeting</h1>
+            <h1 className="ml-4 text-xl font-semibold text-gray-900 dark:text-white">{t('meetings.newMeeting')}</h1>
           </div>
         </div>
       </div>
@@ -91,7 +111,7 @@ const NewMeeting = () => {
             {/* Meeting Name */}
             <div className="mb-6">
               <label htmlFor="meetingName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Meeting name
+                {t('meetings.meetingName')}
               </label>
               <input
                 type="text"
@@ -106,24 +126,24 @@ const NewMeeting = () => {
             {/* Upload Section */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Upload recording
+                {t('meetings.uploadRecording')}
               </label>
               <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-purple-300 dark:hover:border-purple-500 transition-colors">
                 <div className="space-y-1 text-center">
                   <FaUpload className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
                   <div className="flex text-sm text-gray-600 dark:text-gray-400">
                     <label htmlFor="file-upload" className="relative cursor-pointer rounded-md font-medium text-purple-600 dark:text-purple-400 hover:text-purple-500">
-                      <span>Upload a file</span>
+                      <span>{t('meetings.uploadFile')}</span>
                       <input id="file-upload" name="file-upload" type="file" className="sr-only" onChange={handleFileChange} accept="video/*" />
                     </label>
-                    <p className="pl-1">or drag and drop</p>
+                    <p className="pl-1">{t('meetings.dragAndDrop')}</p>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    MP4, WebM, or MOV up to 2GB
+                    {t('meetings.fileFormats')}
                   </p>
                   {selectedFile && (
                     <p className="text-sm text-purple-600 dark:text-purple-400 mt-2">
-                      Selected: {selectedFile.name}
+                      {t('meetings.selected')} {selectedFile.name}
                     </p>
                   )}
                 </div>
@@ -133,18 +153,19 @@ const NewMeeting = () => {
             {/* Language Selection */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Meeting language
+                {t('meetings.language')}
               </label>
               <div className="relative">
                 <select 
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white appearance-none"
-                  value={selectedLanguage}
-                  onChange={(e) => setSelectedLanguage(e.target.value)}
+                  value={i18n.language}
+                  onChange={(e) => i18n.changeLanguage(e.target.value)}
                 >
-                  <option>English</option>
-                  <option>Spanish</option>
-                  <option>French</option>
-                  <option>German</option>
+                  {languages.map((language) => (
+                    <option key={language.code} value={language.code}>
+                      {language.flag} {getLanguageDisplayName(language)}
+                    </option>
+                  ))}
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
                   <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -158,15 +179,15 @@ const NewMeeting = () => {
             <div className="flex items-center justify-end space-x-4">
               <Link
                 to="/meetings"
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                className="px-4 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
               >
-                Cancel
+                {t('common.cancel')}
               </Link>
               <button
-                type="submit"
-                className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors"
+                onClick={handleStartCapturing}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
               >
-                Create Meeting
+                {t('meetings.create')}
               </button>
             </div>
           </div>
@@ -174,7 +195,7 @@ const NewMeeting = () => {
 
         {/* Recent Meetings Section */}
         <div className="mt-8">
-          <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Recent meetings</h2>
+          <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">{t('meetings.recentMeetings')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Sample meeting cards - you can map through actual data here */}
             {[1, 2].map((index) => (

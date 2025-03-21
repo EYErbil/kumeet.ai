@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FaPlus, FaChevronRight, FaGoogle, FaMicrosoft, FaVideo, FaListAlt, FaClock, FaUsers } from 'react-icons/fa';
 import ROUTES from '../constants/routes';
+import { useTranslation } from 'react-i18next';
 
 // Meeting card component
 const MeetingCard = ({ meeting }) => {
+  const { t } = useTranslation();
   const { id, title, date, time, duration, description, category, attendees, platform } = meeting;
   
   // Platform icon based on meeting platform
@@ -52,7 +54,7 @@ const MeetingCard = ({ meeting }) => {
         <div className="flex justify-between items-center">
           <div>
             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
-              {category}
+              {t(`meetings.categories.${category.toLowerCase()}`)}
             </span>
           </div>
           
@@ -80,10 +82,11 @@ const MeetingCard = ({ meeting }) => {
 
 // Stat card component
 const StatCard = ({ title, value, icon, description, trend, trendValue }) => {
+  const { t } = useTranslation();
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
       <div className="flex items-start justify-between mb-2">
-        <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">{title}</h3>
+        <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">{t(title)}</h3>
         <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-300">
           {icon}
         </div>
@@ -97,13 +100,14 @@ const StatCard = ({ title, value, icon, description, trend, trendValue }) => {
           </span>
         )}
       </div>
-      <p className="text-xs text-gray-500 dark:text-gray-400">{description}</p>
+      <p className="text-xs text-gray-500 dark:text-gray-400">{t(description)}</p>
     </div>
   );
 };
 
 // Action item component
 const ActionItem = ({ item, onToggleComplete }) => {
+  const { t } = useTranslation();
   return (
     <div className="flex items-start p-3 border-b border-gray-100 dark:border-gray-700">
       <input 
@@ -119,7 +123,7 @@ const ActionItem = ({ item, onToggleComplete }) => {
         <div className="flex items-center mt-1">
           {item.meeting && <span className="text-xs text-gray-500 dark:text-gray-400">{item.meeting}</span>}
           {item.meeting && <span className="mx-2 text-xs text-gray-400 dark:text-gray-500">•</span>}
-          <span className="text-xs text-gray-500 dark:text-gray-400">{item.dueDate}</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">{t('actionItems.dueDate')}: {item.dueDate}</span>
         </div>
       </div>
     </div>
@@ -127,6 +131,12 @@ const ActionItem = ({ item, onToggleComplete }) => {
 };
 
 const Dashboard = () => {
+  const { t, i18n } = useTranslation();
+  
+  // Add console log to debug language
+  console.log('Current language:', i18n.language);
+  console.log('Translation test:', t('dashboard.title'));
+
   // Sample recent meetings data
   const recentMeetings = [
     {
@@ -218,47 +228,47 @@ const Dashboard = () => {
   return (
     <div className="p-6 dark:bg-gray-900">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Dashboard</h1>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{t('dashboard.title')}</h1>
         <Link 
           to={ROUTES.MEETINGS.NEW} 
           className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center transition-colors"
         >
           <FaPlus className="mr-2" size={12} />
-          New Meeting
+          {t('dashboard.newMeeting')}
         </Link>
       </div>
       
       {/* Stats overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <StatCard 
-          title="Total Meetings" 
+          title={t('dashboard.stats.totalMeetings')}
           value="42" 
           icon={<FaVideo size={16} />}
-          description="Last 30 days" 
+          description={t('dashboard.stats.last30Days')}
           trend="up" 
           trendValue="12%"
         />
         <StatCard 
-          title="Meeting Time" 
+          title={t('dashboard.stats.meetingTime')}
           value="38h 24m" 
           icon={<FaClock size={16} />}
-          description="Last 30 days" 
+          description={t('dashboard.stats.last30Days')}
           trend="up" 
           trendValue="8%"
         />
         <StatCard 
-          title="Action Items" 
+          title={t('dashboard.stats.actionItems')}
           value="86" 
           icon={<FaListAlt size={16} />}
-          description="43 completed" 
+          description={`43 ${t('dashboard.stats.completed')}`}
           trend="down" 
           trendValue="5%"
         />
         <StatCard 
-          title="Participants" 
+          title={t('dashboard.stats.participants')}
           value="18" 
           icon={<FaUsers size={16} />}
-          description="Active contributors" 
+          description={t('dashboard.stats.activeContributors')}
           trend="up" 
           trendValue="2"
         />
@@ -268,12 +278,12 @@ const Dashboard = () => {
         {/* Recent meetings section */}
         <div className="lg:col-span-2">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-medium text-gray-900 dark:text-white">Recent meetings</h2>
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white">{t('dashboard.recentMeetings.title')}</h2>
             <Link 
               to={ROUTES.MEETINGS.ROOT} 
               className="text-purple-600 text-sm font-medium hover:text-purple-700 flex items-center"
             >
-              See all <FaChevronRight className="ml-1" size={12} />
+              {t('dashboard.recentMeetings.seeAll')} <FaChevronRight className="ml-1" size={12} />
             </Link>
           </div>
           
@@ -288,12 +298,12 @@ const Dashboard = () => {
         <div className="lg:col-span-1">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm">
             <div className="flex justify-between items-center p-4 border-b border-gray-100 dark:border-gray-700">
-              <h2 className="text-lg font-medium text-gray-900 dark:text-white">Today's Plan</h2>
+              <h2 className="text-lg font-medium text-gray-900 dark:text-white">{t('dashboard.todaysPlan.title')}</h2>
             </div>
             
             {/* Today's Meetings */}
             <div className="p-4 border-b border-gray-100 dark:border-gray-700">
-              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Meetings</h3>
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{t('dashboard.todaysPlan.meetings')}</h3>
               <div className="space-y-3">
                 {todayMeetings.map((meeting, index) => (
                   <div key={index} className="flex items-center justify-between">
@@ -313,7 +323,7 @@ const Dashboard = () => {
 
             {/* Today's Action Items */}
             <div className="p-4">
-              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Action Items</h3>
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{t('dashboard.todaysPlan.actionItems')}</h3>
               <div className="space-y-3">
                 {actionItems.filter(item => item.dueDate === 'today').map((item, index) => (
                   <div key={index} className="flex items-start space-x-3">
@@ -340,12 +350,12 @@ const Dashboard = () => {
       {/* Action Items Section */}
       <div className="mt-8">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-medium text-gray-900 dark:text-white">Action Items</h2>
+          <h2 className="text-lg font-medium text-gray-900 dark:text-white">{t('actionItems.title')}</h2>
           <Link 
             to={ROUTES.ACTION_ITEMS} 
             className="text-purple-600 text-sm font-medium hover:text-purple-700 flex items-center"
           >
-            See all <FaChevronRight className="ml-1" size={12} />
+            {t('actionItems.all')} <FaChevronRight className="ml-1" size={12} />
           </Link>
         </div>
         
@@ -364,7 +374,7 @@ const Dashboard = () => {
                     {item.text}
                   </div>
                   <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{item.meeting}</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Due: {item.dueDate}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('actionItems.dueDate')}: {item.dueDate}</div>
                 </div>
               </div>
             </div>
@@ -374,12 +384,12 @@ const Dashboard = () => {
 
       {/* Upcoming meetings section */}
       <div className="mt-8">
-        <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Upcoming meetings</h2>
+        <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">{t('dashboard.upcomingMeetings.title')}</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {/* Tomorrow's meetings */}
           <div className="bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900 dark:to-blue-900 rounded-lg p-4">
             <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200">Tomorrow</h3>
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200">{t('dashboard.upcomingMeetings.tomorrow')}</h3>
               <div className="text-xs text-gray-500 dark:text-gray-400">May 2, 2024</div>
             </div>
             <div className="text-sm font-medium dark:text-white">Team standup</div>
@@ -397,7 +407,7 @@ const Dashboard = () => {
             <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center mb-2">
               <FaPlus className="text-purple-600 dark:text-purple-400" size={12} />
             </div>
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Schedule new meeting</span>
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('dashboard.upcomingMeetings.scheduleNew')}</span>
           </Link>
         </div>
       </div>
