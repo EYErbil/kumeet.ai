@@ -14,7 +14,28 @@ from config import (
 from db import save_transcript_in_db
 
 
-def single_pass_whisper(audio_file, whisper_model_name="small"):
+def get_whisper_model_name(quality_setting="normal", language=None):
+    """
+    Dynamically select the Whisper model based on quality settings and language.
+    quality_setting can be: "normal", "better", "best"
+    language should be a 2-letter ISO code (e.g., "en", "tr")
+    """
+    # Map language codes to English variants
+    english_codes = {"en", "eng", "english"}
+    is_english = language and language.lower() in english_codes
+    
+    if quality_setting == "normal":
+        # For normal quality, use base model
+        return "base.en" if is_english else "base"
+    elif quality_setting == "better":
+        # For better quality, use large model
+        return "large.en" if is_english else "large"
+    else:  # best
+        # For best quality, use turbo model (no language-specific version)
+        return "turbo"
+
+
+def single_pass_whisper(audio_file, quality_setting="normal", language=None):
     """
     Do a single-pass Whisper transcription using faster-whisper,
     returning a structure like:
@@ -25,6 +46,9 @@ def single_pass_whisper(audio_file, whisper_model_name="small"):
         ...
       }
     """
+    # Get the appropriate model name based on settings
+    whisper_model_name = get_whisper_model_name(quality_setting, language)
+    
     # Initialize faster-whisper model
     model = WhisperModel(
         whisper_model_name,
@@ -35,16 +59,9 @@ def single_pass_whisper(audio_file, whisper_model_name="small"):
     # Transcribe with faster-whisper
     segments, info = model.transcribe(
         audio_file,
-        beam_size=3,
+        beam_size=5,
         vad_filter=True,
-        vad_parameters=dict(
-            min_silence_duration_ms=1000,
-            speech_pad_ms=200,
-            threshold=0.35
-        ),
-        condition_on_previous_text=True,
-        no_speech_threshold=0.6,
-        compression_ratio_threshold=1.2
+        vad_parameters=dict(min_silence_duration_ms=500)
     )
     
     # Convert segments to the expected format
@@ -58,7 +75,7 @@ def single_pass_whisper(audio_file, whisper_model_name="small"):
             }
             for i, segment in enumerate(segments)
         ],
-        "language": info.language,
+        "language": info.language,  # This will be a 2-letter code like "en", "tr"
         "language_probability": info.language_probability
     }
     
@@ -79,6 +96,54 @@ def pyannote_diarize(audio_file, hf_token=HF_TOKEN, use_gpu=True):
     return diarization_result
 
 
+def merge_close_segments(segments, max_gap=GAP_THRESHOLD):
+    """
+    Merge segments from the same speaker if they're within max_gap seconds of each other,
+    but ONLY if there are no other speakers between them.
+    """
+    if not segments:
+        return segments
+        
+    # Sort segments by start time
+    sorted_segments = sorted(segments, key=lambda x: x["start"])
+    merged = []
+    i = 0
+    
+    while i < len(sorted_segments):
+        current = sorted_segments[i]
+        j = i + 1
+        
+        # Look ahead to find segments from same speaker within max_gap
+        while j < len(sorted_segments):
+            next_seg = sorted_segments[j]
+            
+            # Check if there are any other speakers between current and next_seg
+            has_other_speaker = False
+            for k in range(i + 1, j):
+                if sorted_segments[k]["speaker"] != current["speaker"]:
+                    has_other_speaker = True
+                    break
+            
+            # Only merge if:
+            # 1. Same speaker
+            # 2. Within max_gap
+            # 3. No other speakers between them
+            if (next_seg["speaker"] == current["speaker"] and 
+                next_seg["start"] - current["end"] <= max_gap and
+                not has_other_speaker):
+                # Merge the segments
+                current["end"] = next_seg["end"]
+                current["text"] = current["text"] + " " + next_seg["text"]
+                j += 1
+            else:
+                break
+        
+        merged.append(current)
+        i = j
+    
+    return merged
+
+
 def combine_whisper_and_diarization(whisper_segments, diarization_annotation, min_duration=1.0):
     """
     For each whisper segment [start, end, text],
@@ -90,16 +155,11 @@ def combine_whisper_and_diarization(whisper_segments, diarization_annotation, mi
 
     This yields a final list of dicts:
       [{"speaker":..., "start":..., "end":..., "text":...}, ...]
-
-    We won't lose data, but if there's a speaker change *inside* a single whisper segment,
-    we break that segment at the speaker boundary. The text is the same for that subrange.
-    It's an approximation, because we can't do partial text alignment without word-level timestamps.
     """
     final_segments = []
 
     # 1) Convert pyannote annotation into a sorted list of speaker segments
     speaker_segments = []
-    # diarization_annotation is an 'Annotation' object. We can iterate over labeled segments:
     for turn, _, speaker_label in diarization_annotation.itertracks(yield_label=True):
         speaker_segments.append({
             "speaker": speaker_label,
@@ -115,44 +175,49 @@ def combine_whisper_and_diarization(whisper_segments, diarization_annotation, mi
     for wseg in whisper_segments:
         wstart = wseg["start"]
         wend = wseg["end"]
-        wtext = wseg["text"]
+        wtext = wseg["text"].strip()  # Remove leading/trailing whitespace
 
-        # We'll track the position while speaker_segments might shift
-        sub_start = wstart
-        current_text = wtext
-
-        while spk_idx < n_spk and speaker_segments[spk_idx]["end"] < wstart:
-            spk_idx += 1
-        # now either spk_idx is at a segment that might overlap
-
-        # we might have multiple speaker segments that overlap [wstart, wend]
+        # Find all speaker segments that overlap with this whisper segment
+        overlapping_speakers = []
         check_idx = spk_idx
-        local_pos = wstart
+
+        while check_idx < n_spk and speaker_segments[check_idx]["end"] < wstart:
+            check_idx += 1
 
         while check_idx < n_spk and speaker_segments[check_idx]["start"] < wend:
-            # find overlap
             spk_seg = speaker_segments[check_idx]
-            seg_speaker = spk_seg["speaker"]
             seg_start = max(wstart, spk_seg["start"])
             seg_end = min(wend, spk_seg["end"])
-
-            overlap_dur = seg_end - seg_start
-            if overlap_dur > 0:
-                # This chunk belongs to seg_speaker
-                # We'll store a sub-range from wtext. We can't do word-level alignment easily,
-                # so we just store the entire wtext if there's only 1 overlap.
-                # But if there's multiple overlaps, we subdivide. We'll break the text if needed
-                # but we can't do partial text alignment. So let's store the same text for each subrange?
-                # or store partial text?
-                # We'll just store the same text for each subrange if there's multiple speakers.
-                # It's an approximation.
-                final_segments.append({
-                    "speaker": seg_speaker,
-                    "start": seg_start,
-                    "end": seg_end,
-                    "text": wtext
-                })
+            
+            if seg_end - seg_start > 0:
+                # Calculate the duration of this speaker's segment
+                duration = seg_end - seg_start
+                # Calculate the proportion of the whisper segment this speaker covers
+                proportion = duration / (wend - wstart)
+                
+                # Only add if this speaker has a significant portion of the segment
+                if proportion > 0.3:  # At least 30% of the segment
+                    overlapping_speakers.append({
+                        "speaker": spk_seg["speaker"],
+                        "start": seg_start,
+                        "end": seg_end,
+                        "proportion": proportion
+                    })
             check_idx += 1
+
+        # If we found overlapping speakers, create segments for each
+        if overlapping_speakers:
+            # Sort by proportion (highest first) to prioritize the main speaker
+            overlapping_speakers.sort(key=lambda x: x["proportion"], reverse=True)
+            
+            # Only use the speaker with the highest proportion
+            main_speaker = overlapping_speakers[0]
+            final_segments.append({
+                "speaker": main_speaker["speaker"],
+                "start": main_speaker["start"],
+                "end": main_speaker["end"],
+                "text": wtext
+            })
 
     # filter out sub-segments that are < min_duration if you want
     filtered_final = []
@@ -163,10 +228,14 @@ def combine_whisper_and_diarization(whisper_segments, diarization_annotation, mi
 
     # sort by start
     filtered_final.sort(key=lambda x: x["start"])
-    return filtered_final
+    
+    # Merge close segments from the same speaker
+    merged_final = merge_close_segments(filtered_final)
+    
+    return merged_final
 
 
-def diarize_and_transcribe(audio_file, output_dir, session_id=None):
+def diarize_and_transcribe(audio_file, output_dir, session_id=None, quality_setting="normal"):
     """
     1) Single-pass diarization (pyannote)
     2) Single-pass whisper (like 'whisper test.wav')
@@ -180,7 +249,7 @@ def diarize_and_transcribe(audio_file, output_dir, session_id=None):
     diar_annotation = pyannote_diarize(audio_file, hf_token=HF_TOKEN, use_gpu=USE_GPU)
 
     # 2) Single-pass whisper
-    whisper_result = single_pass_whisper(audio_file, whisper_model_name=WHISPER_MODEL)
+    whisper_result = single_pass_whisper(audio_file, quality_setting=quality_setting)
 
     # 3) Combine => final_data
     final_data = combine_whisper_and_diarization(

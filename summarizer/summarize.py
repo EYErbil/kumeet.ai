@@ -25,34 +25,21 @@ hf_summarizer = pipeline("summarization", model=HF_SUMMARY_MODEL)
 GEMINI_API_KEY = "AIzaSyBcizqje0iym5bPHx-OoepPbGqGcuLADKM"
 gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 
+
 def chunk_transcript_data(transcript, max_lines=10):
     chunks = []
     current_lines = []
     chunk_start = None
-    chunk_end = None
-    current_speaker = None
-    speaker_turn_count = 0
+    chunk_end   = None
 
     for entry in transcript:
-        # Check for natural breaks (long pauses or speaker changes)
-        is_new_speaker = current_speaker != entry['speaker']
-        if is_new_speaker:
-            speaker_turn_count += 1
-            current_speaker = entry['speaker']
-
         line_str = f"[{entry['start']:.2f}-{entry['end']:.2f}] {entry['speaker']}: {entry['text']}"
-        
-        # Start new chunk if:
-        # 1. We hit max lines
-        # 2. We have multiple speaker turns (indicating a complete conversation)
-        # 3. There's a significant time gap (more than 5 seconds)
-        should_start_new_chunk = (
-            len(current_lines) >= max_lines or
-            (speaker_turn_count >= 2 and is_new_speaker) or
-            (chunk_start is not None and entry['start'] - chunk_end > 5.0)
-        )
+        if chunk_start is None:
+            chunk_start = entry["start"]
+        chunk_end = entry["end"]
+        current_lines.append(line_str)
 
-        if should_start_new_chunk and current_lines:
+        if len(current_lines) >= max_lines:
             chunk_text = "\n".join(current_lines)
             chunks.append({
                 "chunk_text": chunk_text,
@@ -61,13 +48,7 @@ def chunk_transcript_data(transcript, max_lines=10):
             })
             current_lines = []
             chunk_start = None
-            chunk_end = None
-            speaker_turn_count = 0
-
-        if chunk_start is None:
-            chunk_start = entry["start"]
-        chunk_end = entry["end"]
-        current_lines.append(line_str)
+            chunk_end   = None
 
     if current_lines:
         chunk_text = "\n".join(current_lines)
@@ -80,9 +61,11 @@ def chunk_transcript_data(transcript, max_lines=10):
         })
     return chunks
 
+
 def summarize_chunk_hf(chunk_text: str) -> str:
     result = hf_summarizer(chunk_text, max_length=200, min_length=50, do_sample=False)
     return result[0]["summary_text"]
+
 
 def summarize_chunk_gemini(chunk_text: str, meeting_type: str, focus: str) -> str:
     """
@@ -120,6 +103,7 @@ def combine_summaries_simple(hf_summary: str, gemini_summary: str) -> str:
     merged += "\n\nGemini Summary:\n" + gemini_summary.strip()
     return merged
 
+
 def summarize_transcript(session_id, output_dir):
     transcript = load_transcript_from_db(session_id)
     if not transcript:
@@ -129,17 +113,17 @@ def summarize_transcript(session_id, output_dir):
     final_data = []
 
     for idx, ch in enumerate(chunks):
-        hf_sum  = summarize_chunk_hf(ch["chunk_text"])
+        hf_sum = summarize_chunk_hf(ch["chunk_text"])
         gem_sum = summarize_chunk_gemini(ch["chunk_text"], MEETING_TYPE, FOCUS_REQUEST)
 
         # unify HF + gemini
         merged_summary = combine_summaries_simple(hf_sum, gem_sum)
 
         # next, parse bullet items with importance score
-        items = extract_items_with_scores_gemini(merged_summary, idx+1, ch["start"], ch["end"])
+        items = extract_items_with_scores_gemini(merged_summary, idx + 1, ch["start"], ch["end"])
         # store them in DB
         if items:
-            save_extracted_items_in_db(session_id, idx+1, items)
+            save_extracted_items_in_db(session_id, idx + 1, items)
 
         final_data.append({
             "idx": idx + 1,

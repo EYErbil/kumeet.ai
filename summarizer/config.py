@@ -21,9 +21,9 @@ RESULTS_DIR = "results"   # We'll create a subdir in here for each upload
 ########################################
 # DIARIZATION & TRANSCRIPTION
 ########################################
-MIN_DURATION   = 2.0
-GAP_THRESHOLD  = 1.0
-WHISPER_MODEL  = "turbo"
+MIN_DURATION   = 0.5
+GAP_THRESHOLD  = 4.0
+WHISPER_MODEL  = "normal"  # Can be "normal", "better", or "best"
 USE_GPU        = True  # if you have a CUDA device
 
 ########################################
