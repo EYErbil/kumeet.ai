@@ -3,7 +3,7 @@ import json
 import csv
 import uuid
 import torch
-import whisper
+from faster_whisper import WhisperModel
 from pyannote.audio import Pipeline
 
 from config import (
@@ -16,7 +16,7 @@ from db import save_transcript_in_db
 
 def single_pass_whisper(audio_file, whisper_model_name="small"):
     """
-    Do a single-pass Whisper transcription,
+    Do a single-pass Whisper transcription using faster-whisper,
     returning a structure like:
       {
         "segments": [
@@ -25,8 +25,43 @@ def single_pass_whisper(audio_file, whisper_model_name="small"):
         ...
       }
     """
-    w_model = whisper.load_model(whisper_model_name)
-    result = w_model.transcribe(audio_file)
+    # Initialize faster-whisper model
+    model = WhisperModel(
+        whisper_model_name,
+        device="cuda" if USE_GPU else "cpu",
+        compute_type="float16" if USE_GPU else "int8"
+    )
+    
+    # Transcribe with faster-whisper
+    segments, info = model.transcribe(
+        audio_file,
+        beam_size=3,
+        vad_filter=True,
+        vad_parameters=dict(
+            min_silence_duration_ms=1000,
+            speech_pad_ms=200,
+            threshold=0.35
+        ),
+        condition_on_previous_text=True,
+        no_speech_threshold=0.6,
+        compression_ratio_threshold=1.2
+    )
+    
+    # Convert segments to the expected format
+    result = {
+        "segments": [
+            {
+                "id": i,
+                "start": segment.start,
+                "end": segment.end,
+                "text": segment.text
+            }
+            for i, segment in enumerate(segments)
+        ],
+        "language": info.language,
+        "language_probability": info.language_probability
+    }
+    
     return result
 
 

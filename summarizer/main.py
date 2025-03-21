@@ -42,11 +42,11 @@ def main():
 
     # summarize (with HF + gemini + item extraction)
     print("Summarizing transcript, extracting bullet items with scores...")
-    #final_sum = summarize_transcript(session_id, out_dir)
-    #if final_sum:
-        #print("\n=== FINAL SUMMARY ===\n", final_sum)
-    #else:
-        #print("No transcript found in DB for session_id:", session_id)
+    final_sum = summarize_transcript(session_id, out_dir)
+    if final_sum:
+        print("\n=== FINAL SUMMARY ===\n", final_sum)
+    else:
+        print("No transcript found in DB for session_id:", session_id)
 
     print("\nCheck the folder for final outputs:", out_dir)
 
