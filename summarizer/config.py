@@ -34,6 +34,6 @@ DB_PATH = "summaries.db"
 ########################################
 # SUMMARIZATION
 ########################################
-MAX_LINES_PER_CHUNK = 10
+MAX_TOKENS_PER_CHUNK = 800  # Set to 800 to leave room for summary within model's 1024 token limit
 MEETING_TYPE  = "generic meeting"
 FOCUS_REQUEST = "Focus on tasks, decisions, deadlines."
