@@ -29,16 +29,30 @@ def chunk_transcript_data(transcript, max_lines=10):
     chunks = []
     current_lines = []
     chunk_start = None
-    chunk_end   = None
+    chunk_end = None
+    current_speaker = None
+    speaker_turn_count = 0
 
     for entry in transcript:
-        line_str = f"[{entry['start']:.2f}-{entry['end']:.2f}] {entry['speaker']}: {entry['text']}"
-        if chunk_start is None:
-            chunk_start = entry["start"]
-        chunk_end = entry["end"]
-        current_lines.append(line_str)
+        # Check for natural breaks (long pauses or speaker changes)
+        is_new_speaker = current_speaker != entry['speaker']
+        if is_new_speaker:
+            speaker_turn_count += 1
+            current_speaker = entry['speaker']
 
-        if len(current_lines) >= max_lines:
+        line_str = f"[{entry['start']:.2f}-{entry['end']:.2f}] {entry['speaker']}: {entry['text']}"
+        
+        # Start new chunk if:
+        # 1. We hit max lines
+        # 2. We have multiple speaker turns (indicating a complete conversation)
+        # 3. There's a significant time gap (more than 5 seconds)
+        should_start_new_chunk = (
+            len(current_lines) >= max_lines or
+            (speaker_turn_count >= 2 and is_new_speaker) or
+            (chunk_start is not None and entry['start'] - chunk_end > 5.0)
+        )
+
+        if should_start_new_chunk and current_lines:
             chunk_text = "\n".join(current_lines)
             chunks.append({
                 "chunk_text": chunk_text,
@@ -47,7 +61,13 @@ def chunk_transcript_data(transcript, max_lines=10):
             })
             current_lines = []
             chunk_start = None
-            chunk_end   = None
+            chunk_end = None
+            speaker_turn_count = 0
+
+        if chunk_start is None:
+            chunk_start = entry["start"]
+        chunk_end = entry["end"]
+        current_lines.append(line_str)
 
     if current_lines:
         chunk_text = "\n".join(current_lines)
