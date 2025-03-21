@@ -3,6 +3,7 @@
 import os
 import sys
 import shutil
+import argparse
 
 from config import RESULTS_DIR
 from db import init_db
@@ -14,11 +15,14 @@ from summarize import summarize_transcript
 def main():
     init_db()
 
-    if len(sys.argv) < 2:
-        print("Usage: python main.py <input_file>")
-        sys.exit(1)
+    # Set up argument parser
+    parser = argparse.ArgumentParser(description='Transcribe and summarize audio/video files')
+    parser.add_argument('input_file', help='Input audio or video file')
+    parser.add_argument('--quality', choices=['normal', 'better', 'best'], 
+                       default='normal', help='Transcription quality (default: normal)')
+    args = parser.parse_args()
 
-    input_file = sys.argv[1]
+    input_file = args.input_file
     base_name = os.path.basename(input_file)
     ext = os.path.splitext(base_name)[1].lower()
 
@@ -36,8 +40,8 @@ def main():
         shutil.copy(input_file, audio_wav)
 
     # diarize & transcribe
-    print("Diarizing & transcribing...")
-    final_transcript, session_id = diarize_and_transcribe(audio_wav, out_dir)
+    print(f"Diarizing & transcribing with {args.quality} quality...")
+    final_transcript, session_id = diarize_and_transcribe(audio_wav, out_dir, quality_setting=args.quality)
     print(f"Session ID: {session_id}")
 
     # summarize (with HF + gemini + item extraction)
