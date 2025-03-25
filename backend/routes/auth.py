@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel, EmailStr
 from services.auth_service import create_user, verify_token, get_user_by_id, update_user
 from utils.logger import setup_logger
@@ -6,7 +7,11 @@ from utils.logger import setup_logger
 # Set up logger
 logger = setup_logger(__name__)
 
+# Initialize OAuth2 password bearer for token extraction
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
 router = APIRouter(tags=["auth"])
+
 
 # Request Models
 class UserCreate(BaseModel):
@@ -15,14 +20,17 @@ class UserCreate(BaseModel):
     firstName: str
     lastName: str
 
+
 class GoogleSignInData(BaseModel):
     email: EmailStr
     firstName: str
     lastName: str
     idToken: str
 
+
 class TokenVerify(BaseModel):
     idToken: str
+
 
 # Response Models
 class UserResponse(BaseModel):
@@ -30,16 +38,45 @@ class UserResponse(BaseModel):
     email: str
     displayName: str | None = None
 
+
 class AuthResponse(BaseModel):
     success: bool
     user: UserResponse | dict
+
+
+# This is the function that was missing
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    """
+    Dependency to get the current authenticated user
+
+    Args:
+        token (str): JWT token from OAuth2PasswordBearer
+
+    Returns:
+        dict: User information
+
+    Raises:
+        HTTPException: If token is invalid or expired
+    """
+    try:
+        # Verify the token and get user info
+        user = await verify_token(token)
+        return user
+    except Exception as e:
+        logger.error(f"Authentication error: {str(e)}")
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
 
 @router.post("/register", response_model=AuthResponse)
 async def register(user_data: UserCreate):
     try:
         logger.info(f"Received registration request for email: {user_data.email}")
         logger.debug(f"Registration data: {user_data.dict(exclude={'password'})}")
-        
+
         if len(user_data.password) < 6:
             logger.warning(f"Password too short for email: {user_data.email}")
             raise HTTPException(
@@ -49,7 +86,7 @@ async def register(user_data: UserCreate):
 
         user = await create_user(user_data)
         logger.info(f"Successfully registered user with email: {user_data.email}")
-        
+
         return {
             "success": True,
             "user": user
@@ -64,13 +101,14 @@ async def register(user_data: UserCreate):
             detail=f"An unexpected error occurred during registration: {str(e)}"
         )
 
+
 @router.post("/verify-token", response_model=AuthResponse)
 async def verify_auth_token(token_data: TokenVerify):
     try:
         logger.info("Received token verification request")
         decoded_token = await verify_token(token_data.idToken)
         logger.info(f"Successfully verified token for user: {decoded_token.get('uid')}")
-        
+
         return {
             "success": True,
             "user": decoded_token
@@ -85,19 +123,20 @@ async def verify_auth_token(token_data: TokenVerify):
             detail=f"An unexpected error occurred during token verification: {str(e)}"
         )
 
+
 @router.post("/google-signin", response_model=AuthResponse)
 async def google_signin(user_data: GoogleSignInData):
     try:
         logger.info(f"Received Google sign-in request for email: {user_data.email}")
         logger.debug(f"Google sign-in data: {user_data.dict(exclude={'idToken'})}")
-        
+
         # First verify the token
         decoded_token = await verify_token(user_data.idToken)
-        
+
         # If token is valid, create/update user in database
         user = await create_user(user_data)
         logger.info(f"Successfully processed Google sign-in for email: {user_data.email}")
-        
+
         return {
             "success": True,
             "user": user
@@ -112,13 +151,14 @@ async def google_signin(user_data: GoogleSignInData):
             detail=f"An unexpected error occurred during Google sign-in: {str(e)}"
         )
 
+
 @router.get("/user/{uid}", response_model=AuthResponse)
 async def get_user(uid: str):
     try:
         logger.info(f"Received request to get user with uid: {uid}")
         user = await get_user_by_id(uid)
         logger.info(f"Successfully retrieved user with uid: {uid}")
-        
+
         return {
             "success": True,
             "user": user
@@ -131,4 +171,4 @@ async def get_user(uid: str):
         raise HTTPException(
             status_code=500,
             detail="An unexpected error occurred while retrieving user"
-        ) 
+        )

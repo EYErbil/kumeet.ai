@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from routes import auth
+from routes import auth, meeting, notes
 from utils.logger import setup_logger
 from config.firebase import initialize_firebase
 import time
@@ -39,6 +39,8 @@ app.add_middleware(
 
 # Add routes
 app.include_router(auth.router, prefix="/api/auth")
+app.include_router(meeting.router, prefix="/api/meetings")
+app.include_router(notes.router, prefix="/api/notes")
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -60,4 +62,4 @@ async def read_root():
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled exception: {str(exc)}", exc_info=True)
-    return {"detail": "An internal server error occurred"} 
+    return {"detail": "An internal server error occurred"}

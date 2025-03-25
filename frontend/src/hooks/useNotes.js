@@ -1,172 +1,165 @@
 import { useState, useEffect } from 'react';
-import * as notesApi from '../services/api/notes';
+import * as api from '../utils/api';
 
 /**
- * Custom hook for fetching and managing notes data
- * @param {string|null} meetingId - ID of the meeting to fetch notes for (null for all notes)
+ * Custom hook for fetching and managing notes
+ * @param {string|null} meetingId - Optional ID of the meeting to filter notes
  * @returns {Object} Notes data and state
  */
 const useNotes = (meetingId = null) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [notes, setNotes] = useState([]);
-  
-  // Handle ResizeObserver error
-  useEffect(() => {
-    // This prevents the "ResizeObserver loop completed with undelivered notifications" error
-    const handleError = (event) => {
-      if (event.message && event.message.includes('ResizeObserver')) {
-        event.stopImmediatePropagation();
-      }
-    };
-    
-    window.addEventListener('error', handleError);
-    
-    return () => {
-      window.removeEventListener('error', handleError);
-    };
-  }, []);
-  
-  // Fetch notes data
+
   useEffect(() => {
     const fetchNotes = async () => {
+      if (!meetingId) {
+        setNotes([]);
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
-        setError(null);
-        
-        let response;
-        if (meetingId) {
-          // Fetch notes for a specific meeting
-          response = await notesApi.getNotesByMeetingId(meetingId);
-        } else {
-          // Fetch all notes
-          response = await notesApi.getNotes();
-        }
-        
-        setNotes(response.data);
-        setLoading(false);
+
+        // In a real app, we would fetch notes from the API
+        // const response = await api.get(`/meetings/${meetingId}/notes`);
+        // setNotes(response.notes);
+
+        // For now, use mock data
+        const mockNotes = [
+          {
+            id: '1',
+            content: 'The team discussed project progress, highlighting near-completion of backend and frontend development. They addressed challenges in integrating a third-party API.\n\nAction items include finalizing authentication, UI designs, and testing. Next step: mid-week progress check-in.',
+            createdBy: {
+              id: '1',
+              name: 'Current User'
+            },
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            meetingId,
+            meetingTitle: 'Project Sync',
+            meetingDate: 'Mon, April 29, 2024'
+          }
+        ];
+
+        // Simulate API delay
+        setTimeout(() => {
+          setNotes(mockNotes);
+          setLoading(false);
+        }, 500);
       } catch (err) {
-        console.error('Failed to fetch notes:', err);
         setError(err.message || 'Failed to fetch notes');
         setLoading(false);
       }
     };
-    
+
     fetchNotes();
   }, [meetingId]);
-  
+
   /**
    * Create a new note
-   * @param {Object} noteData - Note data
-   * @returns {Promise<Object>} Created note
+   * @param {Object} noteData - Note data to create
    */
   const createNote = async (noteData) => {
     try {
       setLoading(true);
-      setError(null);
-      
-      const response = await notesApi.createNote(noteData);
-      
-      // Update local state
-      setNotes(prevNotes => [response.data, ...prevNotes]);
+
+      // In a real app, this would call the API to create the note
+      // const response = await api.post(`/meetings/${meetingId}/notes`, noteData);
+
+      // For mock purposes
+      const newNote = {
+        id: Date.now().toString(),
+        content: noteData.content,
+        createdBy: noteData.createdBy,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        meetingId: noteData.meetingId,
+        meetingTitle: noteData.meetingTitle,
+        meetingDate: noteData.meetingDate
+      };
+
+      setNotes([...notes, newNote]);
       setLoading(false);
-      
-      return response.data;
+
+      return newNote;
     } catch (err) {
-      console.error('Failed to create note:', err);
       setError(err.message || 'Failed to create note');
       setLoading(false);
       throw err;
     }
   };
-  
+
   /**
    * Update an existing note
-   * @param {string} id - Note ID
-   * @param {Object} noteData - Updated note data
-   * @returns {Promise<Object>} Updated note
+   * @param {string} noteId - ID of the note to update
+   * @param {Object} updatedData - Updated note data
    */
-  const updateNote = async (id, noteData) => {
+  const updateNote = async (noteId, updatedData) => {
     try {
       setLoading(true);
-      setError(null);
-      
-      const response = await notesApi.updateNote(id, noteData);
-      
-      // Update local state
-      setNotes(prevNotes => 
-        prevNotes.map(note => note.id === id ? response.data : note)
-      );
-      
+
+      // In a real app, this would call the API to update the note
+      // const response = await api.put(`/meetings/${meetingId}/notes/${noteId}`, updatedData);
+
+      // For mock purposes
+      const noteIndex = notes.findIndex(note => note.id === noteId);
+      if (noteIndex === -1) {
+        throw new Error('Note not found');
+      }
+
+      const updatedNote = {
+        ...notes[noteIndex],
+        ...updatedData,
+        updatedAt: new Date().toISOString()
+      };
+
+      const updatedNotes = [...notes];
+      updatedNotes[noteIndex] = updatedNote;
+
+      setNotes(updatedNotes);
       setLoading(false);
-      return response.data;
+
+      return updatedNote;
     } catch (err) {
-      console.error(`Failed to update note ${id}:`, err);
       setError(err.message || 'Failed to update note');
       setLoading(false);
       throw err;
     }
   };
-  
+
   /**
    * Delete a note
-   * @param {string} id - Note ID
-   * @returns {Promise<boolean>} Success status
+   * @param {string} noteId - ID of the note to delete
    */
-  const deleteNote = async (id) => {
+  const deleteNote = async (noteId) => {
     try {
       setLoading(true);
-      setError(null);
-      
-      await notesApi.deleteNote(id);
-      
-      // Update local state
-      setNotes(prevNotes => prevNotes.filter(note => note.id !== id));
-      
+
+      // In a real app, this would call the API to delete the note
+      // await api.del(`/meetings/${meetingId}/notes/${noteId}`);
+
+      // For mock purposes
+      setNotes(notes.filter(note => note.id !== noteId));
       setLoading(false);
+
       return true;
     } catch (err) {
-      console.error(`Failed to delete note ${id}:`, err);
       setError(err.message || 'Failed to delete note');
       setLoading(false);
       throw err;
     }
   };
-  
-  /**
-   * Get a note by ID
-   * @param {string} id - Note ID
-   * @returns {Object|null} Note data or null if not found
-   */
-  const getNoteById = (id) => {
-    return notes.find(note => note.id === id) || null;
-  };
-  
-  /**
-   * Search notes by term
-   * @param {string} searchTerm - Search term
-   * @returns {Array} Filtered notes
-   */
-  const searchNotes = (searchTerm) => {
-    if (!searchTerm) return notes;
-    
-    const term = searchTerm.toLowerCase();
-    return notes.filter(note => 
-      note.meetingTitle.toLowerCase().includes(term) ||
-      note.content.toLowerCase().includes(term)
-    );
-  };
-  
+
   return {
     notes,
     loading,
     error,
     createNote,
     updateNote,
-    deleteNote,
-    getNoteById,
-    searchNotes
+    deleteNote
   };
 };
 
-export default useNotes; 
+export default useNotes;
