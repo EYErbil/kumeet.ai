@@ -20,6 +20,12 @@ def main():
     parser.add_argument('input_file', help='Input audio or video file')
     parser.add_argument('--quality', choices=['normal', 'better', 'best'], 
                        default='normal', help='Transcription quality (default: normal)')
+    parser.add_argument('--meeting-type', default=None, 
+                       help='Type of meeting for context (e.g., "team planning", "interview", "presentation")')
+    parser.add_argument('--min-importance', type=int, default=6, choices=range(1, 11),
+                       help='Minimum importance score (1-10) for points in final summary (default: 6)')
+    parser.add_argument('--focus-question', 
+                       help='Specific question or topic to focus on in the summary (e.g., "What decisions were made?")')
     args = parser.parse_args()
 
     input_file = args.input_file
@@ -44,11 +50,29 @@ def main():
     final_transcript, session_id = diarize_and_transcribe(audio_wav, out_dir, quality_setting=args.quality)
     print(f"Session ID: {session_id}")
 
-    # summarize (with HF + gemini + item extraction)
-    print("Summarizing transcript, extracting bullet items with scores...")
-    final_sum = summarize_transcript(session_id, out_dir)
+    # Build summary message
+    summary_msg = f"Summarizing transcript, extracting bullet items with min importance score of {args.min_importance}"
+    if args.focus_question:
+        summary_msg += f", focusing on: '{args.focus_question}'"
+    print(summary_msg + "...")
+    
+    # summarize (with gemini + item extraction)
+    final_sum = summarize_transcript(
+        session_id, 
+        out_dir, 
+        meeting_type=args.meeting_type,
+        min_importance=args.min_importance,
+        focus_question=args.focus_question
+    )
+    
     if final_sum:
-        print("\n=== FINAL SUMMARY ===\n", final_sum)
+        # Only print the Final Summary section to avoid overwhelming the console
+        if "# FINAL SUMMARY" in final_sum:
+            # Extract just the final summary section (not the detailed part)
+            summary_section = final_sum.split("===")[0].strip()
+            print("\n=== FINAL SUMMARY ===\n", summary_section)
+        else:
+            print("\n=== FINAL SUMMARY ===\n", final_sum)
     else:
         print("No transcript found in DB for session_id:", session_id)
 
