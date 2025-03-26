@@ -27,19 +27,29 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Database connection parameters
+DB_HOST = os.environ.get('DB_HOST', "localhost")
+DB_PORT = os.environ.get('DB_PORT', "5432")
+DB_NAME = os.environ.get('DB_NAME', "kumeet")
+DB_USER = os.environ.get('DB_USER', "postgres")
+DB_PASSWORD = os.environ.get('DB_PASSWORD', "uzay11ilgin")
+
+# Log the environment variables we're using
+logger.info(f"Environment: DB_HOST={DB_HOST}, DB_PORT={DB_PORT}, DB_NAME={DB_NAME}, DB_USER={DB_USER}")
+
 DB_PARAMS = {
-    "dbname": "kumeet",
-    "user": "postgres",
-    "password": "uzay11ilgin",
-    "host": "localhost",
-    "port": "5432"
+    "dbname": DB_NAME,
+    "user": DB_USER,
+    "password": DB_PASSWORD,
+    "host": DB_HOST,  # Use "db" for Docker, fallback to localhost
+    "port": DB_PORT
 }
 
 # Connect to the database
 try:
+    logger.info(f"Attempting to connect to database at {DB_PARAMS['host']}:{DB_PARAMS['port']}")
     conn = psycopg2.connect(**DB_PARAMS)
     conn.autocommit = False
-    logger.info("Database connection established")
+    logger.info(f"Database connection established to {DB_PARAMS['host']}:{DB_PARAMS['port']}")
 except Exception as e:
     logger.error(f"Failed to connect to database: {e}")
     sys.exit(1)

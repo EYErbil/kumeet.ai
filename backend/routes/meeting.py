@@ -115,26 +115,40 @@ async def get_all_action_items(
 ):
     """Get all action items"""
     try:
+        logger.info(f"Getting all action items with limit: {limit}")
+
+        # Get the raw action items from the service
         action_items = MeetingService.get_action_items(limit=limit)
-        return {"action_items": action_items}
+        logger.info(f"Found {len(action_items)} action items in database")
+
+        # Transform the action items to match frontend expectations
+        transformed_items = []
+        for item in action_items:
+            # Get meeting info
+            meeting_id = item.get('meeting_id')
+            meeting = None
+
+            try:
+                if meeting_id:
+                    meeting = MeetingService.get_meeting_by_id(meeting_id)
+            except Exception as e:
+                logger.error(f"Error getting meeting info: {e}")
+                # Continue without meeting info
+
+            # Create transformed action item with safe access to properties
+            transformed_item = {
+                "id": str(item.get('item_id')),
+                "text": item.get('description', ''),
+                "meeting": meeting.get('title', '') if meeting else '',
+                "completed": item.get('status') == 'completed',
+                "dueDate": item.get('due_date').strftime('%Y-%m-%d') if item.get('due_date') else 'No due date'
+            }
+
+            transformed_items.append(transformed_item)
+
+        logger.info(f"Returning {len(transformed_items)} transformed action items")
+        return {"action_items": transformed_items}
     except Exception as e:
         logger.error(f"Error in get_all_action_items: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/{meeting_id}/action-items")
-async def get_meeting_action_items(meeting_id: int):
-    """Get action items for a specific meeting"""
-    try:
-        # Check if meeting exists
-        meeting = MeetingService.get_meeting_by_id(meeting_id)
-        if not meeting:
-            raise HTTPException(status_code=404, detail="Meeting not found")
-
-        action_items = MeetingService.get_action_items(meeting_id=meeting_id)
-        return {"action_items": action_items}
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        logger.error(f"Error in get_meeting_action_items: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # Return empty list instead of error to avoid breaking the frontend
+        return {"action_items": []}

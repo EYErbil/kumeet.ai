@@ -10,6 +10,8 @@ async function testApiConnections() {
   ];
 
   console.log('Testing API connections...');
+  console.log('Current environment:', process.env.NODE_ENV);
+  console.log('API URL from env:', process.env.REACT_APP_API_URL);
 
   for (const url of apiUrls) {
     try {

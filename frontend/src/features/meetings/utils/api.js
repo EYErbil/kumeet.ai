@@ -1,175 +1,163 @@
-import * as baseApi from '../../../utils/api';
-
 /**
- * Meeting API functions
+ * API utility functions for making HTTP requests
  */
 
+// Configuration
+const getBaseUrl = () => {
+  // In Docker, use the service name to connect to the backend
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
+  }
+
+  // Check if running in Docker by examining hostname
+  if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return 'http://backend:8000/api';
+  }
+
+  // For local development
+  return 'http://localhost:8000/api';
+};
+
+export const BASE_URL = getBaseUrl();
+
 /**
- * Get all meetings
- * @param {Object} params - Query parameters
- * @returns {Promise<Array>} Meetings list
+ * Make a GET request
+ * @param {string} url - API endpoint
+ * @param {Object} config - Additional fetch configuration
+ * @returns {Promise<Object>} Response data
  */
-export const getMeetings = async (params = {}) => {
+export const get = async (url, config = {}) => {
   try {
-    // In a real app, we would fetch from API
-    // return await baseApi.get('/meetings', { params });
-    
-    // For mock data
-    return mockGetMeetings(params);
+    console.log(`Making API GET request to: ${BASE_URL}${url}`);
+    const response = await fetch(`${BASE_URL}${url}`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        // Add auth headers if needed
+      },
+      ...config,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log(`API response for ${url}:`, data);
+    return data;
   } catch (error) {
-    console.error('Failed to fetch meetings:', error);
+    console.error(`API GET error for ${url}:`, error);
     throw error;
   }
 };
 
 /**
- * Get meeting by ID
- * @param {string} id - Meeting ID
- * @returns {Promise<Object>} Meeting data
+ * Make a POST request
+ * @param {string} url - API endpoint
+ * @param {Object} data - Request body data
+ * @param {Object} config - Additional fetch configuration
+ * @returns {Promise<Object>} Response data
  */
-export const getMeetingById = async (id) => {
+export const post = async (url, data, config = {}) => {
   try {
-    // In a real app:
-    // return await baseApi.get(`/meetings/${id}`);
-    
-    // For mock data
-    return mockGetMeetingById(id);
+    console.log(`Making API POST request to: ${BASE_URL}${url}`, data);
+    const response = await fetch(`${BASE_URL}${url}`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        // Add auth headers if needed
+      },
+      body: JSON.stringify(data),
+      ...config,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `API error: ${response.status}`);
+    }
+
+    const responseData = await response.json();
+    console.log(`API response for ${url}:`, responseData);
+    return responseData;
   } catch (error) {
-    console.error(`Failed to fetch meeting ${id}:`, error);
+    console.error(`API POST error for ${url}:`, error);
     throw error;
   }
 };
 
 /**
- * Create a new meeting
- * @param {Object} data - Meeting data
- * @returns {Promise<Object>} Created meeting
+ * Make a PUT request
+ * @param {string} url - API endpoint
+ * @param {Object} data - Request body data
+ * @param {Object} config - Additional fetch configuration
+ * @returns {Promise<Object>} Response data
  */
-export const createMeeting = async (data) => {
+export const put = async (url, data, config = {}) => {
   try {
-    // In a real app:
-    // return await baseApi.post('/meetings', data);
-    
-    // For mock
-    return mockCreateMeeting(data);
+    console.log(`Making API PUT request to: ${BASE_URL}${url}`, data);
+    const response = await fetch(`${BASE_URL}${url}`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        // Add auth headers if needed
+      },
+      body: JSON.stringify(data),
+      ...config,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `API error: ${response.status}`);
+    }
+
+    const responseData = await response.json();
+    console.log(`API response for ${url}:`, responseData);
+    return responseData;
   } catch (error) {
-    console.error('Failed to create meeting:', error);
+    console.error(`API PUT error for ${url}:`, error);
     throw error;
   }
 };
 
 /**
- * Upload meeting recording
- * @param {FormData} formData - Form data with file
- * @returns {Promise<Object>} Upload result
+ * Make a DELETE request
+ * @param {string} url - API endpoint
+ * @param {Object} config - Additional fetch configuration
+ * @returns {Promise<Object>} Response data
  */
-export const uploadRecording = async (formData) => {
+export const del = async (url, config = {}) => {
   try {
-    // In a real app:
-    // return await baseApi.uploadFile('/meetings/upload', formData);
-    
-    // For mock
-    return mockUploadRecording(formData);
+    console.log(`Making API DELETE request to: ${BASE_URL}${url}`);
+    const response = await fetch(`${BASE_URL}${url}`, {
+      method: 'DELETE',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        // Add auth headers if needed
+      },
+      ...config,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `API error: ${response.status}`);
+    }
+
+    // Some DELETE endpoints may not return content
+    try {
+      const data = await response.json();
+      console.log(`API response for ${url}:`, data);
+      return data;
+    } catch (e) {
+      // If no JSON content, return success object
+      return { success: true };
+    }
   } catch (error) {
-    console.error('Failed to upload recording:', error);
+    console.error(`API DELETE error for ${url}:`, error);
     throw error;
   }
-};
-
-// Mock implementations
-const mockGetMeetings = (params) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        data: [
-          {
-            id: '1',
-            title: 'SmartSync feature launch',
-            date: 'Mon, April 29, 2024',
-            time: '2:00 PM',
-            duration: 44,
-            description: 'The team convened for a focused discussion on the upcoming launch of the SmartSync feature.',
-            category: 'Strategic planning',
-            platform: 'teams',
-            attendees: [
-              { name: 'John Doe', avatar: null },
-              { name: 'Sarah Lee', avatar: null }
-            ]
-          },
-          {
-            id: '2',
-            title: 'Weekly dev sync',
-            date: 'Mon, April 29, 2024',
-            time: '3:00 PM',
-            duration: 60,
-            description: 'The team discussed project progress, highlighting near-completion of backend and frontend development.',
-            category: 'Development',
-            platform: 'google',
-            attendees: [
-              { name: 'Jane Smith', avatar: null },
-              { name: 'Michael Johnson', avatar: null }
-            ]
-          }
-        ]
-      });
-    }, 800);
-  });
-};
-
-const mockGetMeetingById = (id) => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (id === '2') {
-        resolve({
-          data: {
-            id: '2',
-            title: 'Weekly dev sync',
-            date: 'Mon, April 29, 2024',
-            time: '3:00 PM - 4:00 PM',
-            duration: 60,
-            participants: [
-              { id: 1, name: 'Sarah Lee', role: 'UI Designer' },
-              { id: 2, name: 'John Doe', role: 'Team Leader' },
-              { id: 3, name: 'Alex Brown', role: 'QA Engineer' },
-              { id: 4, name: 'Michael Johnson', role: 'Frontend Developer' },
-              { id: 5, name: 'Jane Smith', role: 'Backend Developer' }
-            ],
-            overview: 'The team discussed project progress, highlighting near-completion of backend and frontend development.'
-          }
-        });
-      } else {
-        reject(new Error('Meeting not found'));
-      }
-    }, 800);
-  });
-};
-
-const mockCreateMeeting = (data) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        data: {
-          id: '3',
-          ...data,
-          createdAt: new Date().toISOString()
-        }
-      });
-    }, 800);
-  });
-};
-
-const mockUploadRecording = (formData) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        data: {
-          id: '4',
-          fileName: formData.get('file')?.name || 'unknown.mp4',
-          fileSize: formData.get('file')?.size || 0,
-          uploadedAt: new Date().toISOString(),
-          status: 'processing'
-        }
-      });
-    }, 1500);
-  });
 };

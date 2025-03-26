@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from routes import auth, meeting, notes
+from routes import auth, meeting, notes, actionItem
 from utils.logger import setup_logger
 from config.firebase import initialize_firebase
 import time
@@ -31,7 +31,10 @@ app = FastAPI()
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Frontend URL
+    allow_origins=[
+        "http://localhost:3000",  # Frontend URL in local development
+        "http://frontend:3000",   # Frontend URL in Docker
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -41,6 +44,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/auth")
 app.include_router(meeting.router, prefix="/api/meetings")
 app.include_router(notes.router, prefix="/api/notes")
+app.include_router(actionItem.router, prefix="/api/action-items")
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -56,7 +60,7 @@ async def log_requests(request: Request, call_next):
 @app.get("/")
 async def read_root():
     logger.info("Root endpoint accessed")
-    return {"message": "Welcome to the API"}
+    return {"message": "Welcome to the KuMeet API"}
 
 # Global exception handler
 @app.exception_handler(Exception)
