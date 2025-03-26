@@ -30,7 +30,7 @@ else:
 DB_PORT = os.environ.get('DB_PORT', '5432')
 DB_NAME = os.environ.get('DB_NAME', 'kumeet')
 DB_USER = os.environ.get('DB_USER', 'postgres')
-DB_PASSWORD = os.environ.get('DB_PASSWORD', 'uzay11ilgin')
+DB_PASSWORD = os.environ.get('DB_PASSWORD', 'postgres')
 
 logger.info(f"Environment: {'Docker' if is_running_in_docker() else 'Local'}")
 logger.info(f"Connecting to database: host={DB_HOST}, port={DB_PORT}, name={DB_NAME}, user={DB_USER}")

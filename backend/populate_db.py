@@ -31,7 +31,7 @@ DB_HOST = os.environ.get('DB_HOST', "localhost")
 DB_PORT = os.environ.get('DB_PORT', "5432")
 DB_NAME = os.environ.get('DB_NAME', "kumeet")
 DB_USER = os.environ.get('DB_USER', "postgres")
-DB_PASSWORD = os.environ.get('DB_PASSWORD', "uzay11ilgin")
+DB_PASSWORD = os.environ.get('DB_PASSWORD', "postgres")
 
 # Log the environment variables we're using
 logger.info(f"Environment: DB_HOST={DB_HOST}, DB_PORT={DB_PORT}, DB_NAME={DB_NAME}, DB_USER={DB_USER}")

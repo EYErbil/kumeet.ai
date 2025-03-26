@@ -12,7 +12,7 @@ services:
       - DB_PORT=5432
       - DB_NAME=kumeet  # Match your original env variable
       - DB_USER=postgres
-      - DB_PASSWORD=uzay11ilgin
+      - DB_PASSWORD=postgres
     depends_on:
       - db
 
@@ -32,8 +32,8 @@ services:
     restart: always
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: uzay11ilgin
-      POSTGRES_DB: kumeet  # Changed to match your DB_NAME
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: kumeet
     ports:
       - "5432:5432"
     volumes:
