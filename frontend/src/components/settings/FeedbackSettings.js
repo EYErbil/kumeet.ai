@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { FaCommentDots, FaCheck, FaExclamationTriangle, FaLightbulb, FaBug, FaQuestionCircle } from 'react-icons/fa';
+import { getCurrentUser } from '../../services/api/auth';
 
 const FeedbackSettings = () => {
   // Feedback state
-  const [feedbackType, setFeedbackType] = useState('general');
+  const [feedbackType, setFeedbackType] = useState('general feedback');
   const [feedbackText, setFeedbackText] = useState('');
   const [notification, setNotification] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -19,7 +20,7 @@ const FeedbackSettings = () => {
   };
 
   // Handle feedback submission
-  const handleSubmitFeedback = (e) => {
+  const handleSubmitFeedback = async (e) => {
     e.preventDefault();
     
     if (!feedbackText.trim()) {
@@ -29,37 +30,72 @@ const FeedbackSettings = () => {
     
     setSubmitting(true);
     
-    // Here you would send the feedback to your backend
-    // For demo purposes, we'll just simulate a successful submission
-    setTimeout(() => {
+    try {
+      const currentUser = getCurrentUser();
+      if (!currentUser) {
+        throw new Error('No user logged in');
+      }
+
+      const idToken = await currentUser.getIdToken();
+      const response = await fetch('http://localhost:8000/api/feedback', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          feedback_text: feedbackText,
+          feedback_type: feedbackType
+        }),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Error response:', errorData);
+        throw new Error(errorData.detail || 'Failed to submit feedback');
+      }
+
+      const data = await response.json();
+      console.log('Success response:', data);
       setFeedbackText('');
-      setSubmitting(false);
       showNotification('Thank you for your feedback!', 'success');
-    }, 1000);
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+      showNotification(
+        error.message === '[object Object]' 
+          ? 'Failed to submit feedback. Please try again.' 
+          : error.message,
+        'error'
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   // Show notification
   const showNotification = (message, type) => {
     setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000);
+    setTimeout(() => setNotification(null), 10000);
   };
 
   // Feedback type options
   const feedbackTypes = [
     {
-      id: 'general',
+      id: 'general feedback',
       label: 'General Feedback',
       icon: <FaCommentDots />,
       description: 'Share your overall experience with kumeet.ai',
     },
     {
-      id: 'feature',
+      id: 'feature request',
       label: 'Feature Request',
       icon: <FaLightbulb />,
       description: 'Suggest new features or improvements',
     },
     {
-      id: 'bug',
+      id: 'bug report',
       label: 'Bug Report',
       icon: <FaBug />,
       description: 'Report issues or unexpected behavior',
@@ -148,10 +184,10 @@ const FeedbackSettings = () => {
               onChange={handleFeedbackTextChange}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               rows="5"
-              placeholder={`Share your ${feedbackType === 'general' ? 'thoughts' : feedbackType === 'feature' ? 'feature idea' : feedbackType === 'bug' ? 'bug details' : 'question'} here...`}
+              placeholder={`Share your ${feedbackType === 'general feedback' ? 'thoughts' : feedbackType === 'feature request' ? 'feature idea' : feedbackType === 'bug report' ? 'bug details' : 'question'} here...`}
               required
             ></textarea>
-            {feedbackType === 'bug' && (
+            {feedbackType === 'bug report' && (
               <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                 Please include steps to reproduce the issue, expected behavior, and any error messages you received.
               </p>

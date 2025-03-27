@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from routes import auth, user
+from routes import auth, user, feedback
 from utils.logger import setup_logger
 from config.firebase import initialize_firebase
 import time
@@ -40,6 +40,7 @@ app.add_middleware(
 # Add routes
 app.include_router(auth.router, prefix="/api/auth")
 app.include_router(user.router, prefix="/api")
+app.include_router(feedback.router, prefix="/api")
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
