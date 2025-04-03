@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel, EmailStr
-from services.auth_service import create_user, verify_token, get_user_by_id, update_user
+from services.auth_service import create_user, verify_token, get_user_by_id
 from utils.logger import setup_logger
 
 # Set up logger
