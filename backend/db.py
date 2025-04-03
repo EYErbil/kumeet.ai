@@ -15,13 +15,15 @@ def is_running_in_docker():
         with open('/proc/self/cgroup', 'r') as f:
             return 'docker' in f.read()
     except:
-        return False
+        # If the file doesn't exist, we're likely in Docker on Alpine Linux
+        return os.path.exists('/.dockerenv')
 
 
 # Set host based on environment
-if is_running_in_docker():
-    # In Docker, use the service name
+if is_running_in_docker() or os.environ.get('DATABASE_URL', '').startswith('postgresql://'):
+    # In Docker, use the service name from docker-compose
     DB_HOST = "db"
+    logger.info("Detected Docker environment")
 else:
     # Not in Docker, use localhost
     DB_HOST = "localhost"
@@ -31,6 +33,19 @@ DB_PORT = os.environ.get('DB_PORT', '5432')
 DB_NAME = os.environ.get('DB_NAME', 'kumeet')
 DB_USER = os.environ.get('DB_USER', 'postgres')
 DB_PASSWORD = os.environ.get('DB_PASSWORD', 'postgres')
+
+# If DATABASE_URL is provided (e.g. in Docker Compose), parse it
+db_url = os.environ.get('DATABASE_URL')
+if db_url and db_url.startswith('postgresql://'):
+    # Format: postgresql://username:password@hostname:port/database
+    logger.info(f"Using DATABASE_URL environment variable")
+    # Extract just the hostname part
+    try:
+        db_parts = db_url.split('@')[1].split('/')
+        DB_HOST = db_parts[0].split(':')[0]
+        logger.info(f"Extracted host from DATABASE_URL: {DB_HOST}")
+    except:
+        logger.warning(f"Could not parse DATABASE_URL, using default host: {DB_HOST}")
 
 logger.info(f"Environment: {'Docker' if is_running_in_docker() else 'Local'}")
 logger.info(f"Connecting to database: host={DB_HOST}, port={DB_PORT}, name={DB_NAME}, user={DB_USER}")

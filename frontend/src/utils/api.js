@@ -3,6 +3,10 @@
  */
 import { getAuth } from 'firebase/auth';
 
+// In Docker, if using the frontend container's "localhost" it won't reach the backend
+// When using the Docker network, backend service is accessible via hostname "backend"
+// For local development outside Docker, localhost is correct
+// The REACT_APP_API_URL environment variable should be properly set in both contexts
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
 // For debugging - let's log which API URL we're using
