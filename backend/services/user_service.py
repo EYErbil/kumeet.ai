@@ -1,5 +1,9 @@
 from db import conn
 import psycopg2
+from utils.logger import setup_logger
+
+# Set up logger
+logger = setup_logger(__name__)
 
 class UserService:
     @staticmethod
@@ -25,28 +29,37 @@ class UserService:
     def get_user_by_firebase_uid(firebase_uid):
         """Get user details by Firebase UID."""
         try:
+            logger.info(f"Attempting to fetch user with Firebase UID: {firebase_uid}")
             with conn.cursor() as cur:
                 query = """
-                SELECT firebase_uid, email, first_name, last_name, created_at
+                SELECT firebase_uid, email, COALESCE(first_name, ''), COALESCE(last_name, ''), created_at
                 FROM users
                 WHERE firebase_uid = %s;
                 """
+                logger.debug(f"Executing query: {query} with params: {firebase_uid}")
                 cur.execute(query, (firebase_uid,))
                 result = cur.fetchone()
+                
                 if result:
-                    return {
+                    user_data = {
                         'firebase_uid': result[0],
                         'email': result[1],
                         'first_name': result[2],
                         'last_name': result[3],
                         'created_at': result[4]
                     }
-                return None
+                    logger.info(f"Successfully retrieved user data: {user_data}")
+                    return user_data
+                else:
+                    logger.warning(f"No user found with Firebase UID: {firebase_uid}")
+                    return None
         except psycopg2.Error as e:
-            print(f"Error getting user: {e}")
+            logger.error(f"Database error while getting user: {str(e)}", exc_info=True)
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error while getting user: {str(e)}", exc_info=True)
             raise
 
- 
     @staticmethod
     def update_user_profile(firebase_uid, first_name=None, last_name=None):
         """Update user's profile information."""

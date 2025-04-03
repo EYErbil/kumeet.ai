@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaCamera, FaCheck, FaExclamationTriangle } from 'react-icons/fa';
+import { getCurrentUser } from '../../services/api/auth';
 
 const ProfileSettings = () => {
   // User profile state
   const [profile, setProfile] = useState({
-    firstName: 'John',
-    lastName: 'Doe',
-    email: 'john.doe@example.com',
-    isEmailVerified: true,
+    firstName: '',
+    lastName: '',
+    email: '',
   });
 
   // Password change state
@@ -21,6 +21,51 @@ const ProfileSettings = () => {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [notification, setNotification] = useState(null);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const currentUser = getCurrentUser();
+        if (!currentUser) {
+          console.error('No user logged in');
+          return;
+        }
+
+        const idToken = await currentUser.getIdToken();
+        const response = await fetch(`http://localhost:8000/api/user/${currentUser.uid}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${idToken}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          credentials: 'include',
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error('Error response:', {
+            status: response.status,
+            statusText: response.statusText,
+            errorData
+          });
+          throw new Error(`Failed to fetch user data: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        
+        setProfile({
+          firstName: data.firstName || '',
+          lastName: data.lastName || '',
+          email: data.email || '',
+        });
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      }
+    };
+
+    fetchUserData();
+  }, []);
 
   // Handle profile form changes
   const handleProfileChange = (e) => {
@@ -134,11 +179,6 @@ const ProfileSettings = () => {
             </h3>
             <div className="flex items-center text-sm">
               <span className="text-gray-600 dark:text-gray-400">{profile.email}</span>
-              {profile.isEmailVerified && (
-                <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100 rounded-full text-xs flex items-center">
-                  <FaCheck size={10} className="mr-1" /> Verified
-                </span>
-              )}
             </div>
           </div>
         </div>
@@ -227,11 +267,6 @@ const ProfileSettings = () => {
               <p className="text-sm text-gray-500 dark:text-gray-400">Email Address</p>
               <div className="flex items-center">
                 <p className="text-gray-900 dark:text-white">{profile.email}</p>
-                {!profile.isEmailVerified && (
-                  <button className="ml-2 text-sm text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300">
-                    Verify Email
-                  </button>
-                )}
               </div>
             </div>
           </div>
