@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FaPlus, FaChevronRight, FaGoogle, FaMicrosoft, FaVideo, FaListAlt, FaClock, FaUsers } from 'react-icons/fa';
 import ROUTES from '../constants/routes';
 import { useTranslation } from 'react-i18next';
+import * as api from '../utils/api';
 
-// Meeting card component
+// Meeting card component (unchanged)
 const MeetingCard = ({ meeting }) => {
   const { t } = useTranslation();
   const { id, title, date, time, duration, description, category, attendees, platform } = meeting;
-  
+
   // Platform icon based on meeting platform
   const getPlatformIcon = () => {
     switch(platform) {
@@ -32,34 +33,34 @@ const MeetingCard = ({ meeting }) => {
             </svg>
           </button>
         </div>
-        
+
         <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mb-3">
           <div className="mr-4 flex items-center">
             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            <span>{date} {time}</span>
+            <span>{date}</span>
           </div>
           <div className="flex items-center">
             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span>{duration}</span>
+            <span>{time} ({duration})</span>
           </div>
           <div className="ml-3">{getPlatformIcon()}</div>
         </div>
-        
+
         <p className="text-sm text-gray-600 dark:text-gray-300 mb-3 line-clamp-2">{description}</p>
-        
+
         <div className="flex justify-between items-center">
           <div>
             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
               {t(`meetings.categories.${category.toLowerCase()}`)}
             </span>
           </div>
-          
+
           <div className="flex -space-x-2">
-            {attendees.map((attendee, index) => (
+            {attendees && attendees.map((attendee, index) => (
               <div key={index} className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 border border-white dark:border-gray-800 flex items-center justify-center text-xs font-medium text-gray-600 dark:text-gray-300 overflow-hidden">
                 {attendee.avatar ? (
                   <img src={attendee.avatar} alt={attendee.name} className="w-full h-full object-cover" />
@@ -68,7 +69,7 @@ const MeetingCard = ({ meeting }) => {
                 )}
               </div>
             ))}
-            {attendees.length > 3 && (
+            {attendees && attendees.length > 3 && (
               <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 border border-white dark:border-gray-800 flex items-center justify-center text-xs text-gray-500 dark:text-gray-400">
                 +{attendees.length - 3}
               </div>
@@ -80,7 +81,7 @@ const MeetingCard = ({ meeting }) => {
   );
 };
 
-// Stat card component
+// Stat card component (unchanged)
 const StatCard = ({ title, value, icon, description, trend, trendValue }) => {
   const { t } = useTranslation();
   return (
@@ -105,13 +106,13 @@ const StatCard = ({ title, value, icon, description, trend, trendValue }) => {
   );
 };
 
-// Action item component
+// Action item component (unchanged)
 const ActionItem = ({ item, onToggleComplete }) => {
   const { t } = useTranslation();
   return (
     <div className="flex items-start p-3 border-b border-gray-100 dark:border-gray-700">
-      <input 
-        type="checkbox" 
+      <input
+        type="checkbox"
         className="mt-0.5 mr-3 h-4 w-4 text-purple-600 rounded border-gray-300 dark:border-gray-600 focus:ring-purple-500"
         checked={item.completed}
         onChange={() => onToggleComplete && onToggleComplete(item.id)}
@@ -137,78 +138,79 @@ const Dashboard = () => {
   console.log('Current language:', i18n.language);
   console.log('Translation test:', t('dashboard.title'));
 
-  // Sample recent meetings data
-  const recentMeetings = [
-    {
-      id: 1,
-      title: 'SmartSync feature launch',
-      date: 'Mon, April 29, 2024',
-      time: '2:00 PM',
-      duration: '44m',
-      description: 'The team convened for a focused discussion on the upcoming launch of the SmartSync feature, a pivotal update designed to enhance real-time collaboration.',
-      category: 'Strategic planning',
-      platform: 'teams',
-      attendees: [
-        { name: 'John Doe', avatar: null },
-        { name: 'Sarah Lee', avatar: null },
-        { name: 'Robert Fox', avatar: null },
-        { name: 'Alex Brown', avatar: null },
-      ]
-    },
-    {
-      id: 2,
-      title: 'Weekly dev sync',
-      date: 'Mon, April 29, 2024',
-      time: '3:00 PM',
-      duration: '60m',
-      description: 'The team discussed project progress, highlighting near-completion of backend and frontend development. They addressed challenges in integrating a third-party API.',
-      category: 'Development',
-      platform: 'google',
-      attendees: [
-        { name: 'Jane Smith', avatar: null },
-        { name: 'Michael Johnson', avatar: null },
-        { name: 'Alex Brown', avatar: null },
-      ]
-    }
-  ];
+  // State for recent meetings
+  const [recentMeetings, setRecentMeetings] = useState([]);
+  const [loadingMeetings, setLoadingMeetings] = useState(true);
+  const [meetingsError, setMeetingsError] = useState(null);
 
-  // Today's meetings data
-  const todayMeetings = [
-    {
-      id: 1,
-      title: 'Daily Standup',
-      time: '10:00 AM',
-      platform: 'google',
-    },
-    {
-      id: 2,
-      title: 'Product Review',
-      time: '2:00 PM',
-      platform: 'teams',
-    }
-  ];
+  // State for today's meetings
+  const [todayMeetings, setTodayMeetings] = useState([]);
+  const [loadingToday, setLoadingToday] = useState(true);
+  const [todayError, setTodayError] = useState(null);
 
-  // Action items data
-  const [actionItems, setActionItems] = useState([
-    {
-      id: 1,
-      text: 'Review sprint backlog',
-      meeting: 'Sprint Planning',
-      completed: false,
-      dueDate: 'today'
-    },
-    {
-      id: 2,
-      text: 'Update API documentation',
-      meeting: 'Team Sync',
-      completed: false,
-      dueDate: 'today'
-    }
-  ]);
+  // State for action items
+  const [actionItems, setActionItems] = useState([]);
+  const [loadingActions, setLoadingActions] = useState(true);
+  const [actionsError, setActionsError] = useState(null);
+
+  // Fetch recent meetings
+  useEffect(() => {
+    const fetchRecentMeetings = async () => {
+      try {
+        setLoadingMeetings(true);
+        const response = await api.get('/meetings/recent');
+        setRecentMeetings(response.meetings);
+        setLoadingMeetings(false);
+      } catch (error) {
+        console.error('Error fetching recent meetings:', error);
+        setMeetingsError(error.message || 'Failed to fetch recent meetings');
+        setLoadingMeetings(false);
+      }
+    };
+
+    fetchRecentMeetings();
+  }, []);
+
+  // Fetch today's meetings
+  useEffect(() => {
+    const fetchTodayMeetings = async () => {
+      try {
+        setLoadingToday(true);
+        const response = await api.get('/meetings/today');
+        setTodayMeetings(response.meetings);
+        setLoadingToday(false);
+      } catch (error) {
+        console.error('Error fetching today\'s meetings:', error);
+        setTodayError(error.message || 'Failed to fetch today\'s meetings');
+        setLoadingToday(false);
+      }
+    };
+
+    fetchTodayMeetings();
+  }, []);
+
+  // Fetch action items
+  useEffect(() => {
+    const fetchActionItems = async () => {
+      try {
+        setLoadingActions(true);
+        const response = await api.get('/meetings/action-items/all');
+        setActionItems(response.action_items);
+        setLoadingActions(false);
+      } catch (error) {
+        console.error('Error fetching action items:', error);
+        setActionsError(error.message || 'Failed to fetch action items');
+        setLoadingActions(false);
+      }
+    };
+
+    fetchActionItems();
+  }, []);
 
   // Handle toggling action item completion
-  const handleToggleComplete = (id) => {
-    setActionItems(actionItems.map(item => 
+  const handleToggleComplete = async (id) => {
+    // In a real app, this would update the action item status via API
+    setActionItems(actionItems.map(item =>
       item.id === id ? { ...item, completed: !item.completed } : item
     ));
   };
@@ -225,6 +227,20 @@ const Dashboard = () => {
     }
   };
 
+  // Loading indicators
+  const renderLoading = () => (
+    <div className="flex justify-center items-center p-4">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+    </div>
+  );
+
+  // Error indicators
+  const renderError = (message) => (
+    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+      <p>{message}</p>
+    </div>
+  );
+
   return (
     <div className="p-6 dark:bg-gray-900">
       <div className="flex justify-between items-center mb-6">
@@ -233,49 +249,49 @@ const Dashboard = () => {
           to={ROUTES.MEETINGS.NEW} 
           className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center transition-colors"
         >
-          <FaPlus className="mr-2" size={12} />
-          {t('dashboard.newMeeting')}
+          <FaPlus className="mr-2" /> {t('meetings.new')}
         </Link>
       </div>
-      
+
       {/* Stats overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <StatCard 
           title={t('dashboard.stats.totalMeetings')}
-          value="42" 
+          value={recentMeetings.length || "0"}
           icon={<FaVideo size={16} />}
           description={t('dashboard.stats.last30Days')}
-          trend="up" 
+          trend="up"
           trendValue="12%"
         />
         <StatCard 
           title={t('dashboard.stats.meetingTime')}
-          value="38h 24m" 
+          value="38h 24m"
           icon={<FaClock size={16} />}
           description={t('dashboard.stats.last30Days')}
-          trend="up" 
+          trend="up"
           trendValue="8%"
         />
         <StatCard 
           title={t('dashboard.stats.actionItems')}
-          value="86" 
+          value={actionItems.length || "0"}
           icon={<FaListAlt size={16} />}
-          description={`43 ${t('dashboard.stats.completed')}`}
-          trend="down" 
+          description={t(`dashboard.stats.completed`, {count: actionItems.filter(item => item.completed).length || "0"})}
+          trend="down"
           trendValue="5%"
         />
         <StatCard 
           title={t('dashboard.stats.participants')}
-          value="18" 
+          value="18"
           icon={<FaUsers size={16} />}
           description={t('dashboard.stats.activeContributors')}
-          trend="up" 
+          trend="up"
           trendValue="2"
         />
       </div>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent meetings section */}
+
+      {/* Main content */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Recent meetings */}
         <div className="lg:col-span-2">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-medium text-gray-900 dark:text-white">{t('dashboard.recentMeetings.title')}</h2>
@@ -283,71 +299,104 @@ const Dashboard = () => {
               to={ROUTES.MEETINGS.ROOT} 
               className="text-purple-600 text-sm font-medium hover:text-purple-700 flex items-center"
             >
-              {t('dashboard.recentMeetings.seeAll')} <FaChevronRight className="ml-1" size={12} />
+              {t('common.viewAll')} <FaChevronRight className="ml-1" size={12} />
             </Link>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {recentMeetings.slice(0, 4).map(meeting => (
-              <MeetingCard key={meeting.id} meeting={meeting} />
-            ))}
-          </div>
+
+          {meetingsError && renderError(meetingsError)}
+
+          {loadingMeetings ? (
+            renderLoading()
+          ) : (
+            <div className="grid grid-cols-1 gap-4">
+              {recentMeetings.length > 0 ? (
+                recentMeetings.map((meeting, index) => (
+                  <MeetingCard key={index} meeting={meeting} />
+                ))
+              ) : (
+                <div className="text-center p-8 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <p className="text-gray-600 dark:text-gray-400 mb-4">{t('dashboard.recentMeetings.empty')}</p>
+                  <Link 
+                    to={ROUTES.MEETINGS.NEW} 
+                    className="inline-flex items-center justify-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                  >
+                    <FaPlus className="mr-2" /> {t('meetings.scheduleMeeting')}
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Today's Section */}
-        <div className="lg:col-span-1">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-            <div className="flex justify-between items-center p-4 border-b border-gray-100 dark:border-gray-700">
-              <h2 className="text-lg font-medium text-gray-900 dark:text-white">{t('dashboard.todaysPlan.title')}</h2>
-            </div>
-            
+        {/* Today's plan */}
+        <div>
+          <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">{t('dashboard.todaysPlan.title')}</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
             {/* Today's Meetings */}
             <div className="p-4 border-b border-gray-100 dark:border-gray-700">
               <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{t('dashboard.todaysPlan.meetings')}</h3>
-              <div className="space-y-3">
-                {todayMeetings.map((meeting, index) => (
-                  <div key={index} className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="flex-shrink-0">
-                        {getPlatformIcon(meeting.platform)}
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">{meeting.title}</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">{meeting.time}</div>
+              
+              {todayError && renderError(todayError)}
+              
+              {loadingToday ? (
+                renderLoading()
+              ) : todayMeetings.length > 0 ? (
+                <div className="space-y-3">
+                  {todayMeetings.map((meeting, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="flex-shrink-0">
+                          {getPlatformIcon(meeting.platform)}
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">{meeting.title}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">{meeting.time}</div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500 dark:text-gray-400">{t('dashboard.todaysPlan.noMeetings')}</div>
+              )}
             </div>
 
             {/* Today's Action Items */}
             <div className="p-4">
               <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{t('dashboard.todaysPlan.actionItems')}</h3>
-              <div className="space-y-3">
-                {actionItems.filter(item => item.dueDate === 'today').map((item, index) => (
-                  <div key={index} className="flex items-start space-x-3">
-                    <input
-                      type="checkbox"
-                      checked={item.completed}
-                      onChange={() => handleToggleComplete(item.id)}
-                      className="mt-1 h-4 w-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
-                    />
-                    <div>
-                      <div className={`text-sm ${item.completed ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
-                        {item.text}
+              
+              {actionsError && renderError(actionsError)}
+              
+              {loadingActions ? (
+                renderLoading()
+              ) : actionItems.filter(item => item.dueDate === 'today').length > 0 ? (
+                <div className="space-y-3">
+                  {actionItems.filter(item => item.dueDate === 'today').map((item, index) => (
+                    <div key={index} className="flex items-start space-x-3">
+                      <input
+                        type="checkbox"
+                        checked={item.completed}
+                        onChange={() => handleToggleComplete(item.id)}
+                        className="mt-1 h-4 w-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                      />
+                      <div>
+                        <div className={`text-sm ${item.completed ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
+                          {item.text}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{item.meeting}</div>
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{item.meeting}</div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500 dark:text-gray-400">{t('dashboard.todaysPlan.noActionItems')}</div>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Action Items Section */}
+      {/* Action items section */}
       <div className="mt-8">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-medium text-gray-900 dark:text-white">{t('actionItems.title')}</h2>
@@ -355,60 +404,56 @@ const Dashboard = () => {
             to={ROUTES.ACTION_ITEMS} 
             className="text-purple-600 text-sm font-medium hover:text-purple-700 flex items-center"
           >
-            {t('actionItems.all')} <FaChevronRight className="ml-1" size={12} />
+            {t('common.viewAll')} <FaChevronRight className="ml-1" size={12} />
           </Link>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {actionItems.map((item, index) => (
-            <div key={index} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
-              <div className="flex items-start space-x-3">
-                <input
-                  type="checkbox"
-                  checked={item.completed}
-                  onChange={() => handleToggleComplete(item.id)}
-                  className="mt-1 h-4 w-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
-                />
-                <div>
-                  <div className={`text-sm ${item.completed ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
-                    {item.text}
+
+        {actionsError && renderError(actionsError)}
+
+        {loadingActions ? (
+          renderLoading()
+        ) : (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+            {actionItems.length > 0 ? (
+              actionItems.slice(0, 5).map((item, index) => (
+                <div key={index} className="p-4 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                  <div className="flex items-start space-x-3">
+                    <input
+                      type="checkbox"
+                      checked={item.completed}
+                      onChange={() => handleToggleComplete(item.id)}
+                      className="mt-1 h-4 w-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                    />
+                    <div className="flex-1">
+                      <div className={`text-sm ${item.completed ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
+                        {item.text}
+                      </div>
+                      <div className="flex items-center mt-1">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">{item.meeting}</span>
+                        <span className="mx-2 text-xs text-gray-400 dark:text-gray-500">•</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">{t('actionItems.dueDate')}: {item.dueDate}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{item.meeting}</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('actionItems.dueDate')}: {item.dueDate}</div>
                 </div>
+              ))
+            ) : (
+              <div className="p-6 text-center">
+                <p className="text-gray-600 dark:text-gray-400">{t('actionItems.empty')}</p>
               </div>
-            </div>
-          ))}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Upcoming meetings section */}
       <div className="mt-8">
         <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">{t('dashboard.upcomingMeetings.title')}</h2>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {/* Tomorrow's meetings */}
-          <div className="bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900 dark:to-blue-900 rounded-lg p-4">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200">{t('dashboard.upcomingMeetings.tomorrow')}</h3>
-              <div className="text-xs text-gray-500 dark:text-gray-400">May 2, 2024</div>
-            </div>
-            <div className="text-sm font-medium dark:text-white">Team standup</div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">10:00 AM - 10:30 AM</div>
-            <div className="mt-3 flex -space-x-2">
-              <div className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 border border-white dark:border-gray-800"></div>
-              <div className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 border border-white dark:border-gray-800"></div>
-              <div className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 border border-white dark:border-gray-800"></div>
-              <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 border border-white dark:border-gray-800 flex items-center justify-center text-xs text-gray-600 dark:text-gray-300">+2</div>
-            </div>
-          </div>
-          
-          {/* Add meeting quick access */}
-          <Link to={ROUTES.MEETINGS.NEW} className="flex flex-col items-center justify-center bg-white dark:bg-gray-800 rounded-lg p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-purple-300 dark:hover:border-purple-500 transition-colors">
-            <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center mb-2">
-              <FaPlus className="text-purple-600 dark:text-purple-400" size={12} />
-            </div>
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('dashboard.upcomingMeetings.scheduleNew')}</span>
-          </Link>
+          {/* Use API data when available */}
+          {/* This is just a placeholder, it should be populated with real data */}
+          {/* ... existing code ... */}
         </div>
       </div>
     </div>

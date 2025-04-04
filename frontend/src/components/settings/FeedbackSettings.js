@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { FaCommentDots, FaCheck, FaExclamationTriangle, FaLightbulb, FaBug, FaQuestionCircle } from 'react-icons/fa';
 import { useTranslation } from 'react-i18next';
+import { getCurrentUser } from '../../services/api/auth';
+import * as api from '../../utils/api';
 
 const FeedbackSettings = () => {
   const { t } = useTranslation();
   
   // Feedback state
-  const [feedbackType, setFeedbackType] = useState('general');
+  const [feedbackType, setFeedbackType] = useState('general feedback');
   const [feedbackText, setFeedbackText] = useState('');
   const [notification, setNotification] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -22,7 +24,7 @@ const FeedbackSettings = () => {
   };
 
   // Handle feedback submission
-  const handleSubmitFeedback = (e) => {
+  const handleSubmitFeedback = async (e) => {
     e.preventDefault();
     
     if (!feedbackText.trim()) {
@@ -32,37 +34,56 @@ const FeedbackSettings = () => {
     
     setSubmitting(true);
     
-    // Here you would send the feedback to your backend
-    // For demo purposes, we'll just simulate a successful submission
-    setTimeout(() => {
+    try {
+      const currentUser = getCurrentUser();
+      if (!currentUser) {
+        throw new Error('No user logged in');
+      }
+
+      // Use API utility with correct feedback endpoint
+      const data = await api.post('/feedback', {
+        feedback_text: feedbackText,
+        feedback_type: feedbackType
+      });
+      
+      console.log('Success response:', data);
       setFeedbackText('');
-      setSubmitting(false);
       showNotification(t('settings.feedback.feedbackSent'), 'success');
-    }, 1000);
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+      showNotification(
+        error.message === '[object Object]' 
+          ? t('settings.feedback.submitError')
+          : error.message,
+        'error'
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   // Show notification
   const showNotification = (message, type) => {
     setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000);
+    setTimeout(() => setNotification(null), 10000);
   };
 
   // Feedback type options
   const feedbackTypes = [
     {
-      id: 'general',
+      id: 'general feedback',
       label: t('settings.feedback.generalFeedback'),
       icon: <FaCommentDots />,
       description: t('settings.feedback.generalFeedbackDescription'),
     },
     {
-      id: 'feature',
+      id: 'feature request',
       label: t('settings.feedback.featureRequest'),
       icon: <FaLightbulb />,
       description: t('settings.feedback.featureRequestDescription'),
     },
     {
-      id: 'bug',
+      id: 'bug report',
       label: t('settings.feedback.bugReport'),
       icon: <FaBug />,
       description: t('settings.feedback.bugReportDescription'),
@@ -151,9 +172,10 @@ const FeedbackSettings = () => {
               onChange={handleFeedbackTextChange}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               rows="5"
-              placeholder={t(`settings.feedback.placeholders.${feedbackType}`)}
+              placeholder={t(`settings.feedback.placeholders.${feedbackType.replace(' ', '')}`)}
+              required
             ></textarea>
-            {feedbackType === 'bug' && (
+            {feedbackType === 'bug report' && (
               <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                 {t('settings.feedback.bugReportHelp')}
               </p>

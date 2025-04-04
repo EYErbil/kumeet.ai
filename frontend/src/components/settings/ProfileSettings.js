@@ -1,16 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaCamera, FaCheck, FaExclamationTriangle } from 'react-icons/fa';
 import { useTranslation } from 'react-i18next';
+import { getCurrentUser } from '../../services/api/auth';
+import * as api from '../../utils/api';
 
 const ProfileSettings = () => {
   const { t } = useTranslation();
   
   // User profile state
   const [profile, setProfile] = useState({
-    firstName: 'John',
-    lastName: 'Doe',
-    email: 'john.doe@example.com',
-    isEmailVerified: true,
+    firstName: '',
+    lastName: '',
+    email: '',
   });
 
   // Password change state
@@ -24,6 +25,35 @@ const ProfileSettings = () => {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [notification, setNotification] = useState(null);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const currentUser = getCurrentUser();
+        if (!currentUser) {
+          console.error('No user logged in');
+          return;
+        }
+
+        try {
+          const data = await api.get(`/user/${currentUser.uid}`);
+          setProfile({
+            firstName: data.firstName || '',
+            lastName: data.lastName || '',
+            email: data.email || '',
+          });
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+          // Show notification to the user
+          showNotification('Failed to load user profile', 'error');
+        }
+      } catch (error) {
+        console.error('Error in profile data fetch:', error);
+      }
+    };
+
+    fetchUserData();
+  }, []);
 
   // Handle profile form changes
   const handleProfileChange = (e) => {
@@ -44,11 +74,28 @@ const ProfileSettings = () => {
   };
 
   // Save profile changes
-  const handleSaveProfile = (e) => {
+  const handleSaveProfile = async (e) => {
     e.preventDefault();
-    // Here you would call your API to update the profile
-    setIsEditingProfile(false);
-    showNotification(t('settings.profile.profileUpdated'), 'success');
+    try {
+      const currentUser = getCurrentUser();
+      if (!currentUser) {
+        showNotification(t('settings.profile.notLoggedIn'), 'error');
+        return;
+      }
+
+      // Call API to update the profile
+      const updateData = {
+        firstName: profile.firstName,
+        lastName: profile.lastName
+      };
+      
+      await api.put(`/user/${currentUser.uid}`, updateData);
+      setIsEditingProfile(false);
+      showNotification(t('settings.profile.profileUpdated'), 'success');
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      showNotification(t('settings.profile.updateFailed'), 'error');
+    }
   };
 
   // Change password
@@ -230,11 +277,6 @@ const ProfileSettings = () => {
               <p className="text-sm text-gray-500 dark:text-gray-400">{t('settings.profile.emailAddress')}</p>
               <div className="flex items-center">
                 <p className="text-gray-900 dark:text-white">{profile.email}</p>
-                {!profile.isEmailVerified && (
-                  <button className="ml-2 text-sm text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300">
-                    {t('settings.profile.verifyEmail')}
-                  </button>
-                )}
               </div>
             </div>
           </div>

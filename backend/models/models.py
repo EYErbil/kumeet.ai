@@ -1,10 +1,57 @@
 from datetime import datetime
 from psycopg2 import sql
-from db import conn
-from utils.logger import setup_logger
+import logging
+import os
+import sys
+import psycopg2
+import socket
 
 # Set up logger
-logger = setup_logger(__name__)
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+
+# Detect environment - Check if we're running in Docker or locally
+def is_running_in_docker():
+    """Check if the code is running inside a Docker container"""
+    try:
+        with open('/proc/self/cgroup', 'r') as f:
+            return 'docker' in f.read()
+    except:
+        # If the file doesn't exist, we're likely in Docker on Alpine Linux
+        return os.path.exists('/.dockerenv')
+
+
+# Set host based on environment
+if is_running_in_docker() or os.environ.get('DATABASE_URL', '').startswith('postgresql://'):
+    # In Docker, use the service name from docker-compose
+    DB_HOST = "db"
+    logger.info("Detected Docker environment")
+else:
+    # Not in Docker, use localhost
+    DB_HOST = "localhost"
+
+# Get other connection parameters (with defaults)
+DB_PORT = os.environ.get('DB_PORT', '5432')
+DB_NAME = os.environ.get('DB_NAME', 'kumeet')
+DB_USER = os.environ.get('DB_USER', 'postgres')
+DB_PASSWORD = os.environ.get('DB_PASSWORD', 'postgres')
+
+# If DATABASE_URL is provided (e.g. in Docker Compose), parse it
+db_url = os.environ.get('DATABASE_URL')
+if db_url and db_url.startswith('postgresql://'):
+    # Format: postgresql://username:password@hostname:port/database
+    logger.info(f"Using DATABASE_URL environment variable")
+    # Extract just the hostname part
+    try:
+        db_parts = db_url.split('@')[1].split('/')
+        DB_HOST = db_parts[0].split(':')[0]
+        logger.info(f"Extracted host from DATABASE_URL: {DB_HOST}")
+    except:
+        logger.warning(f"Could not parse DATABASE_URL, using default host: {DB_HOST}")
+
+logger.info(f"Connecting to database: host={DB_HOST}, port={DB_PORT}, name={DB_NAME}, user={DB_USER}")
 
 # SQL statements to create tables
 CREATE_USERS_TABLE = """
@@ -130,16 +177,26 @@ CREATE TABLE IF NOT EXISTS feedback (
 );
 """
 
+
 def check_db_connection():
     """Check if we can connect to the database."""
     try:
+        conn = psycopg2.connect(
+            host=DB_HOST,
+            port=DB_PORT,
+            dbname=DB_NAME,
+            user=DB_USER,
+            password=DB_PASSWORD
+        )
         with conn.cursor() as cur:
             cur.execute("SELECT 1")
             logger.info("Database connection successful")
+            conn.close()
             return True
     except Exception as e:
         logger.error(f"Database connection failed: {e}")
         return False
+
 
 def check_table_exists(cursor, table_name):
     """Check if a table exists in the database."""
@@ -155,12 +212,23 @@ def check_table_exists(cursor, table_name):
         logger.error(f"Error checking if table {table_name} exists: {e}")
         return False
 
+
 def init_db():
     """Initialize the database by creating tables if they don't exist."""
+    logger.info("Starting database initialization")
+
     if not check_db_connection():
         raise Exception("Cannot initialize database - connection failed")
 
     try:
+        conn = psycopg2.connect(
+            host=DB_HOST,
+            port=DB_PORT,
+            dbname=DB_NAME,
+            user=DB_USER,
+            password=DB_PASSWORD
+        )
+
         with conn.cursor() as cur:
             # List of tables and their creation statements
             tables = {
@@ -188,12 +256,17 @@ def init_db():
             # Commit the changes
             conn.commit()
             logger.info("Database initialization completed successfully")
-            
+
     except Exception as e:
         logger.error(f"Error initializing database: {e}")
-        conn.rollback()
+        if conn:
+            conn.rollback()
         raise
+    finally:
+        if conn:
+            conn.close()
+
 
 # Initialize tables when this module is imported
 if __name__ == "__main__":
-    init_db() 
+    init_db()
