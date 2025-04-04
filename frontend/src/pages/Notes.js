@@ -1,40 +1,72 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  FaChevronLeft, 
-  FaSearch, 
-  FaCalendarAlt, 
-  FaClock, 
-  FaEdit, 
+import {
+  FaChevronLeft,
+  FaSearch,
+  FaCalendarAlt,
+  FaClock,
+  FaEdit,
   FaTrash,
-  FaPlus
+  FaPlus,
+  FaFileAlt,
+  FaVideo,
+  FaMicrosoft,
+  FaGoogle
 } from 'react-icons/fa';
 import ROUTES from '../constants/routes';
-import useNotes from '../hooks/useNotes';
+import * as api from '../utils/api';
 
-// Note card component
+// Enhanced Note card with better meeting display
 const NoteCard = ({ note, onSelect, isSelected }) => {
-  const { meetingTitle, meetingDate, content, updatedAt } = note;
-  
-  // Format date for display
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      hour: '2-digit', 
-      minute: '2-digit'
-    });
+  const { meetingTitle, meetingDate, content, updatedAt, meetingId } = note;
+
+  // Determine meeting platform icon (if applicable)
+  const getMeetingIcon = () => {
+    if (!meetingId) {
+      return <FaFileAlt className="text-gray-500" />;
+    }
+
+    // This is where you'd determine the platform based on the meeting
+    // For now we'll just randomly assign one
+    const platformType = meetingId % 3; // Simple way to get varied icons
+
+    switch(platformType) {
+      case 0:
+        return <FaGoogle className="text-blue-500" />;
+      case 1:
+        return <FaMicrosoft className="text-blue-600" />;
+      default:
+        return <FaVideo className="text-purple-500" />;
+    }
   };
-  
-  // Truncate content for preview
+
+  const formatDate = (dateString) => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      return dateString || 'Unknown date';
+    }
+  };
+
   const truncateContent = (text, maxLength = 150) => {
+    if (!text) return "No content";
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + '...';
   };
-  
+
+  // Determine note type label
+  const getNoteTypeLabel = () => {
+    return meetingId ? "Meeting Note" : "Personal Note";
+  };
+
   return (
-    <div 
+    <div
       className={`p-4 border rounded-lg mb-4 cursor-pointer transition-all ${
         isSelected 
           ? 'border-purple-500 bg-purple-50 dark:bg-gray-700' 
@@ -43,19 +75,27 @@ const NoteCard = ({ note, onSelect, isSelected }) => {
       onClick={() => onSelect(note)}
     >
       <div className="flex justify-between items-start mb-2">
-        <h3 className="font-medium text-gray-900 dark:text-white">{meetingTitle}</h3>
+        <div className="flex items-center">
+          <span className="mr-2">{getMeetingIcon()}</span>
+          <h3 className="font-medium text-gray-900 dark:text-white">
+            {meetingTitle || "Untitled Note"}
+          </h3>
+        </div>
         <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
           <FaCalendarAlt className="mr-1" />
-          <span>{meetingDate}</span>
+          <span>{meetingDate || "No date"}</span>
         </div>
       </div>
-      
+
       <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
         {truncateContent(content)}
       </p>
-      
-      <div className="flex justify-end items-center text-xs text-gray-500 dark:text-gray-400">
-        <div className="flex items-center">
+
+      <div className="flex justify-between items-center text-xs">
+        <span className="text-purple-600 dark:text-purple-400 font-medium">
+          {getNoteTypeLabel()}
+        </span>
+        <div className="flex items-center text-gray-500 dark:text-gray-400">
           <FaClock className="mr-1" />
           <span>Updated {formatDate(updatedAt)}</span>
         </div>
@@ -71,104 +111,415 @@ const Notes = () => {
   const [editContent, setEditContent] = useState('');
   const [editTitle, setEditTitle] = useState('');
   const [editDate, setEditDate] = useState('');
-  
-  // Use the custom hook to manage notes
-  const { 
-    notes, 
-    loading, 
-    error, 
-    createNote, 
-    updateNote, 
-    deleteNote, 
-    searchNotes 
-  } = useNotes();
-  
+  const [meetingOptions, setMeetingOptions] = useState([]);
+  const [selectedMeetingId, setSelectedMeetingId] = useState('');
+
+  // State for notes
+  const [notes, setNotes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [debugInfo, setDebugInfo] = useState(null);
+
+  // Load notes from localStorage on component mount
+  useEffect(() => {
+    // Load notes from localStorage on component mount
+    const storedNotes = localStorage.getItem('kumeet_notes');
+    if (storedNotes) {
+      try {
+        const parsedNotes = JSON.parse(storedNotes);
+        if (Array.isArray(parsedNotes) && parsedNotes.length > 0) {
+          console.log(`Loaded ${parsedNotes.length} notes from localStorage`);
+          setNotes(parsedNotes);
+          setLoading(false);
+        }
+      } catch (e) {
+        console.warn('Failed to parse notes from localStorage:', e);
+      }
+    }
+  }, []);
+
+  // Fetch notes from all available sources
+  const fetchNotes = async () => {
+    try {
+      setLoading(true);
+      console.log('Fetching all notes...');
+
+      // Create a variable to store all fetched notes from multiple sources
+      let allNotes = [];
+      let debugData = {};
+
+      // Try multiple endpoints in sequence and collect all results
+      const endpoints = ['/notes', '/notes/all'];
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`Trying endpoint: ${endpoint}`);
+          const resp = await api.get(endpoint);
+          debugData[endpoint] = resp;
+
+          if (resp && resp.notes && Array.isArray(resp.notes)) {
+            console.log(`Found ${resp.notes.length} notes with ${endpoint}`);
+            // Add notes from this endpoint to our collection, avoiding duplicates
+            resp.notes.forEach(note => {
+              // Check if note already exists in allNotes
+              if (!allNotes.some(existingNote => existingNote.id === note.id)) {
+                allNotes.push(note);
+              }
+            });
+          } else {
+            console.log(`Endpoint ${endpoint} returned no notes or unexpected format`);
+          }
+        } catch (err) {
+          console.log(`Failed to fetch from ${endpoint}: ${err.message}`);
+          debugData[`${endpoint}_error`] = err.message;
+        }
+      }
+
+      // Also try to fetch notes for each meeting
+      try {
+        const meetingsResp = await api.get('/meetings');
+        if (meetingsResp && meetingsResp.meetings && Array.isArray(meetingsResp.meetings)) {
+          for (const meeting of meetingsResp.meetings) {
+            const meetingId = meeting.meeting_id || meeting.id;
+            if (meetingId) {
+              try {
+                console.log(`Fetching notes for meeting ${meetingId}`);
+                const meetingNotesResp = await api.get(`/notes/meeting/${meetingId}`);
+                if (meetingNotesResp && meetingNotesResp.notes && Array.isArray(meetingNotesResp.notes)) {
+                  console.log(`Found ${meetingNotesResp.notes.length} notes for meeting ${meetingId}`);
+                  // Add meeting notes to our collection, avoiding duplicates
+                  meetingNotesResp.notes.forEach(note => {
+                    if (!allNotes.some(existingNote => existingNote.id === note.id)) {
+                      allNotes.push(note);
+                    }
+                  });
+                }
+              } catch (err) {
+                console.log(`Failed to fetch notes for meeting ${meetingId}: ${err.message}`);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.log(`Failed to fetch meetings: ${err.message}`);
+      }
+
+      // Try direct database query as a last resort
+      if (allNotes.length === 0) {
+        console.log('No notes found from any endpoint, checking direct DB query');
+        try {
+          const dbNotes = await fetch('/api/debug/notes').then(res => res.json());
+          if (dbNotes && dbNotes.length > 0) {
+            console.log(`Found ${dbNotes.length} notes directly from DB`);
+            const transformedDbNotes = dbNotes.map(note => ({
+              id: note.note_id,
+              content: note.note_text || '',
+              meetingId: note.meeting_id ? String(note.meeting_id) : '',
+              meetingTitle: note.meeting_id ? `Meeting ${note.meeting_id}` : 'Personal Note',
+              meetingDate: new Date().toLocaleDateString(),
+              createdAt: note.created_at || new Date().toISOString(),
+              updatedAt: note.created_at || new Date().toISOString(),
+              createdBy: { id: note.firebase_uid, name: 'User' }
+            }));
+
+            // Add these notes to our collection
+            transformedDbNotes.forEach(note => {
+              if (!allNotes.some(existingNote => existingNote.id === note.id)) {
+                allNotes.push(note);
+              }
+            });
+          }
+        } catch (dbErr) {
+          console.log('Direct DB query failed:', dbErr);
+        }
+      }
+
+      // Local storage fallback - add notes from localStorage if they exist
+      try {
+        const storedNotes = localStorage.getItem('kumeet_notes');
+        if (storedNotes) {
+          const parsedNotes = JSON.parse(storedNotes);
+          if (Array.isArray(parsedNotes) && parsedNotes.length > 0) {
+            console.log(`Found ${parsedNotes.length} notes in localStorage`);
+            // Add localStorage notes to our collection, avoiding duplicates
+            parsedNotes.forEach(note => {
+              if (!allNotes.some(existingNote => existingNote.id === note.id)) {
+                allNotes.push(note);
+              }
+            });
+          }
+        }
+      } catch (localStorageErr) {
+        console.log('Failed to load notes from localStorage:', localStorageErr);
+      }
+
+      // Set the state with all collected notes
+      if (allNotes.length > 0) {
+        console.log(`Total unique notes found: ${allNotes.length}`);
+        setNotes(allNotes);
+
+        // Save to localStorage for persistence
+        try {
+          localStorage.setItem('kumeet_notes', JSON.stringify(allNotes));
+        } catch (e) {
+          console.warn('Failed to save notes to localStorage:', e);
+        }
+      } else {
+        console.warn('No notes found from any source');
+        setNotes([]);
+      }
+
+      setDebugInfo(debugData);
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching notes:', err);
+      setError(err.message || 'Failed to fetch notes');
+      setLoading(false);
+      setNotes([]);
+    }
+  };
+
+  // Fetch notes on component mount
+  useEffect(() => {
+    fetchNotes();
+
+    // Also fetch available meetings for the dropdown
+    const fetchMeetings = async () => {
+      try {
+        let meetingsResponse = await api.get('/meetings');
+
+        let meetings = [];
+        if (meetingsResponse && meetingsResponse.meetings) {
+          meetings = meetingsResponse.meetings;
+        } else if (meetingsResponse && Array.isArray(meetingsResponse)) {
+          meetings = meetingsResponse;
+        }
+
+        setMeetingOptions(meetings.map(meeting => ({
+          id: meeting.meeting_id || meeting.id,
+          title: meeting.title
+        })));
+      } catch (err) {
+        console.error('Error fetching meetings:', err);
+      }
+    };
+
+    fetchMeetings();
+  }, []);
+
+  // Search notes
+  const searchNotes = (searchTerm) => {
+    if (!searchTerm) return notes;
+
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    return notes.filter(note =>
+      (note.content && note.content.toLowerCase().includes(lowerSearchTerm)) ||
+      (note.meetingTitle && note.meetingTitle.toLowerCase().includes(lowerSearchTerm))
+    );
+  };
+
   // Handle note selection
   const handleSelectNote = (note) => {
     setSelectedNote(note);
     setEditContent(note.content);
     setEditTitle(note.meetingTitle);
     setEditDate(note.meetingDate);
+    setSelectedMeetingId(note.meetingId);
     setEditMode(false);
   };
-  
+
   // Handle search
   const handleSearch = (e) => {
     setSearchTerm(e.target.value);
   };
-  
+
   // Get filtered notes based on search term
   const filteredNotes = searchNotes(searchTerm);
-  
+
   // Handle edit mode toggle
   const toggleEditMode = () => {
     setEditMode(!editMode);
   };
-  
+
   // Handle save note
   const handleSaveNote = async () => {
     if (!selectedNote) return;
-    
+
     try {
-      const updatedData = { 
+      const updatedData = {
         content: editContent,
         meetingTitle: editTitle,
-        meetingDate: editDate
+        meetingDate: editDate,
+        meetingId: selectedMeetingId || null
       };
-      
-      const updatedNote = await updateNote(selectedNote.id, updatedData);
-      
+
+      // Optimistically update the UI first
+      const updatedNote = {
+        ...selectedNote,
+        ...updatedData,
+        updatedAt: new Date().toISOString()
+      };
+
+      // Update the note in the local state
+      const updatedNotes = notes.map(note =>
+        note.id === selectedNote.id ? updatedNote : note
+      );
+
+      setNotes(updatedNotes);
       setSelectedNote(updatedNote);
       setEditMode(false);
+
+      // Update localStorage for persistence
+      try {
+        localStorage.setItem('kumeet_notes', JSON.stringify(updatedNotes));
+      } catch (e) {
+        console.warn('Failed to save notes to localStorage:', e);
+      }
+
+      // Call API to update server
+      const response = await api.put(`/notes/${selectedNote.id}`, updatedData);
+      console.log('Update response:', response);
+
+      // If response has different data than what we expected, update again
+      if (response && response.id === selectedNote.id) {
+        const serverUpdatedNote = {
+          ...response,
+          updatedAt: new Date().toISOString()
+        };
+
+        const notesWithServerUpdate = notes.map(note =>
+          note.id === selectedNote.id ? serverUpdatedNote : note
+        );
+
+        setNotes(notesWithServerUpdate);
+        setSelectedNote(serverUpdatedNote);
+
+        // Update localStorage with server data
+        try {
+          localStorage.setItem('kumeet_notes', JSON.stringify(notesWithServerUpdate));
+        } catch (e) {
+          console.warn('Failed to save notes to localStorage:', e);
+        }
+      }
     } catch (error) {
       console.error('Failed to update note:', error);
+      // The optimistic update still remains in UI
     }
   };
-  
+
   // Handle delete note
   const handleDeleteNote = async () => {
     if (!selectedNote) return;
-    
+
+    // Show confirmation dialog
+    if (!window.confirm("Are you sure you want to delete this note?")) {
+      return;
+    }
+
     try {
-      await deleteNote(selectedNote.id);
+      // Optimistically remove from UI
+      const updatedNotes = notes.filter(note => note.id !== selectedNote.id);
+      setNotes(updatedNotes);
       setSelectedNote(null);
+
+      // Update localStorage for persistence
+      try {
+        localStorage.setItem('kumeet_notes', JSON.stringify(updatedNotes));
+      } catch (e) {
+        console.warn('Failed to save notes to localStorage:', e);
+      }
+
+      // Call API to delete
+      await api.del(`/notes/${selectedNote.id}`);
+      console.log(`Note ${selectedNote.id} deleted successfully`);
     } catch (error) {
       console.error('Failed to delete note:', error);
+
+      // Restore the note in case of error
+      fetchNotes(); // Refetch all notes to restore correct state
     }
   };
-  
+
   // Handle create new note
   const handleCreateNote = async () => {
     try {
-      const today = new Date().toLocaleDateString('en-US', { 
-        month: 'long', 
-        day: 'numeric', 
-        year: 'numeric' 
+      const today = new Date().toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
       });
-      
+
       const newNoteData = {
         meetingId: null,
-        meetingTitle: 'New Note',
-        meetingDate: today,
         content: 'Start typing your note here...',
-        createdBy: {
-          id: '1', // In a real app, this would be the current user's ID
-          name: 'Current User' // In a real app, this would be the current user's name
-        }
+        meetingTitle: 'New Note',
+        meetingDate: today
       };
-      
-      const newNote = await createNote(newNoteData);
-      
-      setSelectedNote(newNote);
-      setEditContent(newNote.content);
-      setEditTitle(newNote.meetingTitle);
-      setEditDate(newNote.meetingDate);
+
+      // Generate a temporary client ID for the note before server creates one
+      const clientId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+      // Optimistically add to state with the temp ID
+      const tempNote = {
+        id: clientId,
+        ...newNoteData,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        createdBy: { id: '1', name: 'Current User' },
+        isTemp: true // Flag to indicate this is a temporary note
+      };
+
+      // Update local state
+      const updatedNotes = [tempNote, ...notes];
+      setNotes(updatedNotes);
+
+      // Update localStorage for persistence
+      try {
+        localStorage.setItem('kumeet_notes', JSON.stringify(updatedNotes));
+      } catch (e) {
+        console.warn('Failed to save notes to localStorage:', e);
+      }
+
+      // Select the new note
+      setSelectedNote(tempNote);
+      setEditContent(tempNote.content);
+      setEditTitle(tempNote.meetingTitle);
+      setEditDate(tempNote.meetingDate);
+      setSelectedMeetingId(tempNote.meetingId);
       setEditMode(true);
+
+      // Now call the API
+      const response = await api.post('/notes', newNoteData);
+      console.log('Create response:', response);
+
+      // If we got a valid response, update our local state with the server ID
+      if (response && response.id) {
+        const serverNote = {
+          ...tempNote,
+          id: response.id,
+          isTemp: false
+        };
+
+        // Update local state, replacing the temp note with the server note
+        const updatedWithServerNotes = notes.map(note =>
+          note.id === clientId ? serverNote : note
+        );
+
+        setNotes(updatedWithServerNotes);
+        setSelectedNote(serverNote);
+
+        // Update localStorage with server data
+        try {
+          localStorage.setItem('kumeet_notes', JSON.stringify(updatedWithServerNotes));
+        } catch (e) {
+          console.warn('Failed to save notes to localStorage:', e);
+        }
+      }
     } catch (error) {
       console.error('Failed to create note:', error);
+      // Note is still in local state even if server call failed
     }
   };
-  
+
   return (
     <div className="container mx-auto px-4 py-6">
       <div className="flex items-center justify-between mb-6">
@@ -178,7 +529,7 @@ const Notes = () => {
           </Link>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Meeting Notes</h1>
         </div>
-        <button 
+        <button
           onClick={handleCreateNote}
           className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
         >
@@ -186,13 +537,20 @@ const Notes = () => {
           <span>New Note</span>
         </button>
       </div>
-      
+
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4" role="alert">
           <p>{error}</p>
         </div>
       )}
-      
+
+      {debugInfo && debugInfo.debug && (
+        <div className="bg-gray-100 border border-gray-400 text-gray-700 px-4 py-3 rounded mb-4 text-xs overflow-auto max-h-40">
+          <p className="font-bold">Debug Info:</p>
+          <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-180px)]">
         {/* Notes list sidebar */}
         <div className="lg:col-span-1 bg-white dark:bg-gray-800 rounded-lg shadow p-4 flex flex-col">
@@ -206,7 +564,7 @@ const Notes = () => {
             />
             <FaSearch className="absolute left-3 top-3 text-gray-400" />
           </div>
-          
+
           <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="flex justify-center items-center h-full">
@@ -214,9 +572,9 @@ const Notes = () => {
               </div>
             ) : filteredNotes.length > 0 ? (
               filteredNotes.map(note => (
-                <NoteCard 
-                  key={note.id} 
-                  note={note} 
+                <NoteCard
+                  key={note.id}
+                  note={note}
                   onSelect={handleSelectNote}
                   isSelected={selectedNote && selectedNote.id === note.id}
                 />
@@ -228,7 +586,7 @@ const Notes = () => {
             )}
           </div>
         </div>
-        
+
         {/* Note detail view */}
         <div className="lg:col-span-2">
           {selectedNote ? (
@@ -262,8 +620,29 @@ const Notes = () => {
                         placeholder="Enter date (e.g., May 15, 2024)"
                       />
                     </div>
+                    <div>
+                      <label htmlFor="meeting-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Associated Meeting
+                      </label>
+                      <select
+                        id="meeting-select"
+                        value={selectedMeetingId}
+                        onChange={(e) => setSelectedMeetingId(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      >
+                        <option value="">Personal Note (No Meeting)</option>
+                        {meetingOptions.map(meeting => (
+                          <option key={meeting.id} value={meeting.id}>
+                            {meeting.title}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Linking a note to a meeting makes it easier to find later
+                      </p>
+                    </div>
                   </div>
-                  
+
                   <div className="flex-1 mb-4 flex flex-col">
                     <label htmlFor="note-content" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Content
@@ -279,15 +658,15 @@ const Notes = () => {
                       />
                     </div>
                   </div>
-                  
+
                   <div className="flex justify-end space-x-3 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <button 
+                    <button
                       onClick={() => setEditMode(false)}
                       className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
                     >
                       Cancel
                     </button>
-                    <button 
+                    <button
                       onClick={handleSaveNote}
                       className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
                     >
@@ -299,22 +678,38 @@ const Notes = () => {
                 <>
                   <div className="flex justify-between items-start mb-4">
                     <div>
+                      <div className="flex items-center mb-2">
+                        {selectedNote.meetingId ? (
+                          <Link
+                            to={`/meetings/${selectedNote.meetingId}`}
+                            className="inline-flex items-center text-sm text-purple-600 dark:text-purple-400 hover:underline mr-2"
+                          >
+                            <FaVideo className="mr-1" />
+                            View Meeting
+                          </Link>
+                        ) : (
+                          <span className="inline-flex items-center text-sm text-gray-500 dark:text-gray-400 mr-2">
+                            <FaFileAlt className="mr-1" />
+                            Personal Note
+                          </span>
+                        )}
+                      </div>
                       <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-1">
-                        {selectedNote.meetingTitle}
+                        {selectedNote.meetingTitle || "Untitled Note"}
                       </h2>
                       <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
                         <FaCalendarAlt className="mr-1" />
-                        <span>{selectedNote.meetingDate}</span>
+                        <span>{selectedNote.meetingDate || "No date"}</span>
                       </div>
                     </div>
                     <div className="flex space-x-2">
-                      <button 
+                      <button
                         onClick={toggleEditMode}
                         className="p-2 text-gray-600 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400"
                       >
                         <FaEdit />
                       </button>
-                      <button 
+                      <button
                         onClick={handleDeleteNote}
                         className="p-2 text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400"
                       >
@@ -322,10 +717,10 @@ const Notes = () => {
                       </button>
                     </div>
                   </div>
-                  
+
                   <div className="flex-1 overflow-y-auto">
                     <div className="prose dark:prose-invert max-w-none">
-                      {selectedNote.content.split('\n').map((line, i) => (
+                      {(selectedNote.content || "No content").split('\n').map((line, i) => (
                         <p key={i} className="mb-4 text-gray-700 dark:text-gray-300">
                           {line}
                         </p>
@@ -345,7 +740,7 @@ const Notes = () => {
                 </div>
                 <h3 className="text-xl font-medium text-gray-900 dark:text-white mb-2">No note selected</h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-6">Select a note from the list or create a new one</p>
-                <button 
+                <button
                   onClick={handleCreateNote}
                   className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
                 >
@@ -360,4 +755,4 @@ const Notes = () => {
   );
 };
 
-export default Notes; 
+export default Notes;

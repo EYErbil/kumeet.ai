@@ -14,7 +14,8 @@ class FeedbackRequest(BaseModel):
     feedback_text: str
     feedback_type: str
 
-@router.post("/feedback")
+# Endpoint will be at /api/feedback when included with prefix="/api"
+@router.post("/feedback", status_code=201)
 async def create_feedback(
     feedback_data: FeedbackRequest,
     authorization: str = Header(None)

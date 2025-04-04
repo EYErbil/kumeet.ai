@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaCamera, FaCheck, FaExclamationTriangle } from 'react-icons/fa';
 import { getCurrentUser } from '../../services/api/auth';
+import * as api from '../../utils/api';
 
 const ProfileSettings = () => {
   // User profile state
@@ -31,36 +32,20 @@ const ProfileSettings = () => {
           return;
         }
 
-        const idToken = await currentUser.getIdToken();
-        const response = await fetch(`http://localhost:8000/api/user/${currentUser.uid}`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${idToken}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          credentials: 'include',
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          console.error('Error response:', {
-            status: response.status,
-            statusText: response.statusText,
-            errorData
+        try {
+          const data = await api.get(`/user/${currentUser.uid}`);
+          setProfile({
+            firstName: data.firstName || '',
+            lastName: data.lastName || '',
+            email: data.email || '',
           });
-          throw new Error(`Failed to fetch user data: ${response.status} ${response.statusText}`);
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+          // Show notification to the user
+          showNotification('Failed to load user profile', 'error');
         }
-
-        const data = await response.json();
-        
-        setProfile({
-          firstName: data.firstName || '',
-          lastName: data.lastName || '',
-          email: data.email || '',
-        });
       } catch (error) {
-        console.error('Error fetching user data:', error);
+        console.error('Error in profile data fetch:', error);
       }
     };
 
@@ -86,11 +71,28 @@ const ProfileSettings = () => {
   };
 
   // Save profile changes
-  const handleSaveProfile = (e) => {
+  const handleSaveProfile = async (e) => {
     e.preventDefault();
-    // Here you would call your API to update the profile
-    setIsEditingProfile(false);
-    showNotification('Profile updated successfully', 'success');
+    try {
+      const currentUser = getCurrentUser();
+      if (!currentUser) {
+        showNotification('Not logged in', 'error');
+        return;
+      }
+
+      // Call API to update the profile
+      const updateData = {
+        firstName: profile.firstName,
+        lastName: profile.lastName
+      };
+      
+      await api.put(`/user/${currentUser.uid}`, updateData);
+      setIsEditingProfile(false);
+      showNotification('Profile updated successfully', 'success');
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      showNotification('Failed to update profile', 'error');
+    }
   };
 
   // Change password

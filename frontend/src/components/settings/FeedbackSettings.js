@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FaCommentDots, FaCheck, FaExclamationTriangle, FaLightbulb, FaBug, FaQuestionCircle } from 'react-icons/fa';
 import { getCurrentUser } from '../../services/api/auth';
+import * as api from '../../utils/api';
 
 const FeedbackSettings = () => {
   // Feedback state
@@ -36,28 +37,12 @@ const FeedbackSettings = () => {
         throw new Error('No user logged in');
       }
 
-      const idToken = await currentUser.getIdToken();
-      const response = await fetch('http://localhost:8000/api/feedback', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${idToken}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          feedback_text: feedbackText,
-          feedback_type: feedbackType
-        }),
-        credentials: 'include',
+      // Use API utility with correct feedback endpoint
+      const data = await api.post('/feedback', {
+        feedback_text: feedbackText,
+        feedback_type: feedbackType
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Error response:', errorData);
-        throw new Error(errorData.detail || 'Failed to submit feedback');
-      }
-
-      const data = await response.json();
+      
       console.log('Success response:', data);
       setFeedbackText('');
       showNotification('Thank you for your feedback!', 'success');
