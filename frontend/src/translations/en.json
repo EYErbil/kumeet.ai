@@ -89,7 +89,9 @@
       "profileUpdated": "Profile updated successfully",
       "passwordChanged": "Password changed successfully",
       "passwordsDoNotMatch": "New passwords do not match",
-      "pictureUpdated": "Profile picture updated"
+      "pictureUpdated": "Profile picture updated",
+      "notLoggedIn": "Not logged in",
+      "updateFailed": "Failed to update profile"
     },
     "notifications": {
       "title": "Notification Settings",
@@ -112,34 +114,35 @@
     },
     "feedback": {
       "title": "Feedback",
-      "generalFeedback": "General Feedback",
-      "generalFeedbackDescription": "Share your experience with kumeet.ai",
-      "featureRequest": "Feature Request",
-      "featureRequestDescription": "Suggest new features or improvements",
-      "bugReport": "Bug Report",
-      "bugReportDescription": "Report issues or unexpected behavior",
-      "question": "Question",
-      "questionDescription": "Ask a question about using kumeet.ai",
       "yourFeedback": "Your Feedback",
-      "submitFeedback": "Submit Feedback",
-      "submitting": "Submitting...",
-      "feedbackSent": "Feedback sent successfully",
+      "generalFeedback": "General Feedback",
+      "featureRequest": "Feature Request",
+      "bugReport": "Bug Report",
+      "question": "Question",
+      "generalFeedbackDescription": "We value your feedback to improve kumeet.ai. Share your thoughts, suggestions, or experiences with us.",
+      "featureRequestDescription": "Suggest a new feature or improvement",
+      "bugReportDescription": "Report a problem or error",
+      "questionDescription": "Ask a question about using kumeet.ai",
       "feedbackType": "Feedback Type",
-      "bugReportHelp": "Please include steps to reproduce the issue, expected behavior, and any error messages you received.",
-      "placeholders": {
-        "general": "Share your thoughts here...",
-        "feature": "Describe your feature idea here...",
-        "bug": "Share the bug details here...",
-        "question": "What would you like to know?"
-      },
+      "enterFeedback": "Please enter your feedback",
+      "feedbackSent": "Thank you for your feedback!",
+      "submitting": "Submitting...",
+      "submitFeedback": "Submit Feedback",
+      "submitError": "Failed to submit feedback. Please try again.",
+      "bugReportHelp": "Please include steps to reproduce the bug and any error messages you saw.",
       "helpResources": {
         "title": "Help Resources",
         "faq": "Frequently Asked Questions",
         "faqDescription": "Find answers to common questions about kumeet.ai",
         "documentation": "Documentation",
-        "documentationDescription": "Detailed guides on how to use kumeet.ai features"
+        "documentationDescription": "Detailed guides and tutorials for using kumeet.ai"
       },
-      "enterFeedback": "Please enter your feedback"
+      "placeholders": {
+        "general": "Share your thoughts about kumeet.ai...",
+        "feature": "Describe the feature you'd like to see...",
+        "bug": "Describe the issue you're experiencing...",
+        "question": "What would you like to know about kumeet.ai?"
+      }
     },
     "billing": {
       "title": "Billing & Subscription",
@@ -306,64 +309,76 @@
   },
   "actionItems": {
     "title": "Action Items",
+    "meetingActionItems": "Meeting Action Items",
     "newActionItem": "New Action Item",
-    "all": "All",
+    "editActionItem": "Edit Action Item",
+    "add": "Add",
+    "update": "Update",
+    "pending": "Pending",
     "active": "Active",
     "completed": "Completed",
-    "noActionItems": "No action items found.",
-    "dueDate": "Due Date",
+    "all": "All",
+    "backToMeeting": "Back to Meeting",
+    "refresh": "Refresh Action Items",
     "description": "Description",
-    "status": "Status",
-    "add": "Add Item",
-    "update": "Update",
-    "delete": "Delete",
     "whatToBeDone": "What needs to be done?",
     "relatedMeeting": "Related Meeting",
-    "meetingNameOptional": "Meeting name (optional)"
+    "noSpecificMeeting": "No specific meeting",
+    "assignTo": "Assign to...",
+    "currentUser": "You (Current User)",
+    "dueDate": "Due Date",
+    "noDueDate": "No due date",
+    "markAsCompleted": "Mark as completed",
+    "assignee": "Assignee",
+    "empty": "No action items found. Create one to get started.",
+    "errorLoading": "Error loading action items",
+    "noFilteredItems": "No {{filter}} action items found.",
+    "noItems": "No action items found. Create one to get started."
   },
   "dashboard": {
     "title": "Dashboard",
     "newMeeting": "New Meeting",
+    "viewAll": "View All",
     "stats": {
       "totalMeetings": "Total Meetings",
       "meetingTime": "Meeting Time",
       "actionItems": "Action Items",
       "participants": "Participants",
       "last30Days": "Last 30 days",
-      "completed": "completed",
-      "activeContributors": "Active contributors"
+      "activeContributors": "Active contributors",
+      "completed": "{{count}} completed"
     },
     "recentMeetings": {
-      "title": "Recent meetings",
-      "seeAll": "See all",
-      "noMeetings": "No recent meetings"
+      "title": "Recent Meetings",
+      "empty": "No recent meetings found",
+      "seeAll": "See All"
     },
     "todaysPlan": {
       "title": "Today's Plan",
       "meetings": "Meetings",
+      "noMeetings": "No meetings scheduled for today",
       "actionItems": "Action Items",
-      "dueToday": "Due today"
+      "noActionItems": "No action items due today"
     },
     "upcomingMeetings": {
-      "title": "Upcoming meetings",
+      "title": "Upcoming Meetings",
       "tomorrow": "Tomorrow",
-      "scheduleNew": "Schedule new meeting"
+      "scheduleNew": "Schedule New Meeting"
     }
   },
   "notes": {
-    "title": "Meeting Notes",
+    "title": "Notes",
     "newNote": "New Note",
-    "searchPlaceholder": "Search notes...",
-    "noNotesFound": "No notes found. Try a different search term or create a new note.",
-    "noNoteSelected": "No note selected",
-    "selectOrCreate": "Select a note from the list or create a new one",
+    "createNote": "Create Note",
     "createNewNote": "Create New Note",
-    "noteTitle": "Title",
-    "noteDate": "Date",
-    "noteContent": "Content",
-    "titlePlaceholder": "Enter note title",
-    "datePlaceholder": "Enter date (e.g., May 15, 2024)",
-    "contentPlaceholder": "Enter note content here...",
-    "updated": "Updated"
+    "untitled": "Untitled Note",
+    "meetingNote": "Meeting Note",
+    "personalNote": "Personal Note",
+    "contentPlaceholder": "Start typing your note here...",
+    "updated": "Updated",
+    "noContent": "No content",
+    "noDate": "No date",
+    "noNoteSelected": "No note selected",
+    "selectOrCreate": "Select a note from the list or create a new one"
   }
 } 
