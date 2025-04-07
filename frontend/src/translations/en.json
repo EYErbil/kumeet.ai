@@ -10,6 +10,27 @@
     "languageChanged": "Language changed to {{language}}",
     "darkMode": "Dark Mode"
   },
+  "auth": {
+    "signIn": "Sign in to your account",
+    "signInWithGoogle": "Sign in with Google",
+    "register": "Create your account",
+    "registerNow": "Register now",
+    "logout": "Logout",
+    "emailAddress": "Email address",
+    "password": "Password",
+    "confirmPassword": "Confirm password",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "forgotPassword": "Forgot your password?",
+    "resetPassword": "Reset password",
+    "rememberMe": "Remember me",
+    "noAccount": "Don't have an account?",
+    "alreadyHaveAccount": "Already have an account?",
+    "submitRequest": "Submit request",
+    "backToLogin": "Back to login",
+    "verifyEmail": "Verify your email address",
+    "verificationMessage": "We've sent a verification email to your address. Please check your inbox and follow the instructions to verify your account."
+  },
   "languages": {
     "en": "English",
     "es": "Spanish",

@@ -263,6 +263,7 @@ export const logout = async () => {
     localStorage.removeItem('loginTimestamp');
     localStorage.removeItem('sessionLength');
     console.log("User logged out");
+    return true;
   } catch (error) {
     console.error("Error logging out:", error.message);
     throw error;

@@ -36,11 +36,11 @@ const App = () => {
       <Suspense fallback={<Loading />}>
         <Router>
           <Routes>
-            <Route path={ROUTES.LOGIN} element={<Login />} />
-            <Route path={ROUTES.REGISTER} element={<Register />} />
-            <Route path={ROUTES.FORGOT_PASSWORD} element={<ForgotPassword />} />
-            <Route path={ROUTES.RESET_PASSWORD} element={<ResetPassword />} />
-            <Route path={ROUTES.VERIFY_EMAIL} element={<VerifyEmail />} />
+            <Route path={ROUTES.AUTH.LOGIN} element={<Login />} />
+            <Route path={ROUTES.AUTH.REGISTER} element={<Register />} />
+            <Route path={ROUTES.AUTH.FORGOT_PASSWORD} element={<ForgotPassword />} />
+            <Route path={ROUTES.AUTH.RESET_PASSWORD} element={<ResetPassword />} />
+            <Route path={ROUTES.AUTH.VERIFY_EMAIL} element={<VerifyEmail />} />
             
             <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
               <Route path={ROUTES.DASHBOARD} element={<Dashboard />} />

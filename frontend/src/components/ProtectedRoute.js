@@ -38,7 +38,7 @@ const ProtectedRoute = ({ children }) => {
     ROUTES.AUTH.RESET_PASSWORD
   ];
   
-  const isPublicRoute = publicRoutes.includes(location.pathname);
+  const isPublicRoute = publicRoutes.some(route => location.pathname === route);
 
   // Not logged in: can access public routes, redirected to login for protected routes
   if (!user) {
@@ -56,7 +56,7 @@ const ProtectedRoute = ({ children }) => {
   }
 
   // Logged in and email verified: can access protected routes, redirected to dashboard for public routes
-  if (user &&user.emailVerified && isPublicRoute) {
+  if (user && user.emailVerified && isPublicRoute) {
     console.log('Redirecting to dashboard: User is authenticated and trying to access public route');
     return <Navigate to={ROUTES.DASHBOARD} replace />;
   }

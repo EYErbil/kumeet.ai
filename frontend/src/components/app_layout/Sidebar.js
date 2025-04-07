@@ -68,10 +68,13 @@ const Sidebar = () => {
     
     const handleLogout = async () => {
         try {
-            await logout();
-            navigate(ROUTES.AUTH.LOGIN);
+            const success = await logout();
+            if (success) {
+                navigate(ROUTES.AUTH.LOGIN);
+            }
         } catch (error) {
             console.error('Logout error:', error);
+            navigate(ROUTES.AUTH.LOGIN);
         }
     };
 
