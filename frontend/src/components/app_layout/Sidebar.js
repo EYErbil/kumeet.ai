@@ -9,6 +9,7 @@ import {
     FaSignOutAlt,
     FaMoon
 } from 'react-icons/fa';
+import { useTranslation } from 'react-i18next';
 import { logout } from '../../services/api/auth';
 import ROUTES from '../../constants/routes';
 
@@ -59,6 +60,7 @@ const ToggleSwitch = ({ checked, onChange }) => {
 };
 
 const Sidebar = () => {
+    const { t } = useTranslation();
     const location = useLocation();
     const navigate = useNavigate();
     const path = location.pathname;
@@ -66,10 +68,13 @@ const Sidebar = () => {
     
     const handleLogout = async () => {
         try {
-            await logout();
-            navigate(ROUTES.AUTH.LOGIN);
+            const success = await logout();
+            if (success) {
+                navigate(ROUTES.AUTH.LOGIN);
+            }
         } catch (error) {
             console.error('Logout error:', error);
+            navigate(ROUTES.AUTH.LOGIN);
         }
     };
 
@@ -89,11 +94,11 @@ const Sidebar = () => {
             
             <nav className="flex-1 px-2 py-4">
                 <ul>
-                    <NavItem to={ROUTES.DASHBOARD} icon={<FaHome size={16} />} label="Home" active={path === ROUTES.DASHBOARD} />
-                    <NavItem to={ROUTES.MEETINGS.ROOT} icon={<FaVideo size={16} />} label="Meetings" active={path.includes('/meetings')} />
-                    <NavItem to={ROUTES.SNIPPETS} icon={<FaClipboardList size={16} />} label="Notes" active={path.includes('/snippets')} />
-                    <NavItem to={ROUTES.ACTION_ITEMS} icon={<FaListAlt size={16} />} label="Action Items" active={path.includes('/action-items')} />
-                    <NavItem to={ROUTES.SETTINGS} icon={<FaCog size={16} />} label="Settings" active={path.includes('/settings')} />
+                    <NavItem to={ROUTES.DASHBOARD} icon={<FaHome size={16} />} label={t('sidebar.home')} active={path === ROUTES.DASHBOARD} />
+                    <NavItem to={ROUTES.MEETINGS.ROOT} icon={<FaVideo size={16} />} label={t('sidebar.meetings')} active={path.includes('/meetings')} />
+                    <NavItem to={ROUTES.SNIPPETS} icon={<FaClipboardList size={16} />} label={t('sidebar.notes')} active={path.includes('/snippets')} />
+                    <NavItem to={ROUTES.ACTION_ITEMS} icon={<FaListAlt size={16} />} label={t('sidebar.actionItems')} active={path.includes('/action-items')} />
+                    <NavItem to={ROUTES.SETTINGS} icon={<FaCog size={16} />} label={t('sidebar.settings')} active={path.includes('/settings')} />
                 </ul>
             </nav>
 
@@ -102,13 +107,13 @@ const Sidebar = () => {
                 <div className="flex items-center justify-between px-4">
                     <div className="flex items-center">
                         <FaMoon size={16} className="text-gray-700 dark:text-gray-300" />
-                        <span className="ml-3 text-sm text-gray-700 dark:text-gray-300">Dark Mode</span>
+                        <span className="ml-3 text-sm text-gray-700 dark:text-gray-300">{t('common.darkMode')}</span>
                     </div>
                     <ToggleSwitch checked={isDarkMode} onChange={handleThemeToggle} />
                 </div>
                 <NavItem 
                     icon={<FaSignOutAlt size={16} />} 
-                    label="Logout" 
+                    label={t('sidebar.logout')} 
                     onClick={handleLogout}
                 />
             </div>

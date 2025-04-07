@@ -10,13 +10,20 @@ WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm install
+# Install dependencies with explicit installation of i18n packages
+# Use a compatible npm version
+RUN npm install && \
+    npm install --save i18next react-i18next i18next-browser-languagedetector
 
 COPY . .
 
-RUN npm run build
+# Set environment variables for API connection
+ENV REACT_APP_API_URL=http://localhost:8000/api
+ENV NODE_ENV=development
+ENV CHOKIDAR_USEPOLLING=true
 
+# Use development mode instead of serving a static build
 EXPOSE 3000
 
-CMD ["npx", "serve", "-s", "build", "-l", "3000"]
+CMD ["npm", "start"]
 

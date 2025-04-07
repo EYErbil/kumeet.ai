@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { FaGoogle, FaMicrosoft, FaSlack, FaPlug, FaCheck, FaExclamationTriangle, FaLink, FaUnlink } from 'react-icons/fa';
+import { useTranslation } from 'react-i18next';
 
 const IntegrationSettings = () => {
+  const { t } = useTranslation();
+  
   // Integration state
   const [integrations, setIntegrations] = useState({
     googleCalendar: {
@@ -34,30 +37,30 @@ const IntegrationSettings = () => {
         googleCalendar: {
           connected: true,
           email: 'john.doe@gmail.com',
-          lastSync: 'Just now',
+          lastSync: t('settings.integrations.justNow'),
         },
       });
-      showNotification('Connected to Google Calendar', 'success');
+      showNotification(t('settings.integrations.connectedToService', { service: 'Google Calendar' }), 'success');
     } else if (integration === 'microsoftTeams') {
       setIntegrations({
         ...integrations,
         microsoftTeams: {
           connected: true,
           email: 'john.doe@outlook.com',
-          lastSync: 'Just now',
+          lastSync: t('settings.integrations.justNow'),
         },
       });
-      showNotification('Connected to Microsoft Teams', 'success');
+      showNotification(t('settings.integrations.connectedToService', { service: 'Microsoft Teams' }), 'success');
     } else if (integration === 'slack') {
       setIntegrations({
         ...integrations,
         slack: {
           connected: true,
           workspace: 'acme-corp',
-          lastSync: 'Just now',
+          lastSync: t('settings.integrations.justNow'),
         },
       });
-      showNotification('Connected to Slack', 'success');
+      showNotification(t('settings.integrations.connectedToService', { service: 'Slack' }), 'success');
     }
   };
 
@@ -75,7 +78,7 @@ const IntegrationSettings = () => {
           lastSync: '',
         },
       });
-      showNotification('Disconnected from Google Calendar', 'success');
+      showNotification(t('settings.integrations.disconnectedFromService', { service: 'Google Calendar' }), 'success');
     } else if (integration === 'microsoftTeams') {
       setIntegrations({
         ...integrations,
@@ -85,7 +88,7 @@ const IntegrationSettings = () => {
           lastSync: '',
         },
       });
-      showNotification('Disconnected from Microsoft Teams', 'success');
+      showNotification(t('settings.integrations.disconnectedFromService', { service: 'Microsoft Teams' }), 'success');
     } else if (integration === 'slack') {
       setIntegrations({
         ...integrations,
@@ -95,7 +98,7 @@ const IntegrationSettings = () => {
           lastSync: '',
         },
       });
-      showNotification('Disconnected from Slack', 'success');
+      showNotification(t('settings.integrations.disconnectedFromService', { service: 'Slack' }), 'success');
     }
   };
 
@@ -117,51 +120,49 @@ const IntegrationSettings = () => {
     onDisconnect 
   }) => {
     return (
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center">
-            <div className="text-2xl mr-3">{icon}</div>
-            <div>
-              <h4 className="text-lg font-medium text-gray-900 dark:text-white">{title}</h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400">{description}</p>
-            </div>
-          </div>
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-5 flex flex-col md:flex-row md:items-center md:justify-between">
+        <div className="flex items-start mb-4 md:mb-0">
+          <div className="text-2xl mr-3 mt-1">{icon}</div>
           <div>
-            {connected ? (
-              <span className="px-2 py-1 bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100 rounded-full text-xs flex items-center">
-                <FaCheck size={10} className="mr-1" /> Connected
-              </span>
-            ) : (
-              <span className="px-2 py-1 bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 rounded-full text-xs flex items-center">
-                <FaUnlink size={10} className="mr-1" /> Not Connected
-              </span>
+            <div className="flex items-center mb-1">
+              <h4 className="text-lg font-medium text-gray-900 dark:text-white mr-3">{title}</h4>
+              {connected ? (
+                <span className="px-2 py-1 bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100 rounded-full text-xs flex items-center">
+                  <FaCheck size={10} className="mr-1" /> {t('settings.integrations.connected')}
+                </span>
+              ) : (
+                <span className="px-2 py-1 bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 rounded-full text-xs flex items-center">
+                  <FaUnlink size={10} className="mr-1" /> {t('settings.integrations.notConnected')}
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">{description}</p>
+            
+            {connected && details && (
+              <div className="mt-2 text-sm">
+                <p className="text-gray-700 dark:text-gray-300">{details}</p>
+                {lastSync && (
+                  <p className="text-gray-500 dark:text-gray-400 mt-1">{t('settings.integrations.lastSynced')}: {lastSync}</p>
+                )}
+              </div>
             )}
           </div>
         </div>
         
-        {connected && details && (
-          <div className="mb-4 text-sm">
-            <p className="text-gray-700 dark:text-gray-300">{details}</p>
-            {lastSync && (
-              <p className="text-gray-500 dark:text-gray-400 mt-1">Last synced: {lastSync}</p>
-            )}
-          </div>
-        )}
-        
-        <div className="flex justify-end">
+        <div>
           {connected ? (
             <button
               onClick={onDisconnect}
               className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center text-sm"
             >
-              <FaUnlink size={12} className="mr-2" /> Disconnect
+              <FaUnlink size={12} className="mr-2" /> {t('settings.integrations.disconnect')}
             </button>
           ) : (
             <button
               onClick={onConnect}
               className="px-3 py-1.5 bg-purple-600 text-white rounded-md hover:bg-purple-700 flex items-center text-sm"
             >
-              <FaLink size={12} className="mr-2" /> Connect
+              <FaLink size={12} className="mr-2" /> {t('settings.integrations.connect')}
             </button>
           )}
         </div>
@@ -171,7 +172,7 @@ const IntegrationSettings = () => {
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Integration Settings</h2>
+      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">{t('settings.integrations.title')}</h2>
       
       {/* Notification */}
       {notification && (
@@ -195,20 +196,20 @@ const IntegrationSettings = () => {
       <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg mb-8">
         <div className="flex items-center mb-4">
           <FaPlug className="text-gray-700 dark:text-gray-300 mr-2" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">Connected Accounts</h3>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">{t('settings.integrations.title')}</h3>
         </div>
         
         <p className="text-gray-600 dark:text-gray-400 mb-6">
-          Connect your accounts to enhance your kumeet.ai experience. These integrations allow for seamless calendar syncing and meeting management.
+          {t('settings.integrations.description')}
         </p>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-4">
           <IntegrationCard
             title="Google Calendar"
-            description="Sync your meetings with Google Calendar"
+            description={t('settings.integrations.googleCalendarDescription')}
             icon={<FaGoogle className="text-blue-500" />}
             connected={integrations.googleCalendar.connected}
-            details={integrations.googleCalendar.email ? `Connected as ${integrations.googleCalendar.email}` : ''}
+            details={integrations.googleCalendar.email ? t('settings.integrations.connectedAs') + ` ${integrations.googleCalendar.email}` : ''}
             lastSync={integrations.googleCalendar.lastSync}
             onConnect={() => handleConnect('googleCalendar')}
             onDisconnect={() => handleDisconnect('googleCalendar')}
@@ -216,10 +217,10 @@ const IntegrationSettings = () => {
           
           <IntegrationCard
             title="Microsoft Teams"
-            description="Connect with Microsoft Teams for meetings"
+            description={t('settings.integrations.microsoftTeamsDescription')}
             icon={<FaMicrosoft className="text-blue-600" />}
             connected={integrations.microsoftTeams.connected}
-            details={integrations.microsoftTeams.email ? `Connected as ${integrations.microsoftTeams.email}` : ''}
+            details={integrations.microsoftTeams.email ? t('settings.integrations.connectedAs') + ` ${integrations.microsoftTeams.email}` : ''}
             lastSync={integrations.microsoftTeams.lastSync}
             onConnect={() => handleConnect('microsoftTeams')}
             onDisconnect={() => handleDisconnect('microsoftTeams')}
@@ -227,10 +228,10 @@ const IntegrationSettings = () => {
           
           <IntegrationCard
             title="Slack"
-            description="Share meeting summaries and action items to Slack"
+            description={t('settings.integrations.slackDescription')}
             icon={<FaSlack className="text-yellow-500" />}
             connected={integrations.slack.connected}
-            details={integrations.slack.workspace ? `Connected to workspace: ${integrations.slack.workspace}` : ''}
+            details={integrations.slack.workspace ? t('settings.integrations.connectedToWorkspace') + `: ${integrations.slack.workspace}` : ''}
             lastSync={integrations.slack.lastSync}
             onConnect={() => handleConnect('slack')}
             onDisconnect={() => handleDisconnect('slack')}
@@ -242,38 +243,38 @@ const IntegrationSettings = () => {
       <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg">
         <div className="flex items-center mb-4">
           <FaPlug className="text-gray-700 dark:text-gray-300 mr-2" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">Integration Permissions</h3>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">{t('settings.integrations.permissionsTitle')}</h3>
         </div>
         
         <p className="text-gray-600 dark:text-gray-400 mb-4">
-          Review and manage the permissions granted to each integration.
+          {t('settings.integrations.permissionsDescription')}
         </p>
         
         <div className="space-y-4">
           <div className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
             <h4 className="font-medium text-gray-900 dark:text-white mb-2">Google Calendar</h4>
             <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
-              <li>View and edit calendar events</li>
-              <li>Create new calendar events</li>
-              <li>Access your primary calendar</li>
+              <li>{t('settings.integrations.googleCalendar.permission1')}</li>
+              <li>{t('settings.integrations.googleCalendar.permission2')}</li>
+              <li>{t('settings.integrations.googleCalendar.permission3')}</li>
             </ul>
           </div>
           
           <div className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
             <h4 className="font-medium text-gray-900 dark:text-white mb-2">Microsoft Teams</h4>
             <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
-              <li>Access your Teams meetings</li>
-              <li>Create new Teams meetings</li>
-              <li>Access your Teams profile</li>
+              <li>{t('settings.integrations.microsoftTeams.permission1')}</li>
+              <li>{t('settings.integrations.microsoftTeams.permission2')}</li>
+              <li>{t('settings.integrations.microsoftTeams.permission3')}</li>
             </ul>
           </div>
           
           <div className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
             <h4 className="font-medium text-gray-900 dark:text-white mb-2">Slack</h4>
             <ul className="list-disc list-inside text-sm text-gray-700 dark:text-gray-300 space-y-1">
-              <li>Post messages to channels</li>
-              <li>Access your workspace information</li>
-              <li>Send direct messages</li>
+              <li>{t('settings.integrations.slack.permission1')}</li>
+              <li>{t('settings.integrations.slack.permission2')}</li>
+              <li>{t('settings.integrations.slack.permission3')}</li>
             </ul>
           </div>
         </div>

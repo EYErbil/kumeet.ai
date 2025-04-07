@@ -77,7 +77,8 @@ class UserService:
                     params.append(last_name)
                 
                 if not updates:
-                    return
+                    # If no updates, just return the current user data
+                    return UserService.get_user_by_firebase_uid(firebase_uid)
                 
                 query = f"""
                 UPDATE users
@@ -88,6 +89,9 @@ class UserService:
                 
                 cur.execute(query, params)
                 conn.commit()
+                
+                # Return the updated user data
+                return UserService.get_user_by_firebase_uid(firebase_uid)
         except psycopg2.Error as e:
             print(f"Error updating user profile: {e}")
             conn.rollback()
