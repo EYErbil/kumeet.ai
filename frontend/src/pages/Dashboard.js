@@ -135,9 +135,6 @@ const Dashboard = () => {
   const { t, i18n } = useTranslation();
   
   // Add console log to debug language
-  console.log('Current language:', i18n.language);
-  console.log('Translation test:', t('dashboard.title'));
-
   // Sample recent meetings data (for fallback if API fails)
   const sampleMeetings = [
     {
