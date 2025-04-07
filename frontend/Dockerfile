@@ -18,9 +18,6 @@ COPY . .
 ENV REACT_APP_API_URL=http://localhost:8000/api
 ENV NODE_ENV=development
 
-# Copy the Docker environment file and rename it to .env for React to pick up
-COPY .env.docker .env
-
 # Use development mode instead of serving a static build
 EXPOSE 3000
 
