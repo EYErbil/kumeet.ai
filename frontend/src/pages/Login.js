@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { login, signInWithGoogle } from '../services/api/auth';
 import ROUTES from '../constants/routes';
 import { useTranslation } from 'react-i18next';
+import PasswordInput from '../components/common/PasswordInput';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -91,20 +92,15 @@ const Login = () => {
               />
             </div>
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                {t('auth.password')}
-              </label>
-              <input
+              <PasswordInput
                 id="password"
                 name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                className="form-input mt-1"
-                placeholder="Enter your password"
                 value={formData.password}
                 onChange={handleChange}
+                placeholder="Enter your password"
                 disabled={loading}
+                label={t('auth.password')}
+                className="form-input mt-1 w-full"
               />
             </div>
           </div>

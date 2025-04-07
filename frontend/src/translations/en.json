@@ -112,7 +112,10 @@
       "passwordsDoNotMatch": "New passwords do not match",
       "pictureUpdated": "Profile picture updated",
       "notLoggedIn": "Not logged in",
-      "updateFailed": "Failed to update profile"
+      "updateFailed": "Failed to update profile",
+      "incorrectCurrentPassword": "Current password is incorrect",
+      "weakPassword": "Please choose a stronger password",
+      "passwordChangeFailed": "Failed to change password"
     },
     "notifications": {
       "title": "Notification Settings",

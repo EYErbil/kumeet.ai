@@ -44,7 +44,11 @@
       "profileUpdated": "Profilo aggiornato con successo",
       "passwordChanged": "Password modificata con successo",
       "passwordsDoNotMatch": "Le nuove password non corrispondono",
-      "pictureUpdated": "Immagine del profilo aggiornata"
+      "pictureUpdated": "Immagine del profilo aggiornata",
+      "incorrectCurrentPassword": "La password attuale è errata",
+      "weakPassword": "Scegli una password più forte",
+      "passwordChangeFailed": "Impossibile modificare la password",
+      "notLoggedIn": "Devi essere connesso per cambiare la password"
     },
     "notifications": {
       "title": "Impostazioni Notifiche",

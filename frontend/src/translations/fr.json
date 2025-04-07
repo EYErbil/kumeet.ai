@@ -44,6 +44,10 @@
       "profileUpdated": "Profil mis à jour avec succès",
       "passwordChanged": "Mot de passe changé avec succès",
       "passwordsDoNotMatch": "Les nouveaux mots de passe ne correspondent pas",
+      "incorrectCurrentPassword": "Le mot de passe actuel est incorrect",
+      "weakPassword": "Veuillez choisir un mot de passe plus fort",
+      "passwordChangeFailed": "Échec de la modification du mot de passe",
+      "notLoggedIn": "Vous devez être connecté pour changer votre mot de passe",
       "pictureUpdated": "Photo de profil mise à jour"
     },
     "notifications": {

@@ -58,9 +58,13 @@
       "verifyEmail": "E-Mail verifizieren",
       "saveChanges": "Änderungen speichern",
       "profileUpdated": "Profil erfolgreich aktualisiert",
-      "passwordChanged": "Passwort erfolgreich geändert",
-      "passwordsDoNotMatch": "Neue Passwörter stimmen nicht überein",
-      "pictureUpdated": "Profilbild aktualisiert"
+      "passwordChanged": "Password modificata con successo",
+      "passwordsDoNotMatch": "Le nuove password non corrispondono",
+      "pictureUpdated": "Profilbild aktualisiert",
+      "incorrectCurrentPassword": "Das aktuelle Passwort ist falsch",
+      "weakPassword": "Bitte wählen Sie ein stärkeres Passwort",
+      "passwordChangeFailed": "Passwortänderung fehlgeschlagen",
+      "notLoggedIn": "Sie müssen angemeldet sein, um Ihr Passwort zu ändern"
     },
     "notifications": {
       "title": "Benachrichtigungseinstellungen",

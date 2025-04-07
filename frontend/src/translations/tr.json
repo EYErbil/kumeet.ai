@@ -78,7 +78,12 @@
       "profileUpdated": "Profil başarıyla güncellendi",
       "passwordChanged": "Şifre başarıyla değiştirildi",
       "passwordsDoNotMatch": "Yeni şifreler eşleşmiyor",
-      "pictureUpdated": "Profil resmi güncellendi"
+      "pictureUpdated": "Profil resmi güncellendi",
+      "notLoggedIn": "Hesaba giriş yapılmamış",
+      "updateFailed": "Profil güncellenemedi",
+      "incorrectCurrentPassword": "Mevcut şifre yanlış",
+      "weakPassword": "Lütfen daha güçlü bir şifre seçiniz",
+      "passwordChangeFailed": "Şifre değiştirilemedi"
     },
     "notifications": {
       "title": "Bildirim Ayarları",
