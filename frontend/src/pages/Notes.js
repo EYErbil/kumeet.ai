@@ -13,11 +13,13 @@ import {
   FaMicrosoft,
   FaGoogle
 } from 'react-icons/fa';
+import { useTranslation } from 'react-i18next';
 import ROUTES from '../constants/routes';
 import * as api from '../utils/api';
 
 // Enhanced Note card with better meeting display
 const NoteCard = ({ note, onSelect, isSelected }) => {
+  const { t } = useTranslation();
   const { meetingTitle, meetingDate, content, updatedAt, meetingId } = note;
 
   // Determine meeting platform icon (if applicable)
@@ -55,14 +57,14 @@ const NoteCard = ({ note, onSelect, isSelected }) => {
   };
 
   const truncateContent = (text, maxLength = 150) => {
-    if (!text) return "No content";
+    if (!text) return t('notes.noContent');
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + '...';
   };
 
   // Determine note type label
   const getNoteTypeLabel = () => {
-    return meetingId ? "Meeting Note" : "Personal Note";
+    return meetingId ? t('notes.meetingNote') : t('notes.personalNote');
   };
 
   return (
@@ -78,12 +80,12 @@ const NoteCard = ({ note, onSelect, isSelected }) => {
         <div className="flex items-center">
           <span className="mr-2">{getMeetingIcon()}</span>
           <h3 className="font-medium text-gray-900 dark:text-white">
-            {meetingTitle || "Untitled Note"}
+            {meetingTitle || t('notes.untitled')}
           </h3>
         </div>
         <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
           <FaCalendarAlt className="mr-1" />
-          <span>{meetingDate || "No date"}</span>
+          <span>{meetingDate || t('notes.noDate')}</span>
         </div>
       </div>
 
@@ -97,7 +99,7 @@ const NoteCard = ({ note, onSelect, isSelected }) => {
         </span>
         <div className="flex items-center text-gray-500 dark:text-gray-400">
           <FaClock className="mr-1" />
-          <span>Updated {formatDate(updatedAt)}</span>
+          <span>{t('notes.updated')} {formatDate(updatedAt)}</span>
         </div>
       </div>
     </div>
@@ -105,6 +107,7 @@ const NoteCard = ({ note, onSelect, isSelected }) => {
 };
 
 const Notes = () => {
+  const { t } = useTranslation();
   const [selectedNote, setSelectedNote] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [editMode, setEditMode] = useState(false);
@@ -450,9 +453,13 @@ const Notes = () => {
 
       const newNoteData = {
         meetingId: null,
-        content: 'Start typing your note here...',
-        meetingTitle: 'New Note',
-        meetingDate: today
+        meetingTitle: t('notes.newNote'),
+        meetingDate: today,
+        content: t('notes.contentPlaceholder'),
+        createdBy: {
+          id: '1', // In a real app, this would be the current user's ID
+          name: 'Current User' // In a real app, this would be the current user's name
+        }
       };
 
       // Generate a temporary client ID for the note before server creates one
@@ -464,7 +471,6 @@ const Notes = () => {
         ...newNoteData,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        createdBy: { id: '1', name: 'Current User' },
         isTemp: true // Flag to indicate this is a temporary note
       };
 
@@ -527,14 +533,14 @@ const Notes = () => {
           <Link to={ROUTES.DASHBOARD} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 mr-4">
             <FaChevronLeft />
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Meeting Notes</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('notes.title')}</h1>
         </div>
         <button
           onClick={handleCreateNote}
           className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
         >
           <FaPlus className="mr-2" />
-          <span>New Note</span>
+          <span>{t('notes.newNote')}</span>
         </button>
       </div>
 
@@ -557,7 +563,7 @@ const Notes = () => {
           <div className="relative mb-4">
             <input
               type="text"
-              placeholder="Search notes..."
+              placeholder={t('notes.searchPlaceholder')}
               value={searchTerm}
               onChange={handleSearch}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
@@ -581,7 +587,7 @@ const Notes = () => {
               ))
             ) : (
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                No notes found. Try a different search term or create a new note.
+                {t('notes.noNotesFound')}
               </div>
             )}
           </div>
@@ -596,7 +602,7 @@ const Notes = () => {
                   <div className="mb-4 space-y-3">
                     <div>
                       <label htmlFor="note-title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Title
+                        {t('notes.noteTitle')}
                       </label>
                       <input
                         id="note-title"
@@ -604,12 +610,12 @@ const Notes = () => {
                         value={editTitle}
                         onChange={(e) => setEditTitle(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        placeholder="Enter note title"
+                        placeholder={t('notes.titlePlaceholder')}
                       />
                     </div>
                     <div>
                       <label htmlFor="note-date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Date
+                        {t('notes.noteDate')}
                       </label>
                       <input
                         id="note-date"
@@ -617,7 +623,7 @@ const Notes = () => {
                         value={editDate}
                         onChange={(e) => setEditDate(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        placeholder="Enter date (e.g., May 15, 2024)"
+                        placeholder={t('notes.datePlaceholder')}
                       />
                     </div>
                     <div>
@@ -645,7 +651,7 @@ const Notes = () => {
 
                   <div className="flex-1 mb-4 flex flex-col">
                     <label htmlFor="note-content" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Content
+                      {t('notes.noteContent')}
                     </label>
                     <div className="flex-1 relative">
                       <textarea
@@ -654,7 +660,7 @@ const Notes = () => {
                         onChange={(e) => setEditContent(e.target.value)}
                         className="w-full h-full absolute inset-0 p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
                         style={{ minHeight: '300px', height: 'calc(100% - 20px)' }}
-                        placeholder="Enter note content here..."
+                        placeholder={t('notes.contentPlaceholder')}
                       />
                     </div>
                   </div>
@@ -664,13 +670,13 @@ const Notes = () => {
                       onClick={() => setEditMode(false)}
                       className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
                     >
-                      Cancel
+                      {t('common.cancel')}
                     </button>
                     <button
                       onClick={handleSaveNote}
                       className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
                     >
-                      Save
+                      {t('common.save')}
                     </button>
                   </div>
                 </div>
@@ -706,12 +712,14 @@ const Notes = () => {
                       <button
                         onClick={toggleEditMode}
                         className="p-2 text-gray-600 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400"
+                        title={t('common.edit')}
                       >
                         <FaEdit />
                       </button>
                       <button
                         onClick={handleDeleteNote}
                         className="p-2 text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400"
+                        title={t('common.delete')}
                       >
                         <FaTrash />
                       </button>
@@ -731,22 +739,20 @@ const Notes = () => {
               )}
             </div>
           ) : (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 h-full flex flex-col items-center justify-center">
-              <div className="text-center">
-                <div className="text-gray-400 dark:text-gray-500 mb-4">
-                  <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                  </svg>
-                </div>
-                <h3 className="text-xl font-medium text-gray-900 dark:text-white mb-2">No note selected</h3>
-                <p className="text-gray-600 dark:text-gray-400 mb-6">Select a note from the list or create a new one</p>
-                <button
-                  onClick={handleCreateNote}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
-                >
-                  Create New Note
-                </button>
+            <div className="flex flex-col items-center justify-center h-full p-8">
+              <div className="text-gray-400 dark:text-gray-500 mb-4">
+                <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
               </div>
+              <h3 className="text-xl font-medium text-gray-900 dark:text-white mb-2">{t('notes.noNoteSelected')}</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">{t('notes.selectOrCreate')}</p>
+              <button
+                onClick={handleCreateNote}
+                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+              >
+                {t('notes.createNote')}
+              </button>
             </div>
           )}
         </div>

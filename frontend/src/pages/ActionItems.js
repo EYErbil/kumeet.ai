@@ -13,12 +13,14 @@ import {
   FaSync,
   FaExclamationTriangle
 } from 'react-icons/fa';
+import { useTranslation } from 'react-i18next';
 import ROUTES from '../constants/routes';
 import * as api from '../utils/api';
 import useActionItems from '../hooks/useActionItems';
 
 // Modal component for adding/editing action items
 const ActionItemModal = ({ isOpen, onClose, onSave, initialData = {}, meetings = [], users = [], isEditing = false }) => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     text: '',
     meeting: '',
@@ -80,7 +82,9 @@ const ActionItemModal = ({ isOpen, onClose, onSave, initialData = {}, meetings =
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-md">
         <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-medium text-gray-900 dark:text-white">{isEditing ? 'Edit Action Item' : 'Add New Action Item'}</h2>
+          <h2 className="text-lg font-medium text-gray-900 dark:text-white">
+            {isEditing ? t('actionItems.editActionItem') : t('actionItems.newActionItem')}
+          </h2>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
@@ -92,7 +96,7 @@ const ActionItemModal = ({ isOpen, onClose, onSave, initialData = {}, meetings =
         <form onSubmit={handleSubmit} className="p-4">
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Action Item
+              {t('actionItems.description')}
             </label>
             <input
               type="text"
@@ -100,14 +104,14 @@ const ActionItemModal = ({ isOpen, onClose, onSave, initialData = {}, meetings =
               value={formData.text}
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white"
-              placeholder="What needs to be done?"
+              placeholder={t('actionItems.whatToBeDone')}
               required
             />
           </div>
 
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Related Meeting
+              {t('actionItems.relatedMeeting')}
             </label>
             <select
               name="meeting"
@@ -115,7 +119,7 @@ const ActionItemModal = ({ isOpen, onClose, onSave, initialData = {}, meetings =
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white"
             >
-              <option value="">No specific meeting</option>
+              <option value="">{t('actionItems.noSpecificMeeting')}</option>
               {meetings.map(meeting => (
                 <option key={meeting.id} value={meeting.id}>
                   {meeting.title}
@@ -126,7 +130,7 @@ const ActionItemModal = ({ isOpen, onClose, onSave, initialData = {}, meetings =
 
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Due Date
+              {t('actionItems.dueDate')}
             </label>
             <input
               type="date"
@@ -139,7 +143,7 @@ const ActionItemModal = ({ isOpen, onClose, onSave, initialData = {}, meetings =
 
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Assignee
+              {t('actionItems.assignee')}
             </label>
             <select
               name="assignee"
@@ -147,7 +151,7 @@ const ActionItemModal = ({ isOpen, onClose, onSave, initialData = {}, meetings =
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white"
             >
-              <option value="">Assign to...</option>
+              <option value="">{t('actionItems.assignTo')}</option>
               {users.length > 0 ? (
                 users.map(user => (
                   <option key={user.id} value={user.id}>
@@ -155,7 +159,7 @@ const ActionItemModal = ({ isOpen, onClose, onSave, initialData = {}, meetings =
                   </option>
                 ))
               ) : (
-                <option value="current-user">You (Current User)</option>
+                <option value="current-user">{t('actionItems.currentUser')}</option>
               )}
             </select>
           </div>
@@ -170,7 +174,7 @@ const ActionItemModal = ({ isOpen, onClose, onSave, initialData = {}, meetings =
               className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
             />
             <label htmlFor="completed" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-              Mark as completed
+              {t('actionItems.markAsCompleted')}
             </label>
           </div>
 
@@ -178,15 +182,15 @@ const ActionItemModal = ({ isOpen, onClose, onSave, initialData = {}, meetings =
             <button
               type="button"
               onClick={onClose}
-              className="mr-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+              className="px-4 py-2 bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-md hover:bg-gray-400 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
             >
-              {isEditing ? 'Update' : 'Add'} Item
+              {isEditing ? t('actionItems.update') : t('actionItems.add')}
             </button>
           </div>
         </form>
@@ -197,8 +201,10 @@ const ActionItemModal = ({ isOpen, onClose, onSave, initialData = {}, meetings =
 
 // Individual action item component
 const ActionItem = ({ item, onToggleComplete, onEdit, onDelete }) => {
+  const { t } = useTranslation();
+  
   const formatDate = (dateString) => {
-    if (!dateString || dateString === 'No due date') return 'No due date';
+    if (!dateString || dateString === 'No due date') return t('actionItems.noDueDate');
 
     try {
       const date = new Date(dateString);
@@ -307,7 +313,7 @@ const ActionItem = ({ item, onToggleComplete, onEdit, onDelete }) => {
 
 // Main action items component
 const ActionItems = ({ meetingId = null }) => {
-  // Use our custom hook for action items state management
+  const { t } = useTranslation();
   const {
     actionItems,
     loading,
@@ -320,10 +326,10 @@ const ActionItems = ({ meetingId = null }) => {
   } = useActionItems(meetingId);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [filter, setFilter] = useState('all'); // 'all', 'active', 'completed'
+  const [editingItem, setEditingItem] = useState(null);
   const [meetings, setMeetings] = useState([]);
   const [users, setUsers] = useState([]);
-  const [editingItem, setEditingItem] = useState(null);
+  const [filter, setFilter] = useState('all'); // 'all', 'pending', 'completed'
 
   // Fetch meetings and users for the dropdowns
   useEffect(() => {
@@ -444,7 +450,7 @@ const ActionItems = ({ meetingId = null }) => {
 
   // Filter action items based on current filter
   const filteredItems = actionItems.filter(item => {
-    if (filter === 'active') return !item.completed;
+    if (filter === 'pending') return !item.completed;
     if (filter === 'completed') return item.completed;
     return true;
   });
@@ -474,27 +480,34 @@ const ActionItems = ({ meetingId = null }) => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-4">
+    <div className={`h-full ${meetingId ? 'pb-6' : 'p-6'}`}>
+      {meetingId && (
+        <div className="mb-4">
+          <Link
+            to={ROUTES.MEETINGS.DETAIL(meetingId)}
+            className="inline-flex items-center text-purple-600 dark:text-purple-400 hover:underline"
+          >
+            <FaChevronLeft className="mr-1" size={12} />
+            {t('actionItems.backToMeeting')}
+          </Link>
+        </div>
+      )}
+
       <div className="flex justify-between items-center mb-6">
-        {!meetingId && (
-          <div className="flex items-center">
-            <Link to={ROUTES.DASHBOARD} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 mr-4">
-              <FaChevronLeft />
-            </Link>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Action Items</h1>
-          </div>
-        )}
-        {meetingId && (
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Meeting Action Items</h1>
-        )}
-        <div className="flex items-center gap-2">
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
+          {meetingId ? t('actionItems.meetingActionItems') : t('actionItems.title')}
+        </h1>
+        <div className="flex space-x-2">
+          {/* Refresh button for debugging */}
           <button
             onClick={refreshActionItems}
-            className="flex items-center p-2 text-gray-500 hover:text-gray-700"
-            title="Refresh action items"
+            className="p-2 text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 focus:outline-none"
+            title={t('actionItems.refresh')}
           >
-            <FaSync />
+            <FaSync size={16} />
           </button>
+          
+          {/* Add new action item button */}
           <button
             onClick={() => {
               setEditingItem(null);
@@ -503,81 +516,81 @@ const ActionItems = ({ meetingId = null }) => {
             className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
           >
             <FaPlus className="mr-2" size={12} />
-            New Action Item
+            {t('actionItems.newActionItem')}
           </button>
         </div>
       </div>
 
+      {/* Filter controls */}
+      <div className="flex mb-6 overflow-x-auto">
+        <button
+          onClick={() => setFilter('all')}
+          className={`px-4 py-2 rounded-md mr-2 ${
+            filter === 'all'
+              ? 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+          }`}
+        >
+          {t('actionItems.all')}
+        </button>
+        <button
+          onClick={() => setFilter('pending')}
+          className={`px-4 py-2 rounded-md mr-2 ${
+            filter === 'pending'
+              ? 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+          }`}
+        >
+          {t('actionItems.pending')}
+        </button>
+        <button
+          onClick={() => setFilter('completed')}
+          className={`px-4 py-2 rounded-md ${
+            filter === 'completed'
+              ? 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+          }`}
+        >
+          {t('actionItems.completed')}
+        </button>
+      </div>
+
+      {/* Error display */}
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          <div className="flex items-center">
-            <FaExclamationTriangle className="mr-2" />
-            <p>{error}</p>
+        <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 p-4 rounded-lg mb-6 flex items-start">
+          <FaExclamationTriangle className="mr-3 mt-1 flex-shrink-0" />
+          <div>
+            <h3 className="font-medium">{t('actionItems.errorLoading')}</h3>
+            <p className="text-sm">{error}</p>
           </div>
         </div>
       )}
 
+      {/* Action items list */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
-        <div className="flex border-b border-gray-200 dark:border-gray-700">
-          <button
-            className={`px-4 py-3 text-sm font-medium ${
-              filter === 'all' 
-                ? 'text-purple-600 border-b-2 border-purple-600' 
-                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-            }`}
-            onClick={() => setFilter('all')}
-          >
-            All
-          </button>
-          <button
-            className={`px-4 py-3 text-sm font-medium ${
-              filter === 'active' 
-                ? 'text-purple-600 border-b-2 border-purple-600' 
-                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-            }`}
-            onClick={() => setFilter('active')}
-          >
-            Active
-          </button>
-          <button
-            className={`px-4 py-3 text-sm font-medium ${
-              filter === 'completed' 
-                ? 'text-purple-600 border-b-2 border-purple-600' 
-                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-            }`}
-            onClick={() => setFilter('completed')}
-          >
-            Completed
-          </button>
-        </div>
-
-        <div className="divide-y divide-gray-100 dark:divide-gray-700">
-          {filteredItems.length > 0 ? (
-            filteredItems.map(item => (
-              <ActionItem
-                key={item.id}
-                item={item}
-                onToggleComplete={handleToggleComplete}
-                onEdit={handleEditClick}
-                onDelete={handleDeleteItem}
-              />
-            ))
-          ) : (
-            <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-              {actionItems.length > 0
-                ? `No ${filter} action items found.`
-                : 'No action items found. Create one to get started.'}
-            </div>
-          )}
-        </div>
+        {filteredItems.length > 0 ? (
+          filteredItems.map((item) => (
+            <ActionItem
+              key={item.id}
+              item={item}
+              onToggleComplete={handleToggleComplete}
+              onEdit={() => handleEditClick(item)}
+              onDelete={() => handleDeleteItem(item.id)}
+            />
+          ))
+        ) : (
+          <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+            {actionItems.length > 0
+              ? t('actionItems.noFilteredItems', { filter: t(`actionItems.${filter}`) })
+              : t('actionItems.noItems')}
+          </div>
+        )}
       </div>
 
+      {/* Add/Edit modal */}
       <ActionItemModal
         isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingItem(null);
-        }}
+        onClose={() => setIsModalOpen(false)}
         onSave={editingItem ? handleEditItem : handleAddItem}
         initialData={editingItem}
         meetings={meetings}

@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { FaCamera, FaCheck, FaExclamationTriangle } from 'react-icons/fa';
+import { useTranslation } from 'react-i18next';
 import { getCurrentUser } from '../../services/api/auth';
 import * as api from '../../utils/api';
 
 const ProfileSettings = () => {
+  const { t } = useTranslation();
+  
   // User profile state
   const [profile, setProfile] = useState({
     firstName: '',
@@ -76,7 +79,7 @@ const ProfileSettings = () => {
     try {
       const currentUser = getCurrentUser();
       if (!currentUser) {
-        showNotification('Not logged in', 'error');
+        showNotification(t('settings.profile.notLoggedIn'), 'error');
         return;
       }
 
@@ -88,10 +91,10 @@ const ProfileSettings = () => {
       
       await api.put(`/user/${currentUser.uid}`, updateData);
       setIsEditingProfile(false);
-      showNotification('Profile updated successfully', 'success');
+      showNotification(t('settings.profile.profileUpdated'), 'success');
     } catch (error) {
       console.error('Error updating profile:', error);
-      showNotification('Failed to update profile', 'error');
+      showNotification(t('settings.profile.updateFailed'), 'error');
     }
   };
 
@@ -101,7 +104,7 @@ const ProfileSettings = () => {
     
     // Validate passwords match
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      showNotification('New passwords do not match', 'error');
+      showNotification(t('settings.profile.passwordsDoNotMatch'), 'error');
       return;
     }
     
@@ -112,7 +115,7 @@ const ProfileSettings = () => {
       confirmPassword: '',
     });
     setIsChangingPassword(false);
-    showNotification('Password changed successfully', 'success');
+    showNotification(t('settings.profile.passwordChanged'), 'success');
   };
 
   // Handle profile picture change
@@ -121,7 +124,7 @@ const ProfileSettings = () => {
     if (file) {
       // Here you would upload the file to your server
       // For now, we'll just show a success message
-      showNotification('Profile picture updated', 'success');
+      showNotification(t('settings.profile.pictureUpdated'), 'success');
     }
   };
 
@@ -133,7 +136,7 @@ const ProfileSettings = () => {
 
   return (
     <div className="space-y-8">
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Profile Settings</h2>
+      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">{t('settings.profile.title')}</h2>
       
       {/* Notification */}
       {notification && (
@@ -181,6 +184,11 @@ const ProfileSettings = () => {
             </h3>
             <div className="flex items-center text-sm">
               <span className="text-gray-600 dark:text-gray-400">{profile.email}</span>
+              {profile.isEmailVerified && (
+                <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100 rounded-full text-xs flex items-center">
+                  <FaCheck size={10} className="mr-1" /> {t('settings.profile.verified')}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -189,12 +197,12 @@ const ProfileSettings = () => {
       {/* User Information */}
       <div className="mb-8 bg-gray-50 dark:bg-gray-700 p-6 rounded-lg">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">User Information</h3>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">{t('settings.profile.userInformation')}</h3>
           <button 
             onClick={() => setIsEditingProfile(!isEditingProfile)}
             className="text-sm text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300"
           >
-            {isEditingProfile ? 'Cancel' : 'Edit'}
+            {isEditingProfile ? t('common.cancel') : t('common.edit')}
           </button>
         </div>
         
@@ -203,7 +211,7 @@ const ProfileSettings = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
                 <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  First Name
+                  {t('settings.profile.firstName')}
                 </label>
                 <input
                   type="text"
@@ -217,7 +225,7 @@ const ProfileSettings = () => {
               </div>
               <div>
                 <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Last Name
+                  {t('settings.profile.lastName')}
                 </label>
                 <input
                   type="text"
@@ -232,7 +240,7 @@ const ProfileSettings = () => {
             </div>
             <div className="mb-4">
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Email Address
+                {t('settings.profile.emailAddress')}
               </label>
               <input
                 type="email"
@@ -249,7 +257,7 @@ const ProfileSettings = () => {
                 type="submit"
                 className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
               >
-                Save Changes
+                {t('settings.profile.saveChanges')}
               </button>
             </div>
           </form>
@@ -257,16 +265,16 @@ const ProfileSettings = () => {
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">First Name</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{t('settings.profile.firstName')}</p>
                 <p className="text-gray-900 dark:text-white">{profile.firstName}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Last Name</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{t('settings.profile.lastName')}</p>
                 <p className="text-gray-900 dark:text-white">{profile.lastName}</p>
               </div>
             </div>
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Email Address</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{t('settings.profile.emailAddress')}</p>
               <div className="flex items-center">
                 <p className="text-gray-900 dark:text-white">{profile.email}</p>
               </div>
@@ -278,12 +286,12 @@ const ProfileSettings = () => {
       {/* Password Management */}
       <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">Password Management</h3>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">{t('settings.profile.passwordManagement')}</h3>
           <button 
             onClick={() => setIsChangingPassword(!isChangingPassword)}
             className="text-sm text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300"
           >
-            {isChangingPassword ? 'Cancel' : 'Change Password'}
+            {isChangingPassword ? t('common.cancel') : t('settings.profile.changePassword')}
           </button>
         </div>
         
@@ -291,7 +299,7 @@ const ProfileSettings = () => {
           <form onSubmit={handleChangePassword}>
             <div className="mb-4">
               <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Current Password
+                {t('settings.profile.currentPassword')}
               </label>
               <input
                 type="password"
@@ -305,7 +313,7 @@ const ProfileSettings = () => {
             </div>
             <div className="mb-4">
               <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                New Password
+                {t('settings.profile.newPassword')}
               </label>
               <input
                 type="password"
@@ -319,7 +327,7 @@ const ProfileSettings = () => {
             </div>
             <div className="mb-4">
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Confirm New Password
+                {t('settings.profile.confirmPassword')}
               </label>
               <input
                 type="password"
@@ -336,13 +344,13 @@ const ProfileSettings = () => {
                 type="submit"
                 className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
               >
-                Update Password
+                {t('settings.profile.updatePassword')}
               </button>
             </div>
           </form>
         ) : (
           <p className="text-gray-600 dark:text-gray-400">
-            Your password was last changed on <span className="text-gray-900 dark:text-white">January 15, 2024</span>
+            {t('settings.profile.passwordLastChanged')} <span className="text-gray-900 dark:text-white">January 15, 2024</span>
           </p>
         )}
       </div>
