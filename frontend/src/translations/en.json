@@ -38,11 +38,7 @@
     "de": "German",
     "tr": "Turkish",
     "it": "Italian",
-    "fr": "French",
-    "ru": "Russian",
-    "zh": "Chinese",
-    "ja": "Japanese",
-    "ko": "Korean"
+    "fr": "French"
   },
   "settings": {
     "title": "Settings",
