@@ -110,3 +110,16 @@ async def update_user_profile(uid: str, user_data: UserUpdate):
     except Exception as e:
         logger.error(f"Unexpected error while updating user: {str(e)}")
         raise HTTPException(status_code=500, detail="An unexpected error occurred while updating user")
+
+@router.delete("/user/{uid}", response_model=UserResponse)
+async def delete_user(uid: str):
+    try:
+        logger.info(f"Deleting user with UID: {uid}")
+        UserService.delete_user(uid)
+        return UserResponse(uid=uid, email="", firstName=None, lastName=None)
+    except HTTPException as e:
+        logger.error(f"HTTP error while deleting user: {str(e)}")
+        raise e
+    except Exception as e:
+        logger.error(f"Unexpected error while deleting user: {str(e)}")
+        raise HTTPException(status_code=500, detail="An unexpected error occurred while deleting user")

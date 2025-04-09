@@ -10,10 +10,9 @@ WORKDIR /app
 
 COPY package*.json ./
 
-# Install dependencies with explicit installation of i18n packages
-# Use a compatible npm version
+# Install dependencies with explicit installation of required packages
 RUN npm install && \
-    npm install --save i18next react-i18next i18next-browser-languagedetector
+    npm install --save i18next react-i18next i18next-browser-languagedetector react-hot-toast
 
 COPY . .
 

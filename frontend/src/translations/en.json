@@ -8,7 +8,8 @@
     "error": "Error",
     "success": "Success",
     "languageChanged": "Language changed to {{language}}",
-    "darkMode": "Dark Mode"
+    "darkMode": "Dark Mode",
+    "deleting": "Deleting..."
   },
   "auth": {
     "signIn": "Sign in to your account",
@@ -103,7 +104,6 @@
       "newPassword": "New Password",
       "confirmPassword": "Confirm New Password",
       "updatePassword": "Update Password",
-      "passwordLastChanged": "Your password was last changed on",
       "verified": "Verified",
       "verifyEmail": "Verify Email",
       "saveChanges": "Save Changes",
@@ -115,7 +115,11 @@
       "updateFailed": "Failed to update profile",
       "incorrectCurrentPassword": "Current password is incorrect",
       "weakPassword": "Please choose a stronger password",
-      "passwordChangeFailed": "Failed to change password"
+      "passwordChangeFailed": "Failed to change password",
+      "deleteFailed": "Failed to delete account",
+      "incorrectPassword": "Incorrect password. Please try again.",
+      "enterPassword": "Enter your password to confirm",
+      "passwordDescription": "Change your password to keep your account secure."
     },
     "notifications": {
       "title": "Notification Settings",
@@ -281,7 +285,12 @@
         "request": "Request Data Export"
       },
       "deleteAccount": "Delete Account",
-      "deleteAccountDescription": "Permanently delete your account and all associated data. This action cannot be undone."
+      "deleteAccountDescription": "Permanently delete your account and all associated data. This action cannot be undone.",
+      "deleteAccountConfirm": "Are you sure you want to delete your account? This action cannot be undone.",
+      "deleteAccountSuccess": "Your account has been successfully deleted",
+      "deleteAccountFailed": "Failed to delete account. Please try again.",
+      "confirmDelete": "Confirm Account Deletion",
+      "confirmDeleteDescription": "Please enter your password to confirm account deletion. This action cannot be undone."
     }
   },
   "meetings": {

@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { FaCamera, FaCheck, FaExclamationTriangle, FaUserShield } from 'react-icons/fa';
 import { useTranslation } from 'react-i18next';
-import { getCurrentUser } from '../../services/api/auth';
+import { getCurrentUser, logout, deleteUserAccount } from '../../services/api/auth';
 import * as api from '../../utils/api';
 import { auth } from '../../config/firebase';
-import { updatePassword, EmailAuthProvider, reauthenticateWithCredential, updateProfile } from 'firebase/auth';
+import { updatePassword, EmailAuthProvider, reauthenticateWithCredential, updateProfile, deleteUser } from 'firebase/auth';
 import PasswordInput from '../common/PasswordInput';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 
 const ProfileSettings = () => {
   const { t } = useTranslation();
@@ -29,8 +31,16 @@ const ProfileSettings = () => {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [notification, setNotification] = useState(null);
 
+  // Delete account state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
+  const navigate = useNavigate();
+
   // Fetch user data
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
     try {
       const currentUser = getCurrentUser();
       if (!currentUser) {
@@ -52,11 +62,11 @@ const ProfileSettings = () => {
     } catch (error) {
       console.error('Error in profile data fetch:', error);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchUserData();
-  }, []);
+  }, [fetchUserData]);
 
   // Handle profile form changes
   const handleProfileChange = (e) => {
@@ -182,6 +192,30 @@ const ProfileSettings = () => {
       // Here you would upload the file to your server
       // For now, we'll just show a success message
       showNotification(t('settings.profile.pictureUpdated'), 'success');
+    }
+  };
+
+  // Handle delete account
+  const handleDeleteAccount = async () => {
+    if (!window.confirm(t('settings.legal.deleteAccountConfirm'))) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await deleteUserAccount(deletePassword);
+      await logout();
+      navigate('/');
+      toast.success(t('settings.legal.deleteAccountSuccess'));
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      if (error.message === 'Incorrect password') {
+        setDeleteError(t('settings.profile.incorrectPassword'));
+      } else {
+        setDeleteError(t('settings.legal.deleteAccountFailed'));
+      }
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -403,7 +437,7 @@ const ProfileSettings = () => {
           </form>
         ) : (
           <p className="text-gray-600 dark:text-gray-400">
-            {t('settings.profile.passwordLastChanged')} <span className="text-gray-900 dark:text-white">January 15, 2024</span>
+            {t('settings.profile.passwordDescription')}
           </p>
         )}
       </div>
@@ -419,10 +453,60 @@ const ProfileSettings = () => {
           {t('settings.legal.deleteAccountDescription')}
         </p>
         
-        <button className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+        <button 
+          onClick={() => setShowDeleteModal(true)}
+          className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+        >
           {t('settings.legal.deleteAccount')}
         </button>
       </div>
+
+      {/* Delete Account Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+              {t('settings.legal.confirmDelete')}
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              {t('settings.legal.confirmDeleteDescription')}
+            </p>
+            <div className="mb-4">
+              <PasswordInput
+                id="deletePassword"
+                name="deletePassword"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                placeholder={t('settings.profile.enterPassword')}
+                label={t('settings.profile.currentPassword')}
+                className="form-input mt-1 w-full"
+                error={deleteError}
+              />
+            </div>
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeletePassword('');
+                  setDeleteError('');
+                  setIsDeleting(false);
+                }}
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+                disabled={isDeleting}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+                disabled={isDeleting || !deletePassword}
+              >
+                {isDeleting ? t('common.deleting') : t('settings.legal.deleteAccount')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

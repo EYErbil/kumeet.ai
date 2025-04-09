@@ -112,4 +112,21 @@ class UserService:
                 return cur.fetchone()[0]
         except psycopg2.Error as e:
             print(f"Error checking user existence: {e}")
+            raise
+
+    @staticmethod
+    def delete_user(firebase_uid):
+        """Delete a user from the database."""
+        try:
+            with conn.cursor() as cur:
+                query = """
+                DELETE FROM users 
+                WHERE firebase_uid = %s;
+                """
+                cur.execute(query, (firebase_uid,))
+                conn.commit()
+                return True
+        except psycopg2.Error as e:
+            logger.error(f"Error deleting user: {e}")
+            conn.rollback()
             raise 
