@@ -56,7 +56,12 @@
       "profileUpdated": "Perfil actualizado exitosamente",
       "passwordChanged": "Contraseña cambiada exitosamente",
       "passwordsDoNotMatch": "Las nuevas contraseñas no coinciden",
-      "pictureUpdated": "Foto de perfil actualizada"
+      "pictureUpdated": "Foto de perfil actualizada",
+      "notLoggedIn": "Debes iniciar sesión para cambiar la contraseña",
+      "updateFailed": "Error al actualizar el perfil",
+      "incorrectCurrentPassword": "La contraseña actual es incorrecta",
+      "weakPassword": "Por favor, elige una contraseña más segura",
+      "passwordChangeFailed": "Error al cambiar la contraseña"
     },
     "notifications": {
       "title": "Configuración de Notificaciones",

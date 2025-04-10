@@ -112,4 +112,86 @@ class UserService:
                 return cur.fetchone()[0]
         except psycopg2.Error as e:
             print(f"Error checking user existence: {e}")
+            raise
+
+    @staticmethod
+    def delete_user(firebase_uid):
+        """Delete a user and all their related data from the database, except feedback."""
+        try:
+            with conn.cursor() as cur:
+                # First, delete action items associated with the user
+                logger.info(f"Deleting action items for user: {firebase_uid}")
+                cur.execute("""
+                    DELETE FROM action_items 
+                    WHERE firebase_uid = %s;
+                """, (firebase_uid,))
+                
+                # Delete notes associated with the user
+                logger.info(f"Deleting notes for user: {firebase_uid}")
+                cur.execute("""
+                    DELETE FROM notes 
+                    WHERE firebase_uid = %s;
+                """, (firebase_uid,))
+                
+                # Get all meetings for this user
+                logger.info(f"Fetching meetings for user: {firebase_uid}")
+                cur.execute("""
+                    SELECT meeting_id FROM meetings 
+                    WHERE firebase_uid = %s;
+                """, (firebase_uid,))
+                meeting_ids = [row[0] for row in cur.fetchall()]
+                
+                # For each meeting, delete related data
+                for meeting_id in meeting_ids:
+                    logger.info(f"Deleting data for meeting: {meeting_id}")
+                    
+                    # Delete speaker statistics
+                    cur.execute("""
+                        DELETE FROM speaker_statistics 
+                        WHERE meeting_id = %s;
+                    """, (meeting_id,))
+                    
+                    # Delete decisions
+                    cur.execute("""
+                        DELETE FROM decisions 
+                        WHERE meeting_id = %s;
+                    """, (meeting_id,))
+                    
+                    # Delete speakers
+                    cur.execute("""
+                        DELETE FROM speakers 
+                        WHERE meeting_id = %s;
+                    """, (meeting_id,))
+                    
+                    # Delete meeting summaries
+                    cur.execute("""
+                        DELETE FROM meeting_summaries 
+                        WHERE meeting_id = %s;
+                    """, (meeting_id,))
+                    
+                    # Delete speaker segments
+                    cur.execute("""
+                        DELETE FROM speaker_segments 
+                        WHERE meeting_id = %s;
+                    """, (meeting_id,))
+                    
+                    # Finally, delete the meeting itself
+                    cur.execute("""
+                        DELETE FROM meetings 
+                        WHERE meeting_id = %s;
+                    """, (meeting_id,))
+                
+                # Delete the user record
+                logger.info(f"Deleting user: {firebase_uid}")
+                cur.execute("""
+                    DELETE FROM users 
+                    WHERE firebase_uid = %s;
+                """, (firebase_uid,))
+                
+                conn.commit()
+                logger.info(f"Successfully deleted user and all related data: {firebase_uid}")
+                return True
+        except psycopg2.Error as e:
+            logger.error(f"Error deleting user: {e}")
+            conn.rollback()
             raise 

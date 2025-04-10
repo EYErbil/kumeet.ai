@@ -9,7 +9,36 @@
     "success": "Başarılı",
     "languageChanged": "Dil {{language}} olarak değiştirildi",
     "darkMode": "Karanlık Mod",
-    "close": "Kapat"
+    "deleting": "Siliniyor..."
+  },
+  "auth": {
+    "signIn": "Hesabınıza giriş yapın",
+    "signInWithGoogle": "Google ile giriş yapın",
+    "register": "Hesap oluşturun",
+    "registerNow": "Şimdi kayıt olun",
+    "logout": "Çıkış yap",
+    "emailAddress": "Email adresi",
+    "password": "Şifre",
+    "confirmPassword": "Şifreyi onayla",
+    "firstName": "İsim",
+    "lastName": "Soyisim",
+    "forgotPassword": "Şifrenizi mi unuttunuz?",
+    "resetPassword": "Şifreyi sıfırla",
+    "rememberMe": "Beni hatırla",
+    "noAccount": "Hesabınız yok mu?",
+    "alreadyHaveAccount": "Zaten bir hesabınız var mı?",
+    "submitRequest": "İstek gönder",
+    "backToLogin": "Giriş sayfasına dön",
+    "verifyEmail": "Email adresinizi doğrulayın",
+    "verificationMessage": "Size bir doğrulama emaili gönderdik. Lütfen inbox'ınızı kontrol edin ve hesabınızı doğrulamak için talimatları izleyin."
+  },
+  "languages": {
+    "en": "İngilizce",
+    "es": "İspanyolca",
+    "de": "Almanca",
+    "tr": "Türkçe",
+    "it": "İtalyanca",
+    "fr": "Fransızca"
   },
   "settings": {
     "title": "Ayarlar",
@@ -71,14 +100,22 @@
       "newPassword": "Yeni Şifre",
       "confirmPassword": "Yeni Şifreyi Onayla",
       "updatePassword": "Şifreyi Güncelle",
-      "passwordLastChanged": "Şifreniz en son şu tarihte değiştirildi:",
       "verified": "Doğrulanmış",
       "verifyEmail": "E-postayı Doğrula",
       "saveChanges": "Değişiklikleri Kaydet",
       "profileUpdated": "Profil başarıyla güncellendi",
       "passwordChanged": "Şifre başarıyla değiştirildi",
       "passwordsDoNotMatch": "Yeni şifreler eşleşmiyor",
-      "pictureUpdated": "Profil resmi güncellendi"
+      "pictureUpdated": "Profil resmi güncellendi",
+      "notLoggedIn": "Hesaba giriş yapılmamış",
+      "updateFailed": "Profil güncellenemedi",
+      "incorrectCurrentPassword": "Mevcut şifre yanlış",
+      "weakPassword": "Lütfen daha güçlü bir şifre seçiniz",
+      "passwordChangeFailed": "Şifre değiştirilemedi",
+      "deleteFailed": "Hesap silinemedi",
+      "incorrectPassword": "Şifre yanlış. Lütfen tekrar deneyin.",
+      "enterPassword": "Şifrenizi onaylamak için şifrenizi girin",
+      "passwordDescription": "Şifrenizi değiştirerek hesabınızı güvenli tutun."
     },
     "notifications": {
       "title": "Bildirim Ayarları",
@@ -92,30 +129,31 @@
       "actionItemReminders": "Görev Hatırlatıcıları",
       "actionItemRemindersDescription": "Görevleriniz zamanı geldiğinde hatırlatıcı alın",
       "sharedNotes": "Yeni Paylaşılan Notlar",
-      "sharedNotesDescription": "Sizinle yeni notlar paylaşıldığında bildirim alın"
+      "sharedNotesDescription": "Sizinle yeni notlar paylaşıldığında bildirim alın",
+      "settingsUpdated": "Bildirim ayarları başarıyla güncellendi",
+      "meetingSummaries": "Toplantı Özetleri",
+      "meetingSummariesDescription": "Toplantı sonrası email özetleri alın",
+      "mentions": "Notlarda Atıflar",
+      "mentionsDescription": "Toplantı notlarında atıflarınızı bildirim alın"
     },
     "feedback": {
       "title": "Geri Bildirim",
-      "generalFeedback": "Genel Geri Bildirim",
-      "generalFeedbackDescription": "kumeet.ai ile deneyiminizi paylaşın",
-      "featureRequest": "Özellik İsteği",
-      "featureRequestDescription": "Yeni özellikler veya iyileştirmeler önerin",
-      "bugReport": "Hata Raporu",
-      "bugReportDescription": "Sorunları veya beklenmeyen davranışları bildirin",
-      "question": "Soru",
-      "questionDescription": "kumeet.ai kullanımı hakkında bir soru sorun",
       "yourFeedback": "Geri Bildiriminiz",
-      "submitFeedback": "Geri Bildirim Gönder",
-      "submitting": "Gönderiliyor...",
-      "feedbackSent": "Geri bildirim başarıyla gönderildi",
+      "generalFeedback": "Genel Geri Bildirim",
+      "featureRequest": "Özellik İsteği",
+      "bugReport": "Hata Raporu",
+      "question": "Soru",
+      "generalFeedbackDescription": "kumeet.ai ile deneyiminizi paylaşın",
+      "featureRequestDescription": "Yeni özellikler veya iyileştirmeler önerin",
+      "bugReportDescription": "Sorunları veya beklenmeyen davranışları bildirin",
+      "questionDescription": "kumeet.ai kullanımı hakkında bir soru sorun",
       "feedbackType": "Geri Bildirim Türü",
+      "enterFeedback": "Lütfen geri bildiriminizi girin",
+      "feedbackSent": "Geri bildirim başarıyla gönderildi",
+      "submitting": "Gönderiliyor...",
+      "submitFeedback": "Geri Bildirim Gönder",
+      "submitError": "Geri bildirim gönderilemedi. Lütfen tekrar deneyin.",
       "bugReportHelp": "Lütfen sorunu tekrarlamak için gereken adımları, beklenen davranışı ve aldığınız hata mesajlarını belirtin.",
-      "placeholders": {
-        "general": "Düşüncelerinizi buraya yazın...",
-        "feature": "Özellik fikrinizi buraya yazın...",
-        "bug": "Hata detaylarını buraya yazın...",
-        "question": "Ne öğrenmek istersiniz?"
-      },
       "helpResources": {
         "title": "Yardım Kaynakları",
         "faq": "Sık Sorulan Sorular",
@@ -123,7 +161,12 @@
         "documentation": "Dokümantasyon",
         "documentationDescription": "kumeet.ai özelliklerinin nasıl kullanılacağına dair detaylı kılavuzlar"
       },
-      "enterFeedback": "Lütfen geri bildiriminizi girin"
+      "placeholders": {
+        "general": "Düşüncelerinizi buraya yazın...",
+        "feature": "Özellik fikrinizi buraya yazın...",
+        "bug": "Hata detaylarını buraya yazın...",
+        "question": "Ne öğrenmek istersiniz?"
+      }
     },
     "billing": {
       "title": "Faturalama ve Abonelik",
@@ -238,7 +281,12 @@
         "request": "Veri Dışa Aktarma İsteği"
       },
       "deleteAccount": "Hesabı Sil",
-      "deleteAccountDescription": "Hesabınızı ve ilişkili tüm verileri kalıcı olarak silin. Bu işlem geri alınamaz."
+      "deleteAccountDescription": "Hesabınızı ve ilişkili tüm verileri kalıcı olarak silin. Bu işlem geri alınamaz.",
+      "deleteAccountConfirm": "Hesabınızı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+      "deleteAccountSuccess": "Hesabınız başarıyla silindi",
+      "deleteAccountFailed": "Hesap silinemedi. Lütfen tekrar deneyin.",
+      "confirmDelete": "Hesap Silme İşlemini Onayla",
+      "confirmDeleteDescription": "Hesap silme işlemini onaylamak için lütfen şifrenizi girin. Bu işlem geri alınamaz."
     }
   },
   "meetings": {
@@ -290,24 +338,36 @@
   },
   "actionItems": {
     "title": "Aksiyon Maddeleri",
+    "meetingActionItems": "Toplantı Aksiyon Maddeleri",
     "newActionItem": "Yeni Aksiyon Maddesi",
-    "all": "Tümü",
-    "active": "Aktif",
-    "completed": "Tamamlanan",
-    "noActionItems": "Aksiyon maddesi bulunamadı.",
-    "dueDate": "Son Tarih",
-    "description": "Açıklama",
-    "status": "Durum",
-    "add": "Madde Ekle",
+    "editActionItem": "Aksiyon Maddesini Düzenle",
+    "add": "Ekle",
     "update": "Güncelle",
-    "delete": "Sil",
+    "pending": "Beklemede",
+    "active": "Aktif",
+    "completed": "Tamamlandı",
+    "all": "Tümü",
+    "backToMeeting": "Toplantıya Dön",
+    "refresh": "Aksiyon Maddelerini Yenile",
+    "description": "Açıklama",
     "whatToBeDone": "Ne yapılması gerekiyor?",
     "relatedMeeting": "İlgili Toplantı",
-    "meetingNameOptional": "Toplantı adı (isteğe bağlı)"
+    "noSpecificMeeting": "Belirli bir toplantı yok",
+    "assignTo": "...'e ata",
+    "currentUser": "Sen (Mevcut Kullanıcı)",
+    "dueDate": "Son Tarih",
+    "noDueDate": "Son tarih yok",
+    "markAsCompleted": "Tamamla",
+    "assignee": "Atanan",
+    "empty": "Aksiyon maddesi bulunamadı. Bir tane oluşturun.",
+    "errorLoading": "Aksiyon maddeleri yüklenemedi",
+    "noFilteredItems": "{{filter}} aksiyon maddesi bulunamadı.",
+    "noItems": "Aksiyon maddesi bulunamadı. Bir tane oluşturun."
   },
   "dashboard": {
     "title": "Gösterge Paneli",
     "newMeeting": "Yeni Toplantı",
+    "viewAll": "Tümünü Gör",
     "stats": {
       "totalMeetings": "Toplam Toplantı",
       "meetingTime": "Toplantı Süresi",
@@ -320,13 +380,14 @@
     "recentMeetings": {
       "title": "Son toplantılar",
       "seeAll": "Tümünü gör",
-      "noMeetings": "Son toplantı yok"
+      "empty": "Son toplantı yok"
     },
     "todaysPlan": {
       "title": "Bugünkü Plan",
       "meetings": "Toplantılar",
       "actionItems": "Görevler",
-      "dueToday": "Bugün için"
+      "noMeetings": "Bugün için toplantı yok",
+      "noActionItems": "Bugün için görev yok"
     },
     "upcomingMeetings": {
       "title": "Yaklaşan toplantılar",
@@ -337,17 +398,16 @@
   "notes": {
     "title": "Toplantı Notları",
     "newNote": "Yeni Not",
-    "searchPlaceholder": "Notları ara...",
-    "noNotesFound": "Not bulunamadı. Farklı bir arama terimi deneyin veya yeni bir not oluşturun.",
-    "noNoteSelected": "Not seçilmedi",
-    "selectOrCreate": "Listeden bir not seçin veya yeni bir not oluşturun",
+    "createNote": "Not Oluştur",
     "createNewNote": "Yeni Not Oluştur",
-    "noteTitle": "Başlık",
-    "noteDate": "Tarih",
-    "noteContent": "İçerik",
-    "titlePlaceholder": "Not başlığını girin",
-    "datePlaceholder": "Tarih girin (örn. 15 Mayıs 2024)",
-    "contentPlaceholder": "Not içeriğini buraya girin...",
-    "updated": "Güncellendi"
+    "untitled": "Başlıksız Not",
+    "meetingNote": "Toplantı Notu",
+    "personalNote": "Kişisel Not",
+    "contentPlaceholder": "Notunuzu buraya yazın...",
+    "updated": "Güncellendi",
+    "noContent": "İçerik yok",
+    "noDate": "Tarih yok",
+    "noNoteSelected": "Not seçilmedi",
+    "selectOrCreate": "Listeden bir not seçin veya yeni bir not oluşturun"
   }
 } 

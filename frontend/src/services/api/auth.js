@@ -10,7 +10,10 @@ import {
   updateProfile,
   browserLocalPersistence,
   browserSessionPersistence,
-  setPersistence
+  setPersistence,
+  reauthenticateWithCredential,
+  deleteUser,
+  EmailAuthProvider
 } from "firebase/auth";
 import { auth } from "../../config/firebase";
 import ROUTES from "../../constants/routes";
@@ -259,13 +262,9 @@ export const login = async (email, password, rememberMe = false) => {
 export const logout = async () => {
   try {
     await signOut(auth);
-    // Clear session storage
-    localStorage.removeItem('loginTimestamp');
-    localStorage.removeItem('sessionLength');
-    console.log("User logged out");
     return true;
   } catch (error) {
-    console.error("Error logging out:", error.message);
+    console.error('Logout error:', error);
     throw error;
   }
 };
@@ -327,4 +326,38 @@ export const checkSessionExpiry = () => {
     }
   }
   return false;
+};
+
+export const deleteUserAccount = async (password) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('No user logged in');
+    }
+
+    // Re-authenticate user before deletion
+    const credential = EmailAuthProvider.credential(user.email, password);
+    await reauthenticateWithCredential(user, credential);
+
+    // Delete from our database first
+    const response = await fetch(`${API_URL}/user/${user.uid}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.detail || 'Failed to delete user from database');
+    }
+
+    // Delete from Firebase
+    await deleteUser(user);
+    return true;
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    if (error.code === 'auth/invalid-credential') {
+      throw new Error('Incorrect password');
+    }
+    throw error;
+  }
 };

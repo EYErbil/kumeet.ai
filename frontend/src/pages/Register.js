@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { register } from '../services/api/auth';
 import ROUTES from '../constants/routes';
 import { useTranslation } from 'react-i18next';
+import PasswordInput from '../components/common/PasswordInput';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -142,37 +143,27 @@ const Register = () => {
                 />
               </div>
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                  {t('auth.password')}
-                </label>
-                <input
+                <PasswordInput
                   id="password"
                   name="password"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  className="form-input mt-1"
-                  placeholder="Enter your password"
                   value={formData.password}
                   onChange={handleChange}
+                  placeholder="Enter your password"
                   disabled={loading}
+                  label={t('auth.password')}
+                  className="form-input mt-1 w-full"
                 />
               </div>
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                  {t('auth.confirmPassword')}
-                </label>
-                <input
+                <PasswordInput
                   id="confirmPassword"
                   name="confirmPassword"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  className="form-input mt-1"
-                  placeholder="Confirm your password"
                   value={formData.confirmPassword}
                   onChange={handleChange}
+                  placeholder="Confirm your password"
                   disabled={loading}
+                  label={t('auth.confirmPassword')}
+                  className="form-input mt-1 w-full"
                 />
               </div>
             </div>
