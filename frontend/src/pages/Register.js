@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { register } from '../services/api/auth';
 import ROUTES from '../constants/routes';
+import { useTranslation } from 'react-i18next';
+import PasswordInput from '../components/common/PasswordInput';
 
 const Register = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -61,7 +64,7 @@ const Register = () => {
             kumeet.ai
           </h1>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Create your account
+            {t('auth.register')}
           </h2>
         </div>
 
@@ -75,11 +78,10 @@ const Register = () => {
               </div>
               <div className="ml-3">
                 <h3 className="text-sm font-medium text-green-800">
-                  Registration successful!
+                  {t('common.success')}
                 </h3>
                 <div className="mt-2 text-sm text-green-700">
-                  <p>A verification email has been sent to {formData.email}. Please check your inbox (and spam folder) to verify your email address.</p>
-                  <p className="mt-2">You will be redirected to the login page in 5 seconds. Please verify your email before logging in.</p>
+                  <p>{t('auth.verificationMessage')}</p>
                 </div>
               </div>
             </div>
@@ -90,7 +92,7 @@ const Register = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
-                    First Name
+                    {t('auth.firstName')}
                   </label>
                   <input
                     id="firstName"
@@ -107,7 +109,7 @@ const Register = () => {
                 </div>
                 <div>
                   <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
-                    Last Name
+                    {t('auth.lastName')}
                   </label>
                   <input
                     id="lastName"
@@ -125,7 +127,7 @@ const Register = () => {
               </div>
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                  Email address
+                  {t('auth.emailAddress')}
                 </label>
                 <input
                   id="email"
@@ -141,37 +143,27 @@ const Register = () => {
                 />
               </div>
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                  Password
-                </label>
-                <input
+                <PasswordInput
                   id="password"
                   name="password"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  className="form-input mt-1"
-                  placeholder="Enter your password"
                   value={formData.password}
                   onChange={handleChange}
+                  placeholder="Enter your password"
                   disabled={loading}
+                  label={t('auth.password')}
+                  className="form-input mt-1 w-full"
                 />
               </div>
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                  Confirm Password
-                </label>
-                <input
+                <PasswordInput
                   id="confirmPassword"
                   name="confirmPassword"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  className="form-input mt-1"
-                  placeholder="Confirm your password"
                   value={formData.confirmPassword}
                   onChange={handleChange}
+                  placeholder="Confirm your password"
                   disabled={loading}
+                  label={t('auth.confirmPassword')}
+                  className="form-input mt-1 w-full"
                 />
               </div>
             </div>
@@ -188,7 +180,7 @@ const Register = () => {
                 className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={loading}
               >
-                {loading ? 'Creating account...' : 'Register'}
+                {loading ? t('common.loading') : t('auth.register')}
               </button>
             </div>
           </form>
@@ -196,9 +188,9 @@ const Register = () => {
 
         <div className="text-center">
           <p className="text-sm text-gray-600">
-            Already have an account?{' '}
-            <Link to="/login" className="font-medium text-purple-600 hover:text-purple-500">
-              Sign in
+            {t('auth.alreadyHaveAccount')}{' '}
+            <Link to={ROUTES.AUTH.LOGIN} className="font-medium text-purple-600 hover:text-purple-500">
+              {t('auth.signIn')}
             </Link>
           </p>
         </div>

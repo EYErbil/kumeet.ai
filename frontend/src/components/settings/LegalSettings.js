@@ -1,35 +1,38 @@
 import React from 'react';
 import { FaFileContract, FaShieldAlt, FaCookieBite, FaUserShield } from 'react-icons/fa';
+import { useTranslation } from 'react-i18next';
 
 const LegalSettings = () => {
+  const { t } = useTranslation();
+  
   // Legal documents
   const legalDocuments = [
     {
       id: 'terms',
-      title: 'Terms and Conditions',
+      title: t('settings.legal.termsAndConditions'),
       icon: <FaFileContract />,
-      description: 'The terms and conditions that govern your use of kumeet.ai',
+      description: t('settings.legal.termsDescription'),
       lastUpdated: 'May 1, 2024',
     },
     {
       id: 'privacy',
-      title: 'Privacy Policy',
+      title: t('settings.legal.privacyPolicy'),
       icon: <FaShieldAlt />,
-      description: 'How we collect, use, and protect your personal information',
+      description: t('settings.legal.privacyDescription'),
       lastUpdated: 'May 1, 2024',
     },
     {
       id: 'cookies',
-      title: 'Cookie Policy',
+      title: t('settings.legal.cookiePolicy'),
       icon: <FaCookieBite />,
-      description: 'How we use cookies and similar technologies',
+      description: t('settings.legal.cookieDescription'),
       lastUpdated: 'April 15, 2024',
     },
     {
       id: 'data-processing',
-      title: 'Data Processing Agreement',
+      title: t('settings.legal.dataProcessing'),
       icon: <FaUserShield />,
-      description: 'How we process and protect your data in compliance with regulations',
+      description: t('settings.legal.dataProcessingDescription'),
       lastUpdated: 'April 10, 2024',
     },
   ];
@@ -44,12 +47,12 @@ const LegalSettings = () => {
         </div>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">{description}</p>
         <div className="flex justify-between items-center">
-          <span className="text-xs text-gray-500 dark:text-gray-400">Last updated: {lastUpdated}</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">{t('settings.legal.lastUpdated')} {lastUpdated}</span>
           <a 
             href="#" 
             className="text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 text-sm font-medium"
           >
-            View
+            {t('settings.legal.view')}
           </a>
         </div>
       </div>
@@ -58,17 +61,17 @@ const LegalSettings = () => {
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Legal Information</h2>
+      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">{t('settings.legal.title')}</h2>
       
       {/* Legal Documents */}
       <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg mb-8">
         <div className="flex items-center mb-4">
           <FaFileContract className="text-gray-700 dark:text-gray-300 mr-2" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">Legal Documents</h3>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">{t('settings.legal.documents.title')}</h3>
         </div>
         
         <p className="text-gray-600 dark:text-gray-400 mb-6">
-          Review our legal documents to understand your rights and responsibilities when using kumeet.ai.
+          {t('settings.legal.documents.description')}
         </p>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -88,31 +91,21 @@ const LegalSettings = () => {
       <div className="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg">
         <div className="flex items-center mb-4">
           <FaUserShield className="text-gray-700 dark:text-gray-300 mr-2" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">Your Data Rights</h3>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">{t('settings.legal.dataExport.title')}</h3>
         </div>
         
         <p className="text-gray-600 dark:text-gray-400 mb-6">
-          You have the right to access, export, or delete your personal data. Use the options below to manage your data.
+          {t('settings.legal.dataExport.description')}
         </p>
         
         <div className="space-y-4">
           <div className="bg-white dark:bg-gray-800 p-5 rounded-lg border border-gray-200 dark:border-gray-700">
-            <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Export Your Data</h4>
+            <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">{t('settings.legal.dataExport.title')}</h4>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Download a copy of all your personal data that we store, including your profile information, meetings, notes, and action items.
+              {t('settings.legal.dataExport.description')}
             </p>
             <button className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700">
-              Request Data Export
-            </button>
-          </div>
-          
-          <div className="bg-white dark:bg-gray-800 p-5 rounded-lg border border-gray-200 dark:border-gray-700">
-            <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Delete Your Account</h4>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Permanently delete your account and all associated data. This action cannot be undone.
-            </p>
-            <button className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
-              Delete Account
+              {t('settings.legal.dataExport.request')}
             </button>
           </div>
         </div>

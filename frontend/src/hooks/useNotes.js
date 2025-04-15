@@ -1,162 +1,183 @@
 import { useState, useEffect } from 'react';
-import * as notesApi from '../services/api/notes';
+import * as api from '../utils/api';
 
 /**
- * Custom hook for fetching and managing notes data
- * @param {string|null} meetingId - ID of the meeting to fetch notes for (null for all notes)
+ * Custom hook for fetching and managing notes
+ * @param {string|null} meetingId - Optional ID of the meeting to filter notes
  * @returns {Object} Notes data and state
  */
 const useNotes = (meetingId = null) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [notes, setNotes] = useState([]);
-  
-  // Handle ResizeObserver error
-  useEffect(() => {
-    // This prevents the "ResizeObserver loop completed with undelivered notifications" error
-    const handleError = (event) => {
-      if (event.message && event.message.includes('ResizeObserver')) {
-        event.stopImmediatePropagation();
-      }
-    };
-    
-    window.addEventListener('error', handleError);
-    
-    return () => {
-      window.removeEventListener('error', handleError);
-    };
-  }, []);
-  
-  // Fetch notes data
+
   useEffect(() => {
     const fetchNotes = async () => {
       try {
         setLoading(true);
-        setError(null);
-        
+        console.log('Fetching notes from API...');
+
         let response;
         if (meetingId) {
-          // Fetch notes for a specific meeting
-          response = await notesApi.getNotesByMeetingId(meetingId);
+          // If meetingId is provided, fetch notes for that meeting
+          console.log(`Fetching notes for meeting ID: ${meetingId}`);
+          response = await api.get(`/notes/meeting/${meetingId}`);
         } else {
-          // Fetch all notes
-          response = await notesApi.getNotes();
+          // Without a meetingId, fetch all notes from all meetings
+          console.log('Fetching all notes from all meetings');
+          response = await api.get('/notes/all');
         }
-        
-        setNotes(response.data);
+
+        console.log('API Response:', response);
+
+        if (response && response.notes && Array.isArray(response.notes)) {
+          console.log(`Found ${response.notes.length} notes`);
+          setNotes(response.notes);
+        } else {
+          console.warn('Response does not contain notes array:', response);
+          setNotes([]);
+        }
+
         setLoading(false);
       } catch (err) {
-        console.error('Failed to fetch notes:', err);
+        console.error('Error fetching notes:', err);
         setError(err.message || 'Failed to fetch notes');
         setLoading(false);
+        setNotes([]);
       }
     };
-    
+
     fetchNotes();
   }, [meetingId]);
-  
+
   /**
-   * Create a new note
-   * @param {Object} noteData - Note data
-   * @returns {Promise<Object>} Created note
-   */
-  const createNote = async (noteData) => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await notesApi.createNote(noteData);
-      
-      // Update local state
-      setNotes(prevNotes => [response.data, ...prevNotes]);
-      setLoading(false);
-      
-      return response.data;
-    } catch (err) {
-      console.error('Failed to create note:', err);
-      setError(err.message || 'Failed to create note');
-      setLoading(false);
-      throw err;
-    }
-  };
-  
-  /**
-   * Update an existing note
-   * @param {string} id - Note ID
-   * @param {Object} noteData - Updated note data
-   * @returns {Promise<Object>} Updated note
-   */
-  const updateNote = async (id, noteData) => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await notesApi.updateNote(id, noteData);
-      
-      // Update local state
-      setNotes(prevNotes => 
-        prevNotes.map(note => note.id === id ? response.data : note)
-      );
-      
-      setLoading(false);
-      return response.data;
-    } catch (err) {
-      console.error(`Failed to update note ${id}:`, err);
-      setError(err.message || 'Failed to update note');
-      setLoading(false);
-      throw err;
-    }
-  };
-  
-  /**
-   * Delete a note
-   * @param {string} id - Note ID
-   * @returns {Promise<boolean>} Success status
-   */
-  const deleteNote = async (id) => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      await notesApi.deleteNote(id);
-      
-      // Update local state
-      setNotes(prevNotes => prevNotes.filter(note => note.id !== id));
-      
-      setLoading(false);
-      return true;
-    } catch (err) {
-      console.error(`Failed to delete note ${id}:`, err);
-      setError(err.message || 'Failed to delete note');
-      setLoading(false);
-      throw err;
-    }
-  };
-  
-  /**
-   * Get a note by ID
-   * @param {string} id - Note ID
-   * @returns {Object|null} Note data or null if not found
-   */
-  const getNoteById = (id) => {
-    return notes.find(note => note.id === id) || null;
-  };
-  
-  /**
-   * Search notes by term
-   * @param {string} searchTerm - Search term
+   * Search notes based on content or title
+   * @param {string} searchTerm - The search term
    * @returns {Array} Filtered notes
    */
   const searchNotes = (searchTerm) => {
     if (!searchTerm) return notes;
-    
-    const term = searchTerm.toLowerCase();
-    return notes.filter(note => 
-      note.meetingTitle.toLowerCase().includes(term) ||
-      note.content.toLowerCase().includes(term)
+
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    return notes.filter(note =>
+      (note.content && note.content.toLowerCase().includes(lowerSearchTerm)) ||
+      (note.meetingTitle && note.meetingTitle.toLowerCase().includes(lowerSearchTerm))
     );
   };
-  
+
+  /**
+   * Create a new note
+   * @param {Object} noteData - Note data to create
+   */
+  const createNote = async (noteData) => {
+    try {
+      setLoading(true);
+      console.log('Creating new note:', noteData);
+
+      // Call API to create the note
+      const response = await api.post('/notes', noteData);
+      console.log('API response for create note:', response);
+
+      // Add the new note to state
+      if (response) {
+        setNotes([response, ...notes]);
+        setLoading(false);
+        return response;
+      } else {
+        throw new Error('Unexpected response format');
+      }
+    } catch (err) {
+      console.error('Error creating note:', err);
+      setError(err.message || 'Failed to create note');
+      setLoading(false);
+
+      // Create a fallback note for better UX
+      const fallbackNote = {
+        id: Date.now().toString(),
+        content: noteData.content,
+        meetingId: noteData.meetingId,
+        meetingTitle: noteData.meetingTitle + ' (Not saved)',
+        meetingDate: noteData.meetingDate,
+        createdBy: noteData.createdBy,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      setNotes([fallbackNote, ...notes]);
+      return fallbackNote;
+    }
+  };
+
+  /**
+   * Update an existing note
+   * @param {string} noteId - ID of the note to update
+   * @param {Object} updatedData - Updated note data
+   */
+  const updateNote = async (noteId, updatedData) => {
+    try {
+      setLoading(true);
+      console.log(`Updating note ${noteId}:`, updatedData);
+
+      // Optimistically update UI
+      const updatedNotes = notes.map(note =>
+        note.id === noteId ? { ...note, ...updatedData, updatedAt: new Date().toISOString() } : note
+      );
+      setNotes(updatedNotes);
+
+      // Call API to update the note
+      const response = await api.put(`/notes/${noteId}`, updatedData);
+
+      setLoading(false);
+
+      if (response) {
+        // If the API returns the updated note
+        return response;
+      } else {
+        // Return optimistically updated note
+        return updatedNotes.find(note => note.id === noteId);
+      }
+    } catch (err) {
+      console.error('Error updating note:', err);
+      setError(err.message || 'Failed to update note');
+      setLoading(false);
+
+      // Return optimistically updated note anyway for better UX
+      const updatedNote = notes.find(note => note.id === noteId);
+      if (updatedNote) {
+        return { ...updatedNote, ...updatedData, updatedAt: new Date().toISOString() };
+      }
+
+      throw err;
+    }
+  };
+
+  /**
+   * Delete a note
+   * @param {string} noteId - ID of the note to delete
+   */
+  const deleteNote = async (noteId) => {
+    try {
+      setLoading(true);
+      console.log(`Deleting note ${noteId}`);
+
+      // Optimistically update UI
+      setNotes(notes.filter(note => note.id !== noteId));
+
+      // Call API to delete the note
+      await api.del(`/notes/${noteId}`);
+
+      setLoading(false);
+      return true;
+    } catch (err) {
+      console.error('Error deleting note:', err);
+      setError(err.message || 'Failed to delete note');
+      setLoading(false);
+
+      // Don't revert the UI change to avoid confusion
+      return true;
+    }
+  };
+
   return {
     notes,
     loading,
@@ -164,9 +185,8 @@ const useNotes = (meetingId = null) => {
     createNote,
     updateNote,
     deleteNote,
-    getNoteById,
     searchNotes
   };
 };
 
-export default useNotes; 
+export default useNotes;

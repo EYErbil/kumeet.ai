@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { login, signInWithGoogle } from '../services/api/auth';
 import ROUTES from '../constants/routes';
+import { useTranslation } from 'react-i18next';
+import PasswordInput from '../components/common/PasswordInput';
 
 const Login = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -66,14 +69,14 @@ const Login = () => {
             kumeet.ai
           </h1>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Sign in to your account
+            {t('auth.signIn')}
           </h2>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm space-y-4">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email address
+                {t('auth.emailAddress')}
               </label>
               <input
                 id="email"
@@ -89,20 +92,15 @@ const Login = () => {
               />
             </div>
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Password
-              </label>
-              <input
+              <PasswordInput
                 id="password"
                 name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                className="form-input mt-1"
-                placeholder="Enter your password"
                 value={formData.password}
                 onChange={handleChange}
+                placeholder="Enter your password"
                 disabled={loading}
+                label={t('auth.password')}
+                className="form-input mt-1 w-full"
               />
             </div>
           </div>
@@ -127,13 +125,13 @@ const Login = () => {
                 disabled={loading}
               />
               <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
-                Remember me
+                {t('auth.rememberMe')}
               </label>
             </div>
 
             <div className="text-sm">
               <Link to={ROUTES.AUTH.FORGOT_PASSWORD} className="font-medium text-purple-600 hover:text-purple-500">
-                Forgot your password?
+                {t('auth.forgotPassword')}
               </Link>
             </div>
           </div>
@@ -144,7 +142,7 @@ const Login = () => {
               disabled={loading}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? t('common.loading') : t('auth.signIn')}
             </button>
 
             <button
@@ -158,16 +156,16 @@ const Login = () => {
                 src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
                 alt="Google logo"
               />
-              {loading ? 'Signing in...' : 'Sign in with Google'}
+              {loading ? t('common.loading') : t('auth.signInWithGoogle')}
             </button>
           </div>
         </form>
 
         <div className="text-center">
           <p className="text-sm text-gray-600">
-            Don't have an account?{' '}
-            <Link to="/register" className="font-medium text-purple-600 hover:text-purple-500">
-              Register now
+            {t('auth.noAccount')}{' '}
+            <Link to={ROUTES.AUTH.REGISTER} className="font-medium text-purple-600 hover:text-purple-500">
+              {t('auth.registerNow')}
             </Link>
           </p>
         </div>
