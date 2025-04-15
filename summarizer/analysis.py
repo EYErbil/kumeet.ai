@@ -2,17 +2,18 @@
 
 import json
 import sqlite3
+import re
 
-from config import DB_PATH, GEMINI_API_KEY
-from google import genai
-from db import (
+from summarizer.config import DB_PATH, GEMINI_API_KEY
+import google.generativeai as genai
+from summarizer.db import (
     load_transcript_from_db,
     save_action_items_in_db,
     save_question_answer_in_db
 )
 
-# Create a genai client
-gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+# Configure the Google Generative AI library with the API key
+genai.configure(api_key=GEMINI_API_KEY)
 
 def extract_items_with_scores_gemini(text, chunk_idx, chunk_start, chunk_end):
     """
@@ -29,10 +30,8 @@ def extract_items_with_scores_gemini(text, chunk_idx, chunk_start, chunk_end):
         f"{text}"
     )
 
-    response = gemini_client.models.generate_content(
-        model="gemini-2.0-flash",
-        contents=prompt
-    )
+    model = genai.GenerativeModel("gemini-1.5-flash")
+    response = model.generate_content(prompt)
     raw = response.text
     try:
         data = json.loads(raw)
@@ -52,7 +51,6 @@ def save_extracted_items_in_db(session_id, chunk_idx, items):
     items is a list of dict from extract_items_with_scores_gemini
     Add chunk_idx to each item, then store in action_items table
     """
-    from db import save_action_items_in_db
     # pass chunk_idx to the db call
     save_action_items_in_db(session_id, chunk_idx, items)
 
@@ -61,8 +59,7 @@ def answer_user_question(session_id, question_text):
     We do a Q&A with gemini about the entire transcript from DB.
     We'll store the question/answer in the db.
     """
-    from db import load_transcript_from_db, save_question_answer_in_db
-
+    # Use the already imported functions instead of re-importing
     transcript_data = load_transcript_from_db(session_id)
     if not transcript_data:
         return None
@@ -80,10 +77,8 @@ def answer_user_question(session_id, question_text):
         "Please provide a concise answer."
     )
 
-    response = gemini_client.models.generate_content(
-        model="gemini-2.0-flash",
-        contents=prompt
-    )
+    model = genai.GenerativeModel("gemini-1.5-flash")
+    response = model.generate_content(prompt)
     answer = response.text
 
     # store Q&A

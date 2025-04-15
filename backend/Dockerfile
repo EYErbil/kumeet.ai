@@ -8,10 +8,46 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
+# Install FFmpeg and other system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    ffmpeg \
+    curl \
+    build-essential \
+    libpq-dev \
+    gcc \
+    g++ \
+    git \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements file
 COPY requirements.txt .
 
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Install summarizer dependencies directly
+RUN pip install --no-cache-dir \
+    pyannote.audio \
+    faster-whisper \
+    torch \
+    google-generativeai \
+    pandas \
+    openai \
+    pydub
+
+# Create necessary directories
+RUN mkdir -p /app/logs /app/data /app/uploads /app/results
+
+# Copy the rest of the application
 COPY . .
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Set execute permissions for the entrypoint script
+RUN chmod +x /app/entrypoint.sh
+
+# Expose port for API
+EXPOSE 8000
+
+# Use our entrypoint script
+ENTRYPOINT ["/app/entrypoint.sh"]

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { FaChevronLeft, FaChevronRight, FaGoogle, FaMicrosoft, FaVideo, FaUpload, FaMicrophone, FaUserCircle } from 'react-icons/fa';
 import { useTranslation } from 'react-i18next';
 import MeetingList from './MeetingList';
+import { api } from '../utils/api'; // Import the API utility
 
 // Tab component for meeting creation options
 const MeetingTypeTab = ({ icon, label, active, onClick }) => {
@@ -26,6 +27,11 @@ const NewMeeting = () => {
   const [meetingName, setMeetingName] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [botName, setBotName] = useState('Meetmind Bot');
+  const [dragActive, setDragActive] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState('');
+  const [uploadError, setUploadError] = useState('');
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   // Available languages with their flags - using the same list as in LanguageSettings
   const languages = [
@@ -80,14 +86,134 @@ const NewMeeting = () => {
     { id: 2, text: 'Conduct a competitive analysis to inform the pricing model', completed: false }
   ];
 
-  const handleStartCapturing = () => {
-    console.log('Starting meeting capture with URL:', meetingUrl);
-    // Add implementation for starting the capture
+  const handleStartCapturing = async () => {
+    try {
+      if (!selectedFile) {
+        setUploadError('No file selected');
+        return;
+      }
+
+      if (!meetingName.trim()) {
+        setUploadError('Meeting name is required');
+        return;
+      }
+
+      // Reset states
+      setUploadError('');
+      setIsUploading(true);
+      setUploadStatus('Creating meeting...');
+      setUploadProgress(10);
+
+      // Create a meeting using the non-auth endpoint
+      try {
+        // Use direct fetch to the endpoint that doesn't require auth
+        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/meetings/create-without-auth`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title: meetingName,
+            description: '',
+            meeting_type: 'general',
+          }),
+        });
+        
+        if (!response.ok) {
+          console.error('Error creating meeting:', response.status, response.statusText);
+          const errorText = await response.text();
+          console.error('Error details:', errorText);
+          throw new Error(`Failed to create meeting: ${response.status} ${response.statusText}`);
+        }
+        
+        const createMeetingResult = await response.json();
+        console.log('Meeting created:', createMeetingResult);
+        
+        // Get the meeting ID
+        const meeting_id = createMeetingResult.meeting_id;
+        
+        setUploadStatus('Uploading video...');
+        setUploadProgress(25);
+  
+        // Create a FormData object
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        formData.append('meeting_type', 'general');
+        formData.append('quality', 'normal');
+        formData.append('min_importance', '6');
+  
+        // Upload the video file to the meeting using direct fetch
+        const uploadResponse = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/meetings/${meeting_id}/upload-video`, {
+          method: 'POST',
+          body: formData,
+        });
+        
+        if (!uploadResponse.ok) {
+          console.error('Error uploading video:', uploadResponse.status, uploadResponse.statusText);
+          const errorText = await uploadResponse.text();
+          console.error('Upload error details:', errorText);
+          throw new Error(`Failed to upload video: ${uploadResponse.status} ${uploadResponse.statusText}`);
+        }
+        
+        const result = await uploadResponse.json();
+        console.log('Upload response:', result);
+        
+        if (result.success === false) {
+          setUploadError(result.error || 'Processing failed');
+          setIsUploading(false);
+          return;
+        }
+        
+        // If there's a warning but processing succeeded
+        if (result.warning) {
+          setUploadStatus(`Processing complete with limitations: ${result.warning}`);
+        } else {
+          setUploadStatus('Processing complete!');
+        }
+        
+        setUploadProgress(100);
+        
+        // Short delay before redirecting to show completion
+        setTimeout(() => {
+          // Redirect to the meeting page
+          window.location.href = `/meetings/${meeting_id}`;
+        }, 2000);
+      } catch (error) {
+        console.error('API Error:', error);
+        setUploadError(`API Error: ${error.message}`);
+        setIsUploading(false);
+      }
+    } catch (error) {
+      console.error('Error uploading video:', error);
+      setUploadError(`Error: ${error.message}`);
+      setIsUploading(false);
+    }
   };
 
   const handleFileChange = (event) => {
     const file = event.target.files[0];
     setSelectedFile(file);
+  };
+
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      setSelectedFile(e.dataTransfer.files[0]);
+    }
   };
 
   return (
@@ -128,13 +254,20 @@ const NewMeeting = () => {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 {t('meetings.uploadRecording')}
               </label>
-              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-purple-300 dark:hover:border-purple-500 transition-colors">
+              <div 
+                className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed ${dragActive ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20' : 'border-gray-300 dark:border-gray-600'} rounded-lg hover:border-purple-300 dark:hover:border-purple-500 transition-colors cursor-pointer`}
+                onClick={() => document.getElementById('file-upload').click()}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+              >
                 <div className="space-y-1 text-center">
-                  <FaUpload className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
+                  <FaUpload className={`mx-auto h-12 w-12 ${dragActive ? 'text-purple-500' : 'text-gray-400 dark:text-gray-500'}`} />
                   <div className="flex text-sm text-gray-600 dark:text-gray-400">
                     <label htmlFor="file-upload" className="relative cursor-pointer rounded-md font-medium text-purple-600 dark:text-purple-400 hover:text-purple-500">
                       <span>{t('meetings.uploadFile')}</span>
-                      <input id="file-upload" name="file-upload" type="file" className="sr-only" onChange={handleFileChange} accept="video/*" />
+                      <input id="file-upload" name="file-upload" type="file" className="hidden" onChange={handleFileChange} accept="video/*" />
                     </label>
                     <p className="pl-1">{t('meetings.dragAndDrop')}</p>
                   </div>
@@ -185,11 +318,52 @@ const NewMeeting = () => {
               </Link>
               <button
                 onClick={handleStartCapturing}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+                disabled={isUploading}
+                className={`px-4 py-2 ${isUploading ? 'bg-purple-400' : 'bg-purple-600 hover:bg-purple-700'} text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2`}
               >
-                {t('meetings.create')}
+                {isUploading ? t('meetings.processing') : t('meetings.create')}
               </button>
             </div>
+            
+            {/* Upload Status */}
+            {isUploading && (
+              <div className="mt-6 p-4 border border-purple-200 rounded-lg bg-purple-50 dark:bg-purple-900/20 dark:border-purple-800">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-medium text-purple-700 dark:text-purple-300">{uploadStatus}</h3>
+                  <div className="text-xs text-purple-600 dark:text-purple-400">{uploadProgress}%</div>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-gray-700 h-2 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-purple-500 rounded-full transition-all duration-500 ease-in-out" 
+                    style={{ width: `${uploadProgress}%` }} 
+                  />
+                </div>
+                <p className="mt-2 text-xs text-purple-600 dark:text-purple-400">
+                  {t('meetings.processingDescription')}
+                </p>
+                <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                  Note: For better speaker diarization, a Hugging Face API token is required. Without it, all speech will be assigned to a single speaker.
+                </p>
+              </div>
+            )}
+            
+            {/* Error Display */}
+            {uploadError && (
+              <div className="mt-4 p-3 border border-red-200 rounded-lg bg-red-50 dark:bg-red-900/20 dark:border-red-800">
+                <p className="text-sm text-red-600 dark:text-red-400">{uploadError}</p>
+                {uploadError.includes("Unauthorized") && (
+                  <div className="mt-2 text-xs text-red-600 dark:text-red-400">
+                    <p>This error is related to Hugging Face authentication. To fix it:</p>
+                    <ol className="list-decimal ml-4 mt-1 space-y-1">
+                      <li>Create an account at <a href="https://huggingface.co/join" target="_blank" rel="noopener noreferrer" className="underline">huggingface.co</a></li>
+                      <li>Generate an access token at <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener noreferrer" className="underline">huggingface.co/settings/tokens</a></li>
+                      <li>Accept the license for the model at <a href="https://huggingface.co/pyannote/speaker-diarization-3.1" target="_blank" rel="noopener noreferrer" className="underline">pyannote/speaker-diarization-3.1</a></li>
+                      <li>Add the token to your backend environment</li>
+                    </ol>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

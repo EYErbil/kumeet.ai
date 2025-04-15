@@ -4,6 +4,7 @@ from psycopg2.extras import RealDictCursor
 from datetime import datetime
 import logging
 import random
+import db  # Import db module
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -428,3 +429,380 @@ class MeetingService:
         except Exception as e:
             logger.error(f"Error in get_action_items: {e}")
             return []
+
+    @staticmethod
+    def update_meeting_session_id(meeting_id, session_id):
+        """
+        Update the session_id for a meeting
+
+        Args:
+            meeting_id (int): Meeting ID
+            session_id (str): Session ID from summarization process
+
+        Returns:
+            bool: True if updated successfully, False otherwise
+        """
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE meetings 
+                    SET session_id = %s
+                    WHERE meeting_id = %s
+                """, (session_id, meeting_id))
+                conn.commit()
+                return True
+        except psycopg2.Error as e:
+            logger.error(f"Database error in update_meeting_session_id: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Error in update_meeting_session_id: {e}")
+            return False
+            
+    @staticmethod
+    def update_meeting_transcript_path(meeting_id, transcript_path):
+        """
+        Update the transcript_path for a meeting
+
+        Args:
+            meeting_id (int): Meeting ID
+            transcript_path (str): Path to the transcript file
+
+        Returns:
+            bool: True if updated successfully, False otherwise
+        """
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE meetings 
+                    SET transcript_path = %s
+                    WHERE meeting_id = %s
+                """, (transcript_path, meeting_id))
+                conn.commit()
+                logger.info(f"Updated transcript path for meeting {meeting_id}: {transcript_path}")
+                return True
+        except psycopg2.Error as e:
+            logger.error(f"Database error in update_meeting_transcript_path: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Error in update_meeting_transcript_path: {e}")
+            return False
+            
+    @staticmethod
+    def update_meeting_summary_path(meeting_id, summary_path):
+        """
+        Update the summary_path for a meeting
+
+        Args:
+            meeting_id (int): Meeting ID
+            summary_path (str): Path to the summary file
+
+        Returns:
+            bool: True if updated successfully, False otherwise
+        """
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE meetings 
+                    SET summary_path = %s
+                    WHERE meeting_id = %s
+                """, (summary_path, meeting_id))
+                conn.commit()
+                logger.info(f"Updated summary path for meeting {meeting_id}: {summary_path}")
+                return True
+        except psycopg2.Error as e:
+            logger.error(f"Database error in update_meeting_summary_path: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Error in update_meeting_summary_path: {e}")
+            return False
+
+    @staticmethod
+    def ensure_required_columns():
+        """
+        Ensure the meetings table has all required columns including transcript_path and summary_path
+        
+        Returns:
+            bool: True if columns exist or were added successfully
+        """
+        try:
+            with conn.cursor() as cur:
+                # Check if columns exist
+                cur.execute("""
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_name = 'meetings' AND table_schema = 'public'
+                """)
+                columns = [row[0] for row in cur.fetchall()]
+                
+                # Add columns if they don't exist
+                if 'transcript_path' not in columns:
+                    logger.info("Adding transcript_path column to meetings table")
+                    cur.execute("ALTER TABLE meetings ADD COLUMN transcript_path TEXT")
+                
+                if 'summary_path' not in columns:
+                    logger.info("Adding summary_path column to meetings table")
+                    cur.execute("ALTER TABLE meetings ADD COLUMN summary_path TEXT")
+                
+                # Add session_id column if it doesn't exist
+                if 'session_id' not in columns:
+                    logger.info("Adding session_id column to meetings table")
+                    cur.execute("ALTER TABLE meetings ADD COLUMN session_id TEXT")
+                
+                conn.commit()
+                logger.info("Required columns have been added to meetings table")
+                return True
+                
+        except psycopg2.Error as e:
+            logger.error(f"Database error in ensure_required_columns: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Error in ensure_required_columns: {e}")
+            return False
+
+    @staticmethod
+    def create_meeting(meeting_data, firebase_uid):
+        """
+        Create a new meeting in the database
+        
+        Args:
+            meeting_data: MeetingCreate Pydantic model with meeting details
+            firebase_uid: Firebase UID of the user creating the meeting
+            
+        Returns:
+            int: ID of the newly created meeting
+        """
+        try:
+            with conn.cursor() as cur:
+                # Get current timestamp
+                now = datetime.now()
+                
+                # Ensure we have a valid firebase_uid
+                if not firebase_uid or firebase_uid == "default_user":
+                    # Try to find an existing user in the database
+                    cur.execute("SELECT firebase_uid FROM users LIMIT 1")
+                    user_row = cur.fetchone()
+                    if user_row:
+                        firebase_uid = user_row[0]
+                        logger.info(f"Using existing user {firebase_uid} as default")
+                    else:
+                        # Create a default user if none exists
+                        try:
+                            cur.execute("""
+                                INSERT INTO users (firebase_uid, email, first_name, last_name)
+                                VALUES ('default_user', 'default@example.com', 'Default', 'User')
+                                RETURNING firebase_uid
+                            """)
+                            firebase_uid = cur.fetchone()[0]
+                            conn.commit()
+                            logger.info("Created default user for meeting creation")
+                        except psycopg2.Error as e:
+                            # If there's an error, fallback to default_user
+                            logger.error(f"Error creating default user: {e}")
+                            firebase_uid = "default_user"
+                
+                # Prepare meeting data
+                query = """
+                INSERT INTO meetings (
+                    firebase_uid, title, description, meeting_type, 
+                    meeting_date, duration_seconds, created_at
+                ) VALUES (
+                    %s, %s, %s, %s, %s, %s, %s
+                ) RETURNING meeting_id
+                """
+                
+                # Use the provided firebase_uid
+                params = [
+                    firebase_uid,
+                    meeting_data.title,
+                    meeting_data.description,
+                    meeting_data.meeting_type,
+                    meeting_data.meeting_date or now,
+                    meeting_data.duration_seconds,
+                    now
+                ]
+                
+                try:
+                    cur.execute(query, params)
+                    meeting_id = cur.fetchone()[0]
+                    conn.commit()
+                    
+                    logger.info(f"Created new meeting with ID: {meeting_id} for user {firebase_uid}")
+                    return meeting_id
+                except psycopg2.Error as e:
+                    # If there's a foreign key error, try creating the user first
+                    if "foreign key constraint" in str(e).lower():
+                        logger.warning(f"User {firebase_uid} not found, attempting to create default user")
+                        try:
+                            cur.execute("""
+                                INSERT INTO users (firebase_uid, email, first_name, last_name)
+                                VALUES (%s, %s, %s, %s)
+                                ON CONFLICT (firebase_uid) DO NOTHING
+                                RETURNING firebase_uid
+                            """, (firebase_uid, f"{firebase_uid}@example.com", "Default", "User"))
+                            conn.commit()
+                            
+                            # Try the insert again
+                            cur.execute(query, params)
+                            meeting_id = cur.fetchone()[0]
+                            conn.commit()
+                            
+                            logger.info(f"Created new meeting with ID: {meeting_id} after creating user {firebase_uid}")
+                            return meeting_id
+                        except Exception as inner_e:
+                            logger.error(f"Failed to create user and meeting: {inner_e}")
+                            raise
+                    else:
+                        raise
+                
+        except psycopg2.Error as e:
+            logger.error(f"Database error in create_meeting: {e}")
+            conn.rollback()
+            raise ValueError(f"Database error: {str(e)}")
+        except Exception as e:
+            logger.error(f"Error in create_meeting: {e}")
+            conn.rollback()
+            raise
+
+    @staticmethod
+    def update_meeting_transcript_segments(meeting_id, transcript_data):
+        """
+        Update the transcript segments for a meeting
+        
+        Args:
+            meeting_id (int): Meeting ID
+            transcript_data (list): List of transcript segments with speaker, start, end, text
+            
+        Returns:
+            bool: True if updated successfully, False otherwise
+        """
+        try:
+            with conn.cursor() as cur:
+                # First delete any existing segments for this meeting
+                cur.execute("""
+                    DELETE FROM speaker_segments 
+                    WHERE meeting_id = %s
+                """, (meeting_id,))
+                
+                # Insert new segments
+                for segment in transcript_data:
+                    speaker_label = segment.get("speaker", "SPEAKER_0")
+                    start_time = segment.get("start", 0)
+                    end_time = segment.get("end", 0)
+                    duration = end_time - start_time
+                    transcript_text = segment.get("text", "")
+                    
+                    cur.execute("""
+                        INSERT INTO speaker_segments 
+                        (meeting_id, speaker_label, start_time, end_time, duration, transcript) 
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, (meeting_id, speaker_label, start_time, end_time, duration, transcript_text))
+                
+                conn.commit()
+                logger.info(f"Updated {len(transcript_data)} transcript segments for meeting {meeting_id}")
+                return True
+        except psycopg2.Error as e:
+            conn.rollback()
+            logger.error(f"Database error in update_meeting_transcript_segments: {e}")
+            return False
+        except Exception as e:
+            conn.rollback() 
+            logger.error(f"Error in update_meeting_transcript_segments: {e}")
+            return False
+    
+    @staticmethod
+    def add_meeting_summary(meeting_id: int, summary_type: str, content: str) -> bool:
+        """
+        Add a summary for a meeting
+        
+        Args:
+            meeting_id (int): Meeting ID
+            summary_type (str): Type of summary (e.g., "general", "action_items", "decisions")
+            content (str): Summary content
+            
+        Returns:
+            bool: True if the summary was added successfully, False otherwise
+        """
+        try:
+            with conn.cursor() as cur:
+                # First check if a summary of this type already exists
+                cur.execute("""
+                    SELECT summary_id FROM meeting_summaries 
+                    WHERE meeting_id = %s AND summary_type = %s
+                """, (meeting_id, summary_type))
+                
+                existing = cur.fetchone()
+                
+                if existing:
+                    # Update existing summary
+                    cur.execute("""
+                        UPDATE meeting_summaries 
+                        SET content = %s, created_at = CURRENT_TIMESTAMP
+                        WHERE summary_id = %s
+                    """, (content, existing[0]))
+                    logger.info(f"Updated existing {summary_type} summary for meeting {meeting_id}")
+                else:
+                    # Insert new summary
+                    cur.execute("""
+                        INSERT INTO meeting_summaries 
+                        (meeting_id, summary_type, content)
+                        VALUES (%s, %s, %s)
+                        RETURNING summary_id
+                    """, (meeting_id, summary_type, content))
+                    logger.info(f"Added new {summary_type} summary for meeting {meeting_id}")
+                
+                conn.commit()
+                return True
+        except psycopg2.Error as e:
+            conn.rollback()
+            logger.error(f"Database error in add_meeting_summary: {e}")
+            return False
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Error in add_meeting_summary: {e}")
+            return False
+    
+    @staticmethod
+    def add_meeting_decision(meeting_id, description, segment_id=None):
+        """
+        Add a decision for a meeting
+        
+        Args:
+            meeting_id (int): Meeting ID
+            description (str): Decision description
+            segment_id (int, optional): Segment ID to link to the decision. Defaults to None.
+            
+        Returns:
+            bool: True if the decision was added successfully, False otherwise
+        """
+        try:
+            with conn.cursor() as cur:
+                # Check if this decision already exists for this meeting to avoid duplicates
+                cur.execute("""
+                    SELECT decision_id FROM decisions 
+                    WHERE meeting_id = %s AND description = %s
+                """, (meeting_id, description))
+                
+                existing = cur.fetchone()
+                if existing:
+                    logger.info(f"Decision already exists for meeting {meeting_id}")
+                    return True
+                    
+                # Insert new decision
+                cur.execute("""
+                    INSERT INTO decisions 
+                    (meeting_id, description, segment_id)
+                    VALUES (%s, %s, %s)
+                    RETURNING decision_id
+                """, (meeting_id, description, segment_id))
+                
+                conn.commit()
+                logger.info(f"Added decision for meeting {meeting_id}")
+                return True
+        except psycopg2.Error as e:
+            conn.rollback()
+            logger.error(f"Database error in add_meeting_decision: {e}")
+            return False
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Error in add_meeting_decision: {e}")
+            return False

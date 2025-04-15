@@ -226,3 +226,58 @@ export const uploadFile = async (endpoint, formData, options = {}) => {
     throw error;
   }
 };
+
+/**
+ * Submit form data (like file uploads)
+ * @param {string} endpoint - API endpoint
+ * @param {FormData} formData - Form data
+ * @param {Object} options - Additional fetch options
+ * @returns {Promise<any>} Response data
+ */
+export const postForm = async (endpoint, formData, options = {}) => {
+  try {
+    // Get auth token if available
+    const token = await getAuthToken();
+
+    const headers = {
+      // Do NOT set Content-Type for FormData, browser will set it with boundary
+      ...options.headers
+    };
+
+    // Add auth header if token exists
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'POST',
+      headers,
+      body: formData,
+      ...options
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`API Error: ${response.status} ${response.statusText}`);
+      console.error(`Error details: ${errorText}`);
+      throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('API form submission error:', error);
+    throw error;
+  }
+};
+
+/**
+ * API utilities packaged as a single object
+ */
+export const api = {
+  get,
+  post,
+  put,
+  del,
+  uploadFile,
+  postForm
+};

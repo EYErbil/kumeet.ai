@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   FaChevronLeft,
@@ -13,7 +13,8 @@ import {
   FaPlus,
   FaEdit,
   FaTrash,
-  FaCalendarAlt
+  FaCalendarAlt,
+  FaUpload
 } from 'react-icons/fa';
 import * as api from '../utils/api';
 import ROUTES from '../constants/routes';
@@ -368,23 +369,74 @@ const MeetingDetail = () => {
   const [meeting, setMeeting] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [processingTranscript, setProcessingTranscript] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
+  const fileInputRef = useRef(null);
 
   // Fetch meeting data
   useEffect(() => {
-    const fetchMeeting = async () => {
-      try {
-        setLoading(true);
-        const data = await api.get(`/meetings/${id}`);
-        setMeeting(data);
-        setLoading(false);
-      } catch (err) {
-        setError(err.message || 'Failed to fetch meeting details');
-        setLoading(false);
-      }
-    };
-
     fetchMeeting();
   }, [id]);
+
+  const fetchMeeting = async () => {
+    try {
+      setLoading(true);
+      const data = await api.get(`/meetings/${id}`);
+      setMeeting(data);
+      setLoading(false);
+    } catch (err) {
+      setError(err.message || 'Failed to fetch meeting details');
+      setLoading(false);
+    }
+  };
+
+  const handleTranscriptUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Check if it's a JSON file
+    if (!file.name.endsWith('.json')) {
+      setUploadError('Please upload a JSON file');
+      return;
+    }
+
+    try {
+      setProcessingTranscript(true);
+      setUploadError(null);
+      setUploadSuccess(false);
+
+      // Create form data
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('summary_type', 'general');
+      formData.append('min_importance', '6');
+      formData.append('update_summary', 'true');
+
+      // Upload the transcript
+      const response = await api.postForm(`/meetings/${id}/upload-transcript`, formData);
+
+      if (response.segments_count > 0) {
+        setUploadSuccess(true);
+        // Refresh meeting data to show updated transcript and summaries
+        await fetchMeeting();
+        // Switch to the summary tab to show results
+        setActiveTab('summary');
+      } else {
+        setUploadError('No transcript segments were processed');
+      }
+    } catch (err) {
+      setUploadError(err.message || 'Failed to process transcript');
+    } finally {
+      setProcessingTranscript(false);
+    }
+  };
+
+  const triggerFileUpload = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
 
   // Loading indicator
   if (loading) {
@@ -564,6 +616,56 @@ const MeetingDetail = () => {
 
         {activeTab === 'transcript' && (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div className="mb-6 flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Transcript</h3>
+              
+              <div className="flex items-center">
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  accept=".json" 
+                  onChange={handleTranscriptUpload} 
+                  className="hidden" 
+                />
+                <button
+                  onClick={triggerFileUpload}
+                  disabled={processingTranscript}
+                  className={`inline-flex items-center px-4 py-2 rounded-md text-sm font-medium ${
+                    processingTranscript 
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                      : 'bg-purple-600 text-white hover:bg-purple-700'
+                  }`}
+                >
+                  {processingTranscript ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <FaUpload className="mr-2" size={14} />
+                      Update Transcript
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {uploadError && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                <p>{uploadError}</p>
+              </div>
+            )}
+
+            {uploadSuccess && (
+              <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+                <p>Transcript successfully processed! Meeting details have been updated.</p>
+              </div>
+            )}
+
             {meeting.transcript_segments && meeting.transcript_segments.length > 0 ? (
               <div className="space-y-6">
                 {meeting.transcript_segments.map((segment, index) => (
@@ -587,7 +689,11 @@ const MeetingDetail = () => {
                 ))}
               </div>
             ) : (
-              <p className="text-gray-600 dark:text-gray-400">Transcript not available for this meeting.</p>
+              <div className="text-center py-8">
+                <FaFileAlt className="mx-auto mb-4 text-gray-400" size={48} />
+                <p className="text-gray-600 dark:text-gray-400 mb-4">No transcript available for this meeting.</p>
+                <p className="text-gray-500 dark:text-gray-500 mb-6">Upload a transcript JSON file to analyze and summarize your meeting.</p>
+              </div>
             )}
           </div>
         )}

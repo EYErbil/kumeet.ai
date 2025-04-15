@@ -1,7 +1,4 @@
-# Make sure all routers can be imported from routes package
-from . import auth
-from . import meeting
-from . import notes
-from . import actionItem
-from . import user
-from . import feedback 
+# This file makes the routes directory a proper Python package
+
+# Import all route modules for easy access
+from . import auth, meeting, notes, actionItem, user, feedback 

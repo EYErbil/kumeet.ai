@@ -300,9 +300,9 @@
     "language": "Meeting Language",
     "uploadRecording": "Upload Recording",
     "dragAndDrop": "or drag and drop",
-    "uploadFile": "Upload a file",
-    "fileFormats": "MP4, WebM, or MOV up to 2GB",
-    "selected": "Selected:",
+    "uploadFile": "Upload File",
+    "fileFormats": "MP4, MOV, or other video formats up to 1GB",
+    "selected": "Selected file:",
     "create": "Create Meeting",
     "recentMeetings": "Recent Meetings",
     "cancel": "Cancel",
@@ -326,7 +326,13 @@
       "upcoming": "Upcoming",
       "past": "Past",
       "all": "All"
-    }
+    },
+    "processing": "Processing...",
+    "processingDescription": "We're analyzing your meeting. This may take a few minutes. Please wait while we process the audio, transcribe, and generate summaries.",
+    "uploadComplete": "Upload Complete",
+    "uploadFailed": "Upload Failed",
+    "fileRequired": "Please select a file to upload",
+    "meetingNameRequired": "Meeting name is required"
   },
   "sidebar": {
     "home": "Home",
