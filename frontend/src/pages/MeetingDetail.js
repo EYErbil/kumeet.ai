@@ -377,114 +377,234 @@ const MeetingDetail = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingMessage, setProcessingMessage] = useState('');
   const [statusPollingCount, setStatusPollingCount] = useState(0);
+  const pollingTimeoutRef = useRef(null);
+  const [generatingOverview, setGeneratingOverview] = useState(false);
 
   // Fetch meeting data
   useEffect(() => {
     fetchMeeting();
+    
+    // Cleanup function
+    return () => {
+      if (pollingTimeoutRef.current) {
+        clearTimeout(pollingTimeoutRef.current);
+      }
+    };
   }, [id]);
 
-  // Check pipeline status if needed
+  // Check pipeline status if needed, but only once per meeting ID
   useEffect(() => {
-    if (meeting && (!meeting.transcript_path || !meeting.summary_path)) {
-      // Start checking pipeline status
+    if (meeting && (!meeting.transcript_path || !meeting.summary_path) && statusPollingCount === 0) {
+      // Only start checking pipeline status if we haven't started checking already
       checkPipelineStatus();
     }
+    
+    // Cleanup function
+    return () => {
+      if (pollingTimeoutRef.current) {
+        clearTimeout(pollingTimeoutRef.current);
+      }
+    };
   }, [meeting, id]);
+
+  const tryAlternativeRoutes = async () => {
+    console.log('Trying alternative API routes for meeting:', id);
+    try {
+      // Option 1: Try different API endpoint format
+      const alternativeEndpoint = `/api/meetings/get/${id}`;
+      console.log('Trying alternative endpoint:', alternativeEndpoint);
+      const response = await fetch(alternativeEndpoint);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Successfully retrieved meeting data from alternative endpoint:', data);
+        setMeeting(data);
+        setLoading(false);
+        return true;
+      }
+    } catch (altError) {
+      console.error('Alternative endpoint failed:', altError);
+    }
+
+    try {
+      // Option 2: Try raw data endpoint
+      const rawDataEndpoint = `/api/meetings/${id}/raw`;
+      console.log('Trying raw data endpoint:', rawDataEndpoint);
+      const response = await fetch(rawDataEndpoint);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Successfully retrieved raw meeting data:', data);
+        // Transform raw data into expected format if needed
+        const transformedData = {
+          ...data,
+          transcript_segments: data.transcript_segments || [],
+          key_points: data.key_points || [],
+          summaries: data.summaries || {}
+        };
+        setMeeting(transformedData);
+        setLoading(false);
+        return true;
+      }
+    } catch (rawError) {
+      console.error('Raw data endpoint failed:', rawError);
+    }
+
+    return false;
+  }
 
   const fetchMeeting = async () => {
     try {
       setLoading(true);
+      console.log(`Attempting to fetch meeting with ID: ${id}`);
+      
       const data = await api.get(`/meetings/${id}`);
+      console.log('Meeting data received successfully:', data);
       setMeeting(data);
       
-      // Check if the meeting is still being processed
-      const isBeingProcessed = !data.transcript_path || !data.summary_path;
-      setIsProcessing(isBeingProcessed);
+      // Force stop loading if we have any useful data, even if transcript or summary path is missing
+      const hasUsefulData = (data.transcript_segments && data.transcript_segments.length > 0) || 
+                            (data.key_points && data.key_points.length > 0) ||
+                            (data.summaries && data.summaries.general);
       
-      if (!isBeingProcessed) {
+      // Set processing flag based on whether the meeting is fully processed
+      const isBeingProcessed = !data.transcript_path || !data.summary_path;
+      setIsProcessing(isBeingProcessed && !hasUsefulData);
+      
+      // Clear generating flag - it should only be set during actual generation
+      setGeneratingOverview(false);
+      
+      // If we have transcript but no overview, and there's no pending generation,
+      // we'll show the button rather than automatically generating
+      if (data.transcript_segments && data.transcript_segments.length > 0 && 
+          (!data.summaries || !data.summaries.general)) {
+        console.log('Transcript available but no overview - showing generation button');
+      }
+      
+      // If the meeting is fully processed or we have useful data, stop loading
+      if (!isBeingProcessed || hasUsefulData) {
+        console.log('Stopping loading - meeting data is usable');
         setLoading(false);
       }
     } catch (err) {
-      setError(err.message || 'Failed to fetch meeting details');
-      setLoading(false);
+      console.error('Error fetching meeting details:', err);
+      
+      // Handle 422 Unprocessable Entity error specifically
+      if (err.message && err.message.includes('422')) {
+        console.error('422 Unprocessable Entity error detected - Database issue with meeting:', id);
+        
+        // Try alternative routes before giving up
+        const alternativeSuccess = await tryAlternativeRoutes();
+        
+        if (!alternativeSuccess) {
+          setError(`Unable to load meeting ID: ${id}. The meeting data structure may be corrupted in the database. (Error 422: Unprocessable Entity)`);
+          setLoading(false);
+        }
+      } else {
+        setError(`Failed to fetch meeting details: ${err.message || 'Unknown error'}`);
+        setLoading(false);
+      }
     }
   };
 
   const checkPipelineStatus = async () => {
     try {
-      // Maximum number of polls (5 minutes at 5s intervals)
-      const MAX_POLLS = 60;
+      // Maximum number of polls (2 minutes at 10s intervals = 12 polls)
+      const MAX_POLLS = 12;
+      
+      // Increment polling count first to prevent excessive logging
+      setStatusPollingCount(prev => prev + 1);
+      
+      // If we've been polling for a while (> 3 polls), check if we already have useful data
+      if (statusPollingCount > 3) {
+        try {
+          // Refresh meeting data to see if we have something to show
+          const data = await api.get(`/meetings/${id}`);
+          
+          // Check if we have key points, segments, or summaries
+          const hasUsefulData = (data.transcript_segments && data.transcript_segments.length > 0) || 
+                                (data.key_points && data.key_points.length > 0) ||
+                                (data.summaries && data.summaries.general);
+                                
+          if (hasUsefulData) {
+            console.log('Found useful meeting data - ending pipeline status check');
+            
+            setMeeting(data);
+            // Don't auto-trigger overview generation - let user click the button instead
+            
+            setIsProcessing(false);
+            setGeneratingOverview(false);
+            setLoading(false);
+            return;
+          }
+        } catch (fetchError) {
+          console.error('Error checking for meeting data:', fetchError);
+          // Continue with regular polling if this check fails
+        }
+      }
       
       // If we've been polling too long, stop and show the page anyway
+      // This ensures we don't hang indefinitely and provides a timeout mechanism
+      // Meeting data processing may continue in the background even after we stop polling
       if (statusPollingCount >= MAX_POLLS) {
-        console.log('Exceeded maximum polling attempts, showing page anyway');
+        console.log('Maximum polling attempts reached - ending pipeline status check');
+        setIsProcessing(false);
+        setGeneratingOverview(false);
+        setLoading(false);
+        return;
+      }
+      
+      let statusData;
+      try {
+        statusData = await api.get(`/meetings/${id}/pipeline-status`);
+        setPipelineStatus(statusData);
+        console.log('Pipeline status:', statusData);
+      } catch (statusError) {
+        console.error('Error getting pipeline status:', statusError);
+        // If we can't get status, try in next poll
+        pollingTimeoutRef.current = setTimeout(checkPipelineStatus, 10000);
+        return;
+      }
+      
+      if (statusData.status === 'completed') {
+        // Refresh meeting data to ensure we have the latest transcript/summary
+        try {
+          const data = await api.get(`/meetings/${id}`);
+          setMeeting(data);
+          
+          // Don't auto-generate overview - let user manually trigger it
+          setGeneratingOverview(false);
+        } catch (fetchError) {
+          console.error('Error fetching completed meeting data:', fetchError);
+        }
+        
         setIsProcessing(false);
         setLoading(false);
         return;
       }
       
-      const statusData = await api.get(`/meetings/${id}/pipeline-status`);
-      setPipelineStatus(statusData);
+      // For any other status, set appropriate message based on polling count
+      setIsProcessing(true);
+      if (statusPollingCount < 3) {
+        setProcessingMessage('Converting video to audio...');
+      } else if (statusPollingCount < 6) {
+        setProcessingMessage('Transcribing audio...');
+      } else {
+        setProcessingMessage('Analyzing transcript and creating summary...');
+      }
       
-      console.log('Pipeline status:', statusData);
-      
-      // Update UI based on status
-      if (statusData.status === 'processing') {
-        setIsProcessing(true);
-        
-        // Set appropriate message based on polling count
-        if (statusPollingCount < 5) {
-          setProcessingMessage('Converting video to audio...');
-        } else if (statusPollingCount < 15) {
-          setProcessingMessage('Transcribing audio...');
-        } else if (statusPollingCount < 30) {
-          setProcessingMessage('Analyzing transcript and creating summary...');
-        } else {
-          setProcessingMessage('Still processing... This may take a few minutes for long videos.');
-        }
-        
-        // Continue polling
-        setStatusPollingCount(prev => prev + 1);
-        setTimeout(checkPipelineStatus, 5000);
-      } 
-      else if (statusData.status === 'partial') {
-        setIsProcessing(true);
-        setProcessingMessage('Transcript ready, but summary is still processing...');
-        
-        // Continue polling, but at a slower rate
-        setStatusPollingCount(prev => prev + 1);
-        setTimeout(checkPipelineStatus, 5000);
-      }
-      else if (statusData.status === 'completed') {
-        // Refresh meeting data to ensure we have the latest transcript/summary
-        await fetchMeeting();
-        setIsProcessing(false);
-        setLoading(false);
-      }
-      else {
-        // Unknown status - if we have transcript data already, show the page
-        const data = await api.get(`/meetings/${id}`);
-        
-        if (data.transcript_path || statusPollingCount > 10) {
-          // We have transcript data or we've tried enough times, show the page
-          setMeeting(data);
-          setIsProcessing(false);
-          setLoading(false);
-        } else {
-          setProcessingMessage('Checking processing status...');
-          setStatusPollingCount(prev => prev + 1);
-          setTimeout(checkPipelineStatus, 5000);
-        }
-      }
+      // Continue polling after delay, store the timeout ID for cleanup
+      pollingTimeoutRef.current = setTimeout(checkPipelineStatus, 10000);
     } catch (error) {
       console.error('Error checking pipeline status:', error);
+      
       // After a few attempts, stop polling and show the page anyway
-      if (statusPollingCount > 5) {
+      if (statusPollingCount > 3) {
         setIsProcessing(false);
+        setGeneratingOverview(false);
         setLoading(false);
       } else {
-        setStatusPollingCount(prev => prev + 1);
-        setTimeout(checkPipelineStatus, 5000);
+        pollingTimeoutRef.current = setTimeout(checkPipelineStatus, 10000);
       }
     }
   };
@@ -510,21 +630,55 @@ const MeetingDetail = () => {
       formData.append('summary_type', 'general');
       formData.append('min_importance', '6');
       formData.append('update_summary', 'true');
+      // Request to generate overview automatically by the server
+      formData.append('generate_overview', 'true');
 
       // Upload the transcript
       const response = await api.postForm(`/meetings/${id}/upload-transcript`, formData);
 
-      if (response.segments_count > 0) {
+      if (response && (response.segments_count > 0 || response.success)) {
         setUploadSuccess(true);
+        
+        // If overview wasn't already generated by the server, generate it now
+        // This is a fallback in case the server-side generation didn't work
+        setGeneratingOverview(true);
+        
         // Refresh meeting data to show updated transcript and summaries
-        await fetchMeeting();
+        const updatedMeeting = await api.get(`/meetings/${id}`);
+        setMeeting(updatedMeeting);
+        
+        // If no overview was generated by the server, trigger the client-side generation
+        if (!updatedMeeting.summaries?.general && updatedMeeting.transcript_segments?.length > 0) {
+          try {
+            await generateOverviewFromTranscript(updatedMeeting);
+          } catch (overviewError) {
+            console.error('Failed to generate overview after transcript upload:', overviewError);
+          }
+        }
+        
+        setGeneratingOverview(false);
+        
         // Switch to the summary tab to show results
         setActiveTab('summary');
       } else {
         setUploadError('No transcript segments were processed');
       }
     } catch (err) {
-      setUploadError(err.message || 'Failed to process transcript');
+      setUploadError(`Failed to process transcript: ${err.message}`);
+      
+      // Try a fallback approach if the upload failed
+      try {
+        const localData = await api.get(`/meetings/${id}`);
+        if (localData && localData.transcript_segments && localData.transcript_segments.length > 0) {
+          // We have transcript data, try generating the overview automatically
+          setMeeting(localData);
+          setGeneratingOverview(true);
+          await generateOverviewFromTranscript(localData);
+          setGeneratingOverview(false);
+        }
+      } catch (fetchErr) {
+        console.error('Fallback fetch after upload error also failed:', fetchErr);
+      }
     } finally {
       setProcessingTranscript(false);
     }
@@ -533,6 +687,104 @@ const MeetingDetail = () => {
   const triggerFileUpload = () => {
     if (fileInputRef.current) {
       fileInputRef.current.click();
+    }
+  };
+
+  // Generate overview using LLM
+  const generateOverviewFromTranscript = async (meeting) => {
+    if (!meeting || !meeting.transcript_segments || meeting.transcript_segments.length === 0) {
+      alert("No transcript available to generate overview.");
+      return;
+    }
+
+    try {
+      setGeneratingOverview(true);
+      console.log("Starting overview generation...");
+      
+      // Combine transcript segments into a single text for processing
+      const transcriptText = meeting.transcript_segments
+        .map(segment => `${segment.speaker}: ${segment.text}`)
+        .join('\n');
+      
+      // Prepare request data
+      const requestData = {
+        transcript: transcriptText,
+        meetingId: id,
+        meetingTitle: meeting.title || "Meeting"
+      };
+      
+      let overview = null;
+      
+      try {
+        // Call API endpoint to generate overview
+        console.log("Calling API for overview generation...");
+        const response = await api.post('/meetings/generate-overview', requestData);
+        console.log("API response:", response);
+        
+        if (response && response.overview) {
+          overview = response.overview;
+          console.log("Successfully generated overview from API");
+        }
+      } catch (apiError) {
+        console.warn('API endpoint for generating overview failed, falling back to client-side generation:', apiError);
+        
+        // Client-side fallback - create a simplified summary based on available data
+        console.log("Generating fallback overview...");
+        const topSegments = meeting.transcript_segments.slice(0, 5); // Take first 5 segments
+        const speakerNames = [...new Set(meeting.transcript_segments.map(seg => seg.speaker))];
+        
+        let fallbackOverview = `Meeting with ${speakerNames.join(', ')}. `;
+        fallbackOverview += `This meeting covered the following topics: `;
+        
+        if (meeting.key_points && meeting.key_points.length > 0) {
+          // Use existing key points if available
+          fallbackOverview += meeting.key_points
+            .slice(0, 3)
+            .map(point => typeof point === 'string' ? point : point.text || '')
+            .map(text => text.replace(/\[\d+\.\d+-\d+\.\d+\]/g, '').replace(/\[score=\d+\]/g, '').trim())
+            .join('; ');
+        } else {
+          // Otherwise use the first few transcript segments
+          fallbackOverview += topSegments
+            .map(seg => seg.text.substring(0, 100) + (seg.text.length > 100 ? '...' : ''))
+            .join(' ');
+        }
+        
+        overview = fallbackOverview;
+        console.log("Generated fallback overview:", overview);
+      }
+      
+      if (overview) {
+        // Update the meeting with the new overview
+        console.log("Updating meeting with new overview");
+        const updatedMeeting = {
+          ...meeting,
+          summaries: {
+            ...meeting.summaries || {},
+            general: overview
+          }
+        };
+        setMeeting(updatedMeeting);
+        
+        // Try to save the overview to the server
+        try {
+          await api.put(`/meetings/${id}`, {
+            summaries: updatedMeeting.summaries
+          });
+          console.log("Successfully saved overview to server");
+        } catch (saveError) {
+          console.warn("Failed to save overview to server:", saveError);
+          // Continue anyway since we've updated the local state
+        }
+      } else {
+        throw new Error('No overview generated');
+      }
+    } catch (err) {
+      console.error('Failed to generate overview:', err);
+      alert('Failed to generate overview. Please try again later.');
+    } finally {
+      setGeneratingOverview(false);
+      console.log("Overview generation process completed");
     }
   };
 
@@ -545,12 +797,24 @@ const MeetingDetail = () => {
           <div className="text-center max-w-md">
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Processing your meeting</h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4">{processingMessage}</p>
-            <div className="w-full bg-gray-200 dark:bg-gray-700 h-2 rounded-full overflow-hidden">
+            <div className="w-full bg-gray-200 dark:bg-gray-700 h-2 rounded-full overflow-hidden mb-6">
               <div 
                 className="h-full bg-purple-500 rounded-full transition-all duration-500 ease-in-out" 
-                style={{ width: `${Math.min(95, statusPollingCount * 2)}%` }} 
+                style={{ width: `${Math.min(95, statusPollingCount * 8)}%` }} 
               />
             </div>
+            
+            {statusPollingCount > 2 && (
+              <button
+                onClick={() => {
+                  setLoading(false);
+                  setIsProcessing(false);
+                }}
+                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-md transition-colors"
+              >
+                View Anyway
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -562,15 +826,74 @@ const MeetingDetail = () => {
     return (
       <div className="h-screen bg-gray-50 dark:bg-gray-900 p-6">
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          <p>{error}</p>
+          <p className="font-medium text-lg">Error loading meeting data</p>
+          <p className="mt-2">{error}</p>
+          
+          {error.includes('422') && (
+            <div className="mt-4 p-4 bg-gray-100 border border-gray-300 rounded text-gray-800">
+              <p className="font-medium">Database Issue Detected</p>
+              <p className="mt-2">
+                This error typically occurs when the meeting data is not properly saved or is corrupted in the database.
+                The server cannot process the meeting data (Error 422: Unprocessable Entity).
+              </p>
+              <p className="mt-2">
+                Possible solutions:
+              </p>
+              <ul className="list-disc ml-5 mt-2">
+                <li>Return to the dashboard and create a new meeting</li>
+                <li>Check if your backend API and database are running correctly</li>
+                <li>Try clearing your browser cache and reloading the page</li>
+                <li>Verify that the meeting ID in the URL is correct</li>
+              </ul>
+            </div>
+          )}
         </div>
-        <Link
-          to={ROUTES.MEETINGS.ROOT}
-          className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
-        >
-          <FaChevronLeft className="mr-2" size={14} />
-          Back to Meetings
-        </Link>
+        
+        <div className="flex flex-wrap gap-4">
+          <Link
+            to={ROUTES.MEETINGS.ROOT}
+            className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+          >
+            <FaChevronLeft className="mr-2" size={14} />
+            Back to Meetings
+          </Link>
+          
+          <button
+            onClick={() => window.location.reload()}
+            className="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-white rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+            Try Again
+          </button>
+          
+          <button
+            onClick={() => {
+              // Attempt to manually force a reconnection to the database
+              window.location.href = `/api/system/reconnect-db?redirect=${encodeURIComponent(window.location.pathname)}`;
+            }}
+            className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+            Reconnect Database
+          </button>
+          
+          <button
+            onClick={() => {
+              // Try fetching with different API path
+              window.location.href = `/api/meetings/${id}/download`;
+            }}
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            Download Raw Data
+          </button>
+        </div>
       </div>
     );
   }
@@ -594,6 +917,37 @@ const MeetingDetail = () => {
   }
 
   const { date, title, time } = meeting;
+
+  // Replace the Overview section with this:
+  const renderOverviewSection = () => {
+    if (generatingOverview) {
+      return (
+        <div className="flex flex-col items-center justify-center p-4 space-y-2">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+          <p className="text-gray-600">Generating meeting overview...</p>
+        </div>
+      );
+    }
+
+    if (meeting?.summaries?.general) {
+      return (
+        <div>
+          <p className="whitespace-pre-line">{meeting.summaries.general}</p>
+        </div>
+      );
+    }
+
+    // No overview available
+    return (
+      <div className="flex flex-col items-center justify-center p-4">
+        <p className="text-gray-600">
+          {meeting?.transcript_segments && meeting.transcript_segments.length > 0 
+            ? "Processing your transcript to generate an overview..." 
+            : "Upload a transcript or recording to automatically generate a meeting overview."}
+        </p>
+      </div>
+    );
+  };
 
   return (
     <div className="h-screen bg-gray-50 dark:bg-gray-900 overflow-auto">
@@ -653,69 +1007,94 @@ const MeetingDetail = () => {
       <div className="p-6">
         {activeTab === 'summary' && (
           <div className="space-y-6">
-            <CollapsibleSection icon={<FaFileAlt size={16} className="text-gray-600 dark:text-gray-400" />} title="Overview">
-              <p className="text-gray-700 dark:text-gray-300">
-                {meeting.summaries?.general ||
-                  "The team discussed project progress, highlighting near-completion of backend and frontend development. " +
-                  "Overall, the meeting was productive with clear action items and next steps defined."}
-              </p>
-            </CollapsibleSection>
+            {renderOverviewSection()}
 
             <CollapsibleSection icon={<FaList size={16} className="text-gray-600 dark:text-gray-400" />} title="Key points">
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="space-y-6">
+                {/* Display all key points in a single list */}
                 <div>
-                  <h4 className="font-medium text-gray-900 dark:text-white mb-3">Project progress</h4>
+                  <h4 className="font-medium text-gray-900 dark:text-white mb-3">Key Points</h4>
                   <ul className="space-y-2">
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 mt-2 bg-purple-600 rounded-full mr-2"></span>
-                      <span className="text-gray-700 dark:text-gray-300">Backend development progressing well, with significant contributions from Jane Smith.</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 mt-2 bg-purple-600 rounded-full mr-2"></span>
-                      <span className="text-gray-700 dark:text-gray-300">Frontend dashboard redesign nearing completion, ready for testing.</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 mt-2 bg-purple-600 rounded-full mr-2"></span>
-                      <span className="text-gray-700 dark:text-gray-300">Positive feedback received on UI designs.</span>
-                    </li>
-                  </ul>
-                </div>
-
-                <div>
-                  <h4 className="font-medium text-gray-900 dark:text-white mb-3">Decisions made</h4>
-                  <ul className="space-y-2">
-                    {meeting.decisions && meeting.decisions.length > 0 ? (
-                      meeting.decisions.map((decision, index) => (
-                        <li key={index} className="flex items-start">
-                          <span className="w-2 h-2 mt-2 bg-purple-600 rounded-full mr-2"></span>
-                          <span className="text-gray-700 dark:text-gray-300">{decision}</span>
-                        </li>
-                      ))
+                    {meeting.key_points && meeting.key_points.length > 0 ? (
+                      meeting.key_points.map((point, index) => {
+                        // Clean up any time ranges and scores from the point text
+                        let pointText = typeof point === 'string' ? point : (point.text || '');
+                        // Remove time ranges like [23.10-60.89]
+                        pointText = pointText.replace(/\[\d+\.\d+-\d+\.\d+\]/g, '');
+                        // Remove score indicators like [score=8]
+                        pointText = pointText.replace(/\[score=\d+\]/g, '');
+                        // Trim any extra whitespace
+                        pointText = pointText.trim();
+                        
+                        return (
+                          <li key={index} className="flex items-start">
+                            <span className="w-2 h-2 mt-2 bg-purple-600 rounded-full mr-2"></span>
+                            <span className="text-gray-700 dark:text-gray-300">{pointText}</span>
+                          </li>
+                        );
+                      })
                     ) : (
                       <li className="flex items-start">
                         <span className="w-2 h-2 mt-2 bg-purple-600 rounded-full mr-2"></span>
-                        <span className="text-gray-700 dark:text-gray-300">No decisions recorded for this meeting.</span>
+                        <span className="text-gray-700 dark:text-gray-300">No key points available for this meeting.</span>
                       </li>
                     )}
                   </ul>
                 </div>
+
+                {/* Add any summary content if available in wrong location */}
+                {meeting.summaries && meeting.decisions && meeting.decisions.length > 0 && (
+                  <div>
+                    <h4 className="font-medium text-gray-900 dark:text-white mb-3">Additional Points</h4>
+                    <ul className="space-y-2">
+                      {meeting.decisions.map((decision, index) => {
+                        // Clean up any time ranges and scores from the decision text
+                        let decisionText = typeof decision === 'string' ? decision : (decision.text || '');
+                        // Remove time ranges like [23.10-60.89]
+                        decisionText = decisionText.replace(/\[\d+\.\d+-\d+\.\d+\]/g, '');
+                        // Remove score indicators like [score=8]
+                        decisionText = decisionText.replace(/\[score=\d+\]/g, '');
+                        // Trim any extra whitespace
+                        decisionText = decisionText.trim();
+                        
+                        return (
+                          <li key={index} className="flex items-start">
+                            <span className="w-2 h-2 mt-2 bg-purple-600 rounded-full mr-2"></span>
+                            <span className="text-gray-700 dark:text-gray-300">{decisionText}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
               </div>
             </CollapsibleSection>
 
             <CollapsibleSection icon={<FaList size={16} className="text-gray-600 dark:text-gray-400" />} title="Action items">
               <div className="space-y-4">
                 {meeting.action_items && meeting.action_items.length > 0 ? (
-                  meeting.action_items.map((item, index) => (
-                    <div key={index} className="flex items-start">
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-300">
-                        {item.assignee.charAt(0)}
+                  meeting.action_items.map((item, index) => {
+                    // Clean up action item text by removing time ranges and score indicators
+                    let actionText = item.text || '';
+                    // Remove time ranges like [23.10-60.89]
+                    actionText = actionText.replace(/\[\d+\.\d+-\d+\.\d+\]/g, '');
+                    // Remove score indicators like [score=8]
+                    actionText = actionText.replace(/\[score=\d+\]/g, '');
+                    // Trim any extra whitespace that might be left
+                    actionText = actionText.trim();
+                    
+                    return (
+                      <div key={index} className="flex items-start">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-300">
+                          {item.assignee.charAt(0)}
+                        </div>
+                        <div className="ml-3">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">{item.assignee}</div>
+                          <div className="text-sm text-gray-700 dark:text-gray-300">{actionText}</div>
+                        </div>
                       </div>
-                      <div className="ml-3">
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">{item.assignee}</div>
-                        <div className="text-sm text-gray-700 dark:text-gray-300">{item.text}</div>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <div className="text-sm text-gray-600 dark:text-gray-400">No action items assigned in this meeting.</div>
                 )}
