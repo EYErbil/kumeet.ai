@@ -254,8 +254,8 @@ async def upload_meeting_video(
                     "meeting_id": meeting_id,
                     "session_id": result["session_id"],
                     "output_directory": result["output_directory"],
-                    "transcript_available": result["transcript_available"],
-                    "summary_available": result["summary_available"],
+                    "transcript_available": result.get("transcript_available", False),
+                    "summary_available": result.get("summary_available", False),
                     "processing_time": result.get("processing_time", "unknown"),
                     "file_name": file.filename
                 }
@@ -279,8 +279,8 @@ async def upload_meeting_video(
                     "meeting_id": meeting_id,
                     "session_id": result["session_id"],
                     "output_directory": result["output_directory"],
-                    "transcript_available": result["transcript_available"],
-                    "summary_available": result["summary_available"],
+                    "transcript_available": result.get("transcript_available", False),
+                    "summary_available": result.get("summary_available", False),
                     "processing_time": result.get("processing_time", "unknown"),
                     "file_name": file.filename,
                     "success": True,  # Report true to frontend to continue
@@ -482,6 +482,29 @@ async def upload_meeting_transcript(
     except Exception as e:
         logger.error(f"Error in upload_meeting_transcript: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to upload transcript: {str(e)}")
+
+
+@router.get("/{meeting_id}/pipeline-status")
+async def get_pipeline_status(meeting_id: int):
+    """Get the status of the processing pipeline for a meeting"""
+    try:
+        # First check if meeting exists
+        meeting = MeetingService.get_meeting_by_id(meeting_id)
+        if not meeting:
+            raise HTTPException(status_code=404, detail="Meeting not found")
+        
+        # Get the status of the pipeline
+        status = SummarizerService.get_pipeline_status(meeting_id)
+        
+        # Add meeting ID to the response
+        status["meeting_id"] = meeting_id
+        
+        return status
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error in get_pipeline_status: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get pipeline status: {str(e)}")
 
 def extract_overview_from_summary(summary: str) -> str:
     """Extract an overview from the summary text"""

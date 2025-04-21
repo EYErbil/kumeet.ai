@@ -6,109 +6,107 @@ import json
 import time
 import datetime
 import pandas as pd
+import threading
+from queue import Queue
+import logging
 
 import google.generativeai as genai
 # Imports not needed with newer API
 # from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
-from summarizer.config import (
-    GEMINI_API_KEY,
-    MAX_TOKENS_PER_CHUNK,
-    MEETING_TYPE,
-    FOCUS_REQUEST
-)
-from summarizer.db import (
-    load_transcript_from_db,
-    save_summary_in_db,
-    save_action_items_in_db
-)
-from summarizer.analysis import extract_items_with_scores_gemini, save_extracted_items_in_db
+# Try relative imports first
+try:
+    from config import (
+        GEMINI_API_KEY,
+        MAX_TOKENS_PER_CHUNK,
+        MEETING_TYPE,
+        FOCUS_REQUEST,
+        HF_TOKEN
+    )
+    from db import (
+        load_transcript_from_db,
+        save_summary_in_db,
+        save_action_items_in_db,
+        init_db
+    )
+    from analysis import extract_items_with_scores_gemini, save_extracted_items_in_db
+except ImportError:
+    # Fall back to package imports
+    from summarizer.config import (
+        GEMINI_API_KEY,
+        MAX_TOKENS_PER_CHUNK,
+        MEETING_TYPE,
+        FOCUS_REQUEST,
+        HF_TOKEN
+    )
+    from summarizer.db import (
+        load_transcript_from_db,
+        save_summary_in_db,
+        save_action_items_in_db,
+        init_db
+    )
+    from summarizer.analysis import extract_items_with_scores_gemini, save_extracted_items_in_db
 
-# Configure the Google Generative AI library with the API key
+# Setup logger
+logger = logging.getLogger(__name__)
+
+# Initialize gemini client for summarization
 genai.configure(api_key=GEMINI_API_KEY)
 
+# Cache for the model to avoid reloading
+_model_cache = {}
 
-def chunk_transcript_data(transcript_data, max_tokens=800):
+def get_gemini_model(model_name="gemini-1.5-flash"):
+    """Get or initialize a Gemini model"""
+    if model_name not in _model_cache:
+        _model_cache[model_name] = genai.GenerativeModel(model_name)
+    return _model_cache[model_name]
+
+def chunk_transcript_data(transcript, max_tokens=800):
     """
-    Split transcript data into chunks that fit within the model's context window.
-    
-    Args:
-        transcript_data: List of transcript segments
-        max_tokens: Maximum tokens per chunk
-        
-    Returns:
-        List of chunks, each with start/end timestamps and combined text
+    Chunk transcript data based on token count.
+    We estimate that 1 token is approximately 4 characters.
     """
     chunks = []
-    current_chunk = {"text": "", "start": 0, "end": 0}
-    current_token_count = 0
-    segment_idx = 0
-    
-    # Convert transcript data format if needed
-    segments = []
-    if isinstance(transcript_data, list) and transcript_data and isinstance(transcript_data[0], dict):
-        # Check if this is already in the expected format with speaker, start, end, text
-        if all(k in transcript_data[0] for k in ["speaker", "start", "end", "text"]):
-            segments = transcript_data
-    
-    # If no segments were extracted, format may be different
-    if not segments:
-        print("Warning: Transcript data not in expected format, attempting conversion")
-        # Try to detect format and convert
-        try:
-            # This is a simple conversion assuming basic format
-            for segment in transcript_data:
-                if isinstance(segment, dict):
-                    segments.append({
-                        "speaker": segment.get("speaker", "SPEAKER_0"),
-                        "start": segment.get("start", 0),
-                        "end": segment.get("end", 0),
-                        "text": segment.get("text", "")
-                    })
-        except Exception as e:
-            print(f"Error converting transcript format: {e}")
-            return []
-    
-    # If still no segments, return empty list
-    if not segments:
-        print("Error: Could not parse transcript data")
-        return []
-    
-    # Sort segments by start time
-    segments.sort(key=lambda x: x["start"])
-    
-    # Track the first segment's start time for the chunk
-    if segments:
-        current_chunk["start"] = segments[0]["start"]
-    
-    # Process segments into chunks
-    for segment in segments:
-        # Estimate token count (rough approximation)
-        text = segment["text"]
-        token_count = len(text.split())
+    current_lines = []
+    current_tokens = 0
+    chunk_start = None
+    chunk_end = None
+
+    for entry in transcript:
+        line_str = f"[{entry['start']:.2f}-{entry['end']:.2f}] {entry['speaker']}: {entry['text']}"
+        line_tokens = len(line_str) // 4  # Rough estimate: 1 token ≈ 4 characters
         
-        # If adding this segment would exceed max_tokens, start a new chunk
-        if current_token_count + token_count > max_tokens and current_token_count > 0:
-            # Set the end time of the current chunk
-            current_chunk["end"] = segments[segment_idx - 1]["end"]
-            chunks.append(current_chunk)
-            
-            # Start a new chunk
-            current_chunk = {"text": "", "start": segment["start"], "end": 0}
-            current_token_count = 0
+        if chunk_start is None:
+            chunk_start = entry["start"]
+        chunk_end = entry["end"]
         
-        # Add this segment to the current chunk
-        if current_token_count > 0:
-            current_chunk["text"] += " "
-        current_chunk["text"] += f"[{segment['speaker']}]: {text}"
-        current_token_count += token_count
-        segment_idx += 1
-    
-    # Add the last chunk if there's anything left
-    if current_token_count > 0:
-        current_chunk["end"] = segments[-1]["end"]
-        chunks.append(current_chunk)
-    
+        # If adding this line would exceed max_tokens, start a new chunk
+        if current_tokens + line_tokens > max_tokens and current_lines:
+            chunk_text = "\n".join(current_lines)
+            chunks.append({
+                "chunk_text": chunk_text,
+                "start": chunk_start,
+                "end": chunk_end
+            })
+            current_lines = []
+            current_tokens = 0
+            chunk_start = None
+            chunk_end = None
+        
+        current_lines.append(line_str)
+        current_tokens += line_tokens
+
+    # Add any remaining lines as the final chunk
+    if current_lines:
+        chunk_text = "\n".join(current_lines)
+        s = chunk_start if chunk_start else 0.0
+        e = chunk_end if chunk_end else 0.0
+        chunks.append({
+            "chunk_text": chunk_text,
+            "start": s,
+            "end": e
+        })
     return chunks
 
 
@@ -158,9 +156,25 @@ def summarize_chunk(chunk_text: str, meeting_type: str, focus: str, focus_questi
     # Combine all parts into the final prompt
     prompt = "".join(prompt_parts)
 
-    model = genai.GenerativeModel("gemini-1.5-flash")
-    response = model.generate_content(prompt)
-    return response.text
+    try:
+        # Get the model (from cache if available)
+        model = get_gemini_model("gemini-1.5-flash")
+        
+        # Generate the summary
+        generation_config = {
+            "temperature": 0.2,
+            "top_p": 0.95,
+            "top_k": 40,
+            "max_output_tokens": 1024,
+        }
+        
+        response = model.generate_content(prompt)
+        
+        return response.text
+    except Exception as e:
+        logger.error(f"Error generating summary: {str(e)}")
+        # Return a basic error message that won't break processing
+        return f"* Error generating summary [score=1]"
 
 
 def format_timestamp(seconds):
@@ -225,121 +239,145 @@ def merge_summaries(final_data, min_importance=7):
     
     return merged_summary
 
+def process_chunks_parallel(session_id, chunks, meeting_type, focus_request, focus_question=None):
+    """Process chunks in parallel using threading to speed up summarization"""
+    chunk_results = [None] * len(chunks)
+    threads = []
+    
+    def process_chunk(idx, chunk):
+        try:
+            # Summarize the chunk
+            summary = summarize_chunk(
+                chunk["chunk_text"],
+                meeting_type,
+                focus_request,
+                focus_question
+            )
+            
+            # Store the result
+            chunk_results[idx] = {
+                "idx": idx + 1,
+                "start": chunk["start"],
+                "end": chunk["end"],
+                "start_formatted": format_timestamp(chunk["start"]),
+                "end_formatted": format_timestamp(chunk["end"]),
+                "summary": summary
+            }
+            
+            # Parse bullet items with importance score
+            items = extract_items_with_scores_gemini(summary, idx + 1, chunk["start"], chunk["end"])
+            
+            # Store them in DB (in a separate thread)
+            if items:
+                save_extracted_items_in_db(session_id, idx + 1, items)
+                
+        except Exception as e:
+            logger.error(f"Error processing chunk {idx}: {str(e)}")
+            # Store an error result
+            chunk_results[idx] = {
+                "idx": idx + 1,
+                "start": chunk["start"],
+                "end": chunk["end"],
+                "start_formatted": format_timestamp(chunk["start"]),
+                "end_formatted": format_timestamp(chunk["end"]),
+                "summary": f"* Error processing chunk [score=1]"
+            }
+    
+    # Create and start threads for each chunk
+    for i, chunk in enumerate(chunks):
+        thread = threading.Thread(target=process_chunk, args=(i, chunk))
+        threads.append(thread)
+        thread.start()
+    
+    # Wait for all threads to complete
+    for thread in threads:
+        thread.join()
+    
+    return chunk_results
 
-def summarize_transcript(
-    session_id, 
-    output_dir, 
-    meeting_type=None,
-    min_importance=6,
-    focus_question=None,
-    input_transcript=None
-):
+def summarize_transcript(session_id, output_dir, meeting_type=None, min_importance=6, focus_question=None):
     """
     Summarize the transcript, chunk by chunk, then create a consolidated summary.
+    Save outputs in multiple formats (TXT, JSON, CSV).
     
-    Args:
-        session_id: Unique ID for this session
-        output_dir: Output directory for summary files
-        meeting_type: Type of meeting for context (optional)
-        min_importance: Minimum importance score for points in the final summary (default: 6)
-        focus_question: Specific question to focus on (optional)
-        input_transcript: List of transcript segments (optional, if already available)
-        
-    Returns:
-        String containing full summary output
+    Parameters:
+    - session_id: The unique session identifier
+    - output_dir: Directory to save output files
+    - meeting_type: Type of meeting (default: from config)
+    - min_importance: Minimum importance score for points in the final summary (default: 6)
+    - focus_question: Optional specific question or topic to focus on
     """
     start_time = time.time()
+    logger.info(f"Starting summarization for session {session_id}")
     
-    # Load the transcript
-    if input_transcript:
-        # Use the provided transcript
-        transcript_segments = input_transcript
-        print(f"Using provided transcript with {len(transcript_segments)} segments")
-    else:
-        # Load from DB
-        transcript_segments = load_transcript_from_db(session_id)
-        if not transcript_segments:
-            print(f"No transcript found for session: {session_id}")
-            return None
-    
-    # Process the transcript (for logging/display only)
-    transcript_text = []
-    for seg in transcript_segments:
-        start_min = int(seg["start"] / 60)
-        start_sec = int(seg["start"] % 60)
-        text_with_speaker = f"[{seg['speaker']}] ({start_min:02d}:{start_sec:02d}): {seg['text'].strip()}"
-        transcript_text.append(text_with_speaker)
-    
+    transcript = load_transcript_from_db(session_id)
+    if not transcript:
+        logger.error(f"No transcript found for session {session_id}")
+        return None
+        
     # Use meeting_type from parameter if provided, otherwise use default
     if meeting_type is None:
         meeting_type = MEETING_TYPE
 
-    chunks = chunk_transcript_data(transcript_segments, max_tokens=800)
-    final_data = []
+    # Split transcript into chunks
+    chunks = chunk_transcript_data(transcript, max_tokens=MAX_TOKENS_PER_CHUNK)
+    logger.info(f"Split transcript into {len(chunks)} chunks for processing")
 
-    # Log the chunks
-    print(f"Split transcript into {len(chunks)} chunks")
-    
-    # Process each chunk
-    for idx, ch in enumerate(chunks):
-        print(f"Processing chunk {idx+1} / {len(chunks)}...")
-        
-        # Use only Gemini for summarization
-        summary = summarize_chunk(
-            ch["text"], 
-            meeting_type, 
-            FOCUS_REQUEST,
-            focus_question
-        )
-        
-        # Extract bullet points with importance scores
-        items = extract_items_with_scores_gemini(summary, idx + 1, ch["start"], ch["end"])
-        
-        # Add to final data
-        final_data.extend(items)
-        
-        # Save chunk data
-        final_data.append({
-            "chunk_idx": idx + 1,
-            "start_time": ch["start"],
-            "end_time": ch["end"],
-            "start_formatted": format_timestamp(ch["start"]),
-            "end_formatted": format_timestamp(ch["end"]),
-            "summary": summary
-        })
-    
+    # Process all chunks in parallel for better performance
+    logger.info("Processing chunks in parallel...")
+    final_data = process_chunks_parallel(
+        session_id, 
+        chunks, 
+        meeting_type, 
+        FOCUS_REQUEST, 
+        focus_question
+    )
+
     # Create formatted chunk-by-chunk summary
     chunk_lines = []
     summary_items = []
     
-    for idx, fc in enumerate(final_data):
-        chunk_lines.append(f"\n### CHUNK {idx + 1}: {fc['start_formatted']} - {fc['end_formatted']}\n")
+    for fc in final_data:
+        # Add chunk header with formatted timestamps
+        chunk_header = f"CHUNK {fc['idx']} [{fc['start_formatted']}-{fc['end_formatted']}]:"
+        chunk_lines.append(chunk_header)
         chunk_lines.append(fc['summary'])
+        chunk_lines.append("")  # Empty line between chunks
         
-        # Extract items from the summaries
+        # Extract bullet points for JSON/CSV output
         for line in fc['summary'].split('\n'):
             line = line.strip()
-            
-            # Skip empty lines or headers
-            if not line or line.startswith('#'):
-                continue
-            
-            # If it looks like a bullet point
-            if line.startswith('-') or line.startswith('•') or (line[0].isdigit() and '. ' in line[:5]):
-                # Remove bullet formatting
-                if line.startswith('-') or line.startswith('•'):
-                    line = line[1:].strip()
-                elif line[0].isdigit() and '. ' in line[:5]:
-                    line = line.split('. ', 1)[1].strip()
+            if line.startswith('*'):
+                # Try to extract timestamp and score
+                timestamp = f"{fc['start_formatted']}-{fc['end_formatted']}"  # Default timestamp
+                score = 5  # Default score
                 
-                # Add to summary items
+                # Extract embedded timestamp if available
+                if '(' in line and ')' in line:
+                    try:
+                        embedded_timestamp = line.split('(')[1].split(')')[0]
+                        if '-' in embedded_timestamp and any(c.isdigit() for c in embedded_timestamp):
+                            timestamp = embedded_timestamp
+                    except:
+                        pass
+                
+                # Extract score if available
+                if '[score=' in line:
+                    try:
+                        score = int(line.split('[score=')[1].split(']')[0])
+                    except:
+                        pass
+                
+                # Clean up the text (remove timestamp and score annotations)
+                text = line.replace(f"({timestamp})", "").replace(f"[score={score}]", "").strip()
+                if text.startswith('*'):
+                    text = text[1:].strip()
+                
                 summary_items.append({
-                    "chunk": idx + 1,
-                    "start_time": fc["start_time"],
-                    "end_time": fc["end_time"],
-                    "timestamp": f"{fc['start_formatted']} - {fc['end_formatted']}",
-                    "text": line,
-                    "importance": "medium"  # Default importance level
+                    "chunk": fc['idx'],
+                    "timestamp": timestamp,
+                    "text": text,
+                    "importance": score
                 })
     
     # Create the chunk-by-chunk summary text
@@ -348,27 +386,32 @@ def summarize_transcript(
     # Create the merged summary with most important points
     merged_summary = merge_summaries(final_data, min_importance=min_importance)
     
-    # Build the complete output
-    final_output = f"SESSION: {session_id}\n\n"
+    # Add focus question to the output if provided
+    final_output = ""
     if focus_question:
-        final_output += f"FOCUS QUESTION: {focus_question}\n\n"
-    
+        final_output = f"FOCUS QUESTION: {focus_question}\n\n"
+        
+    # Add the merged and detailed summaries
     final_output += merged_summary + "\n\n=== DETAILED SUMMARY BY SECTION ===\n\n" + chunk_summary
     
     # Save to database
     save_summary_in_db(session_id, final_output)
     
-    # Save to files in different formats
+    # Save TXT output
     txt_path = os.path.join(output_dir, "summary.txt")
     with open(txt_path, "w", encoding="utf-8") as f:
         f.write(final_output)
     
+    # Save JSON output
     json_path = os.path.join(output_dir, "summary.json")
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(summary_items, f, ensure_ascii=False, indent=2)
     
+    # Save CSV output
     csv_path = os.path.join(output_dir, "summary.csv")
     pd.DataFrame(summary_items).to_csv(csv_path, index=False, encoding="utf-8")
     
-    print(f"Summary saved to {txt_path}, {json_path}, and {csv_path}")
+    elapsed_time = time.time() - start_time
+    logger.info(f"Summary completed in {elapsed_time:.2f} seconds. Saved to {txt_path}, {json_path}, and {csv_path}")
+    
     return final_output

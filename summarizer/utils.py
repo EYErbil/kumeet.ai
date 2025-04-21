@@ -20,23 +20,18 @@ except ImportError:
 def safe_filename(name: str) -> str:
     return re.sub(r'[^a-zA-Z0-9_\-]', '_', name)
 
-def create_results_subdir(base_name: str) -> str:
-    """
-    Create a uniquely named results subdirectory based on the input filename.
-    """
-    # Create a timestamp
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+def create_results_subdir(filename: str) -> str:
+    try:
+        from config import RESULTS_DIR
+    except ImportError:
+        try:
+            from summarizer.config import RESULTS_DIR
+        except ImportError:
+            RESULTS_DIR = "results"
     
-    # Extract just the filename without extension
-    clean_name = os.path.splitext(os.path.basename(base_name))[0]
-    
-    # Create a clean directory name
-    dir_name = f"{timestamp}_{clean_name}"
-    
-    # Full path to the new directory
-    path = os.path.join(RESULTS_DIR, dir_name)
-    
-    # Create the directory
-    os.makedirs(path, exist_ok=True)
-    
-    return path
+    base = os.path.splitext(os.path.basename(filename))[0]
+    base_sanit = safe_filename(base)
+    unique_id = str(uuid.uuid4())[:8]
+    out_dir = os.path.join(RESULTS_DIR, f"{base_sanit}_{unique_id}")
+    os.makedirs(out_dir, exist_ok=True)
+    return out_dir

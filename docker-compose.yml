@@ -26,7 +26,8 @@ services:
       - RESULTS_DIR=/app/results
       - DB_PATH=/app/data/summaries.db
       - WHISPER_MODEL=normal
-      - HF_TOKEN=TOKEN_EKLE
+      - HF_TOKEN=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
+      - USE_DIARIZATION=false
     volumes:
       - ./backend:/app
       - ./summarizer:/app/summarizer

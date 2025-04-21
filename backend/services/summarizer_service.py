@@ -7,6 +7,8 @@ import subprocess
 import time
 from typing import Optional, Dict, Any
 from datetime import datetime
+import threading
+from queue import Queue
 
 # Configure logging with rotation to prevent large log files
 # Make sure logs directory exists
@@ -36,67 +38,13 @@ logging.getLogger('pyannote').setLevel(logging.WARNING)
 # Setup logger
 logger = logging.getLogger("summarizer_pipeline")
 
-# Determine summarizer path
-base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-summarizer_path = os.path.join(base_dir, 'summarizer')
-root_summarizer_path = os.path.join(os.path.dirname(base_dir), 'summarizer')
+# Make sure the summarizer package is in the Python path
+summarizer_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'summarizer')
+if summarizer_path not in sys.path:
+    sys.path.insert(0, summarizer_path)
+    logger.info(f"Added summarizer path to sys.path: {summarizer_path}")
 
-# Use the root summarizer directory if it exists and is different
-if os.path.exists(root_summarizer_path) and os.path.isdir(root_summarizer_path):
-    summarizer_path = root_summarizer_path
-    logger.info(f"Using root level summarizer at: {summarizer_path}")
-else:
-    logger.info(f"Using backend level summarizer at: {summarizer_path}")
-
-# Add the selected summarizer directory to Python path
-sys.path.insert(0, summarizer_path)
-
-# Log directory paths to help with debugging
-logger.info(f"Current working directory: {os.getcwd()}")
-logger.info(f"Base directory: {base_dir}")
-logger.info(f"Summarizer path: {summarizer_path}")
-
-try:
-    # Import from summarizer modules
-    from video_to_audio import video_to_wav
-    from diarize_transcribe import diarize_and_transcribe
-    from summarize import summarize_transcript
-    from utils import create_results_subdir
-    from config import RESULTS_DIR
-    from db import init_db
-    
-    logger.info("Successfully imported modules directly from summarizer")
-    
-    # Initialize the summarizer database
-    try:
-        # Ensure data directory exists
-        os.makedirs(os.path.join(summarizer_path, "data"), exist_ok=True)
-        init_db()
-        logger.info("Summarizer database initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to initialize summarizer database: {str(e)}")
-except ImportError as e:
-    logger.error(f"Failed to import summarizer modules directly: {str(e)}")
-    try:
-        # Alternative imports with summarizer prefix
-        from summarizer.video_to_audio import video_to_wav
-        from summarizer.diarize_transcribe import diarize_and_transcribe
-        from summarizer.summarize import summarize_transcript
-        from summarizer.utils import create_results_subdir
-        from summarizer.config import RESULTS_DIR
-        from summarizer.db import init_db
-        
-        logger.info("Successfully imported modules using summarizer package")
-        
-        # Initialize the database
-        os.makedirs("data", exist_ok=True)
-        init_db()
-        logger.info("Summarizer database initialized using package imports")
-    except Exception as inner_e:
-        logger.error(f"Failed to import summarizer using alternative method: {str(inner_e)}")
-        raise RuntimeError(f"Cannot import summarizer modules: {str(e)} -> {str(inner_e)}")
-
-# After all imports, add import for MeetingService
+# Import from services directory
 try:
     from services.meeting_service import MeetingService
     logger.info("Successfully imported MeetingService")
@@ -112,6 +60,79 @@ except ImportError:
             def update_meeting_transcript_segments(meeting_id, transcript_data):
                 logger.warning(f"Would update transcript segments for meeting {meeting_id} (length: {len(transcript_data)})")
                 return True
+            
+            @staticmethod
+            def get_meeting_by_id(meeting_id):
+                return {}
+                
+            @staticmethod
+            def update_meeting_transcript_path(meeting_id, path):
+                pass
+                
+            @staticmethod
+            def update_meeting_summary_path(meeting_id, path):
+                pass
+                
+            @staticmethod
+            def update_meeting_session_id(meeting_id, session_id):
+                pass
+                
+            @staticmethod
+            def add_meeting_summary(meeting_id, summary_type, summary_text):
+                pass
+                
+            @staticmethod
+            def add_meeting_decision(meeting_id, decision_text):
+                pass
+
+# Directly import summarizer modules - don't rely on dynamic imports
+try:
+    from summarizer.config import RESULTS_DIR 
+    from summarizer.utils import create_results_subdir
+    from summarizer.main import process_pipeline
+    logger.info("Successfully imported summarizer modules")
+except ImportError as e:
+    logger.error(f"Error importing from summarizer package: {e}")
+    
+    # Try to dynamically find and import the modules
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("config", os.path.join(summarizer_path, "config.py"))
+        config = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(config)
+        RESULTS_DIR = config.RESULTS_DIR
+        
+        spec = importlib.util.spec_from_file_location("utils", os.path.join(summarizer_path, "utils.py"))
+        utils = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(utils)
+        create_results_subdir = utils.create_results_subdir
+        
+        spec = importlib.util.spec_from_file_location("main", os.path.join(summarizer_path, "main.py"))
+        main = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(main)
+        process_pipeline = main.process_pipeline
+        
+        logger.info("Successfully imported summarizer modules using dynamic import")
+    except Exception as dynamic_error:
+        logger.error(f"Dynamic import also failed: {dynamic_error}")
+        # Define fallback functions
+        RESULTS_DIR = "results"
+        def create_results_subdir(filename):
+            dir_name = os.path.join(RESULTS_DIR, f"fallback_{int(time.time())}")
+            os.makedirs(dir_name, exist_ok=True)
+            return dir_name
+            
+        def process_pipeline(input_file, **kwargs):
+            logger.error("Using dummy process_pipeline - functionality limited")
+            return {
+                "session_id": str(uuid.uuid4()),
+                "output_dir": create_results_subdir("dummy"),
+                "summary_available": False,
+                "transcript_available": False,
+                "processing_time": 0,
+                "diarization_time": 0,
+                "summarization_time": 0
+            }
 
 # Helper functions for summary extraction
 def extract_overview_from_summary(summary: str) -> str:
@@ -162,6 +183,9 @@ def extract_key_points_from_summary(summary: str) -> list:
     
     return key_points
 
+# Queue for tracking active pipeline processes
+active_processes = Queue()
+
 class SummarizerService:
     @staticmethod
     def process_video(
@@ -174,6 +198,7 @@ class SummarizerService:
     ) -> Dict[str, Any]:
         """
         Process a video file through the summarization pipeline
+        Uses an optimized pipeline for better performance
         
         Args:
             video_path: Path to the uploaded video file
@@ -186,13 +211,81 @@ class SummarizerService:
         Returns:
             Dict containing processing results including session_id and output directory
         """
+        # Run the pipeline asynchronously to avoid blocking the API
+        def run_pipeline_async():
+            try:
+                # Run the optimized pipeline
+                result = process_pipeline(
+                    video_path,
+                    quality=quality,
+                    meeting_type=meeting_type,
+                    min_importance=min_importance,
+                    focus_question=focus_question
+                )
+                
+                session_id = result["session_id"]
+                out_dir = result["output_dir"]
+                
+                # Update meeting with the results in the database
+                if result["transcript_available"]:
+                    MeetingService.update_meeting_session_id(meeting_id, session_id)
+                    
+                    # Update meeting with transcript file if available
+                    transcript_file = os.path.join(out_dir, "transcript.json")
+                    if os.path.exists(transcript_file):
+                        MeetingService.update_meeting_transcript_path(meeting_id, transcript_file)
+                        
+                        # Load transcript data and update transcript segments
+                        try:
+                            with open(transcript_file, 'r') as f:
+                                import json
+                                transcript_data = json.load(f)
+                                MeetingService.update_meeting_transcript_segments(meeting_id, transcript_data)
+                        except Exception as e:
+                            logger.error(f"Error loading transcript file: {str(e)}")
+                
+                if result["summary_available"]:
+                    # Update meeting with summary file if available
+                    summary_file = os.path.join(out_dir, "summary.txt")
+                    if os.path.exists(summary_file):
+                        MeetingService.update_meeting_summary_path(meeting_id, summary_file)
+                        
+                        # Load summary data and update summaries
+                        try:
+                            with open(summary_file, 'r') as f:
+                                summary_text = f.read()
+                                
+                                # Extract and save overview summary
+                                overview = extract_overview_from_summary(summary_text)
+                                if overview:
+                                    MeetingService.add_meeting_summary(meeting_id, "overview", overview)
+                                
+                                # Extract and save key points
+                                key_points = extract_key_points_from_summary(summary_text)
+                                if key_points:
+                                    for point in key_points:
+                                        MeetingService.add_meeting_decision(meeting_id, point)
+                                
+                                # Save full summary
+                                MeetingService.add_meeting_summary(meeting_id, "detailed", summary_text)
+                        except Exception as e:
+                            logger.error(f"Error processing summary file: {str(e)}")
+                
+                logger.info(f"Pipeline processing complete for meeting ID {meeting_id}")
+                
+            except Exception as e:
+                logger.error(f"Error in async pipeline processing: {str(e)}", exc_info=True)
+            finally:
+                # Remove from active processes queue
+                try:
+                    active_processes.get_nowait()
+                    active_processes.task_done()
+                except:
+                    pass
+        
         try:
             start_time = time.time()
             logger.info(f"Starting video processing for meeting ID: {meeting_id}")
-            logger.info(f"Video path: {video_path}")
-            logger.info(f"Meeting type: {meeting_type}")
-            logger.info(f"Quality setting: {quality}")
-            logger.info(f"Min importance: {min_importance}")
             
             # Create a unique session ID with timestamp
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -202,177 +295,86 @@ class SummarizerService:
             base_name = os.path.basename(video_path)
             os.makedirs(RESULTS_DIR, exist_ok=True)
             out_dir = create_results_subdir(base_name)
-            logger.info(f"Created output directory: {out_dir}")
             
-            # Result tracking 
-            final_transcript = None
-            transcript_file = None
-            final_summary = None
-            summary_file = None
-            has_error = False
-            error_message = None
+            # Add to active processes
+            active_processes.put(meeting_id)
             
-            # Start the pipeline process
-            logger.info("PIPELINE STEP 1: Converting video to audio...")
-            audio_wav = os.path.join(out_dir, "audio.wav")
-            try:
-                video_to_wav(video_path, audio_wav)
-                logger.info(f"Video converted to audio: {audio_wav}")
-            except Exception as e:
-                logger.error(f"Error converting video to audio: {str(e)}", exc_info=True)
-                has_error = True
-                error_message = f"Audio conversion failed: {str(e)}"
-                # Cannot proceed without audio
-                return {
-                    "success": False,
-                    "error": error_message,
-                    "session_id": session_id,
-                    "output_directory": out_dir
-                }
+            # Start processing in a background thread
+            thread = threading.Thread(target=run_pipeline_async)
+            thread.daemon = True
+            thread.start()
             
-            # Diarize and transcribe
-            logger.info(f"PIPELINE STEP 2: Diarizing & transcribing with {quality} quality...")
-            try:
-                final_transcript, transcript_session_id = diarize_and_transcribe(
-                    audio_wav, out_dir, quality_setting=quality
-                )
-                
-                # Use the session ID from diarize_and_transcribe if it's provided
-                if transcript_session_id:
-                    session_id = transcript_session_id
-                    
-                logger.info(f"Transcript completed with session ID: {session_id}")
-                logger.info(f"Transcript length: {len(final_transcript) if final_transcript else 0} segments")
-                
-                # Save the transcript to a file for inspection
-                transcript_file = os.path.join(out_dir, "transcript.txt")
-                with open(transcript_file, 'w') as f:
-                    if final_transcript:
-                        f.write("\n".join([f"[{segment['speaker']}] ({segment['start']:.2f}-{segment['end']:.2f}): {segment['text']}" 
-                                          for segment in final_transcript]))
-                    else:
-                        f.write("No transcript generated")
-                        
-                # Save transcript segments to PostgreSQL database for the meeting
-                if final_transcript and meeting_id:
-                    try:
-                        logger.info(f"Updating transcript segments for meeting {meeting_id}")
-                        success = MeetingService.update_meeting_transcript_segments(meeting_id, final_transcript)
-                        if success:
-                            logger.info(f"Successfully updated {len(final_transcript)} transcript segments in PostgreSQL")
-                        else:
-                            logger.error("Failed to update transcript segments in PostgreSQL")
-                    except Exception as db_error:
-                        logger.error(f"Error updating transcript segments in PostgreSQL: {str(db_error)}", exc_info=True)
-            except Exception as e:
-                logger.error(f"Error in transcription step: {str(e)}", exc_info=True)
-                has_error = True
-                error_message = f"Transcription failed: {str(e)}"
-                transcript_file = os.path.join(out_dir, "transcript_error.txt")
-                with open(transcript_file, 'w') as f:
-                    f.write(f"Transcription error: {str(e)}\n")
-                # Create empty transcript to allow summarization to be attempted
-                final_transcript = []
-            
-            # Summarize transcript - only if we have a transcript
-            if final_transcript:
-                logger.info(f"PIPELINE STEP 3: Summarizing transcript with min importance {min_importance}...")
-                try:
-                    final_summary = summarize_transcript(
-                        session_id, 
-                        out_dir, 
-                        meeting_type=meeting_type,
-                        min_importance=min_importance,
-                        focus_question=focus_question
-                    )
-                    
-                    # Save the summary to a file for inspection
-                    summary_file = os.path.join(out_dir, "summary.txt")
-                    with open(summary_file, 'w') as f:
-                        f.write(final_summary if final_summary else "No summary generated")
-                        
-                    logger.info(f"Summary completed and saved to: {summary_file}")
-                    
-                    # Save summary to PostgreSQL database for the meeting
-                    if final_summary and meeting_id:
-                        try:
-                            logger.info(f"Updating meeting summaries for meeting {meeting_id}")
-                            
-                            # Extract and save overview summary
-                            try:
-                                overview = extract_overview_from_summary(final_summary)
-                                if overview:
-                                    success = MeetingService.add_meeting_summary(
-                                        meeting_id, 
-                                        "overview", 
-                                        overview
-                                    )
-                                    if success:
-                                        logger.info(f"Successfully saved overview summary to PostgreSQL")
-                                    else:
-                                        logger.error("Failed to save overview summary to PostgreSQL")
-                            except Exception as overview_error:
-                                logger.error(f"Error extracting overview: {str(overview_error)}", exc_info=True)
-                                
-                            # Extract and save key points
-                            try:
-                                key_points = extract_key_points_from_summary(final_summary)
-                                if key_points:
-                                    for point in key_points:
-                                        MeetingService.add_meeting_decision(
-                                            meeting_id, 
-                                            point
-                                        )
-                                    logger.info(f"Successfully saved {len(key_points)} key points to PostgreSQL")
-                            except Exception as key_points_error:
-                                logger.error(f"Error extracting key points: {str(key_points_error)}", exc_info=True)
-                                
-                            # Save full summary
-                            success = MeetingService.add_meeting_summary(
-                                meeting_id, 
-                                "detailed", 
-                                final_summary
-                            )
-                            if success:
-                                logger.info(f"Successfully saved detailed summary to PostgreSQL")
-                            else:
-                                logger.error("Failed to save detailed summary to PostgreSQL")
-                                
-                        except Exception as db_error:
-                            logger.error(f"Error updating summaries in PostgreSQL: {str(db_error)}", exc_info=True)
-                except Exception as e:
-                    logger.error(f"Error in summarization step: {str(e)}", exc_info=True)
-                    has_error = True
-                    error_message = f"Summarization failed: {str(e)}"
-                    summary_file = os.path.join(out_dir, "summary_error.txt")
-                    with open(summary_file, 'w') as f:
-                        f.write(f"Summarization error: {str(e)}\n")
-            else:
-                logger.warning("Skipping summarization step as no transcript was generated")
-                
-            # Calculate processing time
-            elapsed_time = time.time() - start_time
-            logger.info(f"Total pipeline processing time: {elapsed_time:.2f} seconds")
-            
+            # Return immediately with initial information
             return {
-                "success": not has_error,
-                "partial_success": has_error and (final_transcript or final_summary),
-                "error": error_message,
+                "success": True,
                 "session_id": session_id,
                 "output_directory": out_dir,
-                "transcript_file": transcript_file,
-                "summary_file": summary_file,
-                "transcript_available": bool(final_transcript),
-                "summary_available": bool(final_summary),
-                "processing_time": f"{elapsed_time:.2f} seconds",
-                "has_diarization": not has_error or "diarization failed" not in (error_message or ""),
-                "warning": "Using fallback single-speaker mode due to Hugging Face authentication issues" 
-                          if has_error and "Unauthorized" in (error_message or "") else None
+                "message": "Processing started in background",
+                "status": "processing",
+                "transcript_available": False,
+                "summary_available": False
             }
-        
+            
         except Exception as e:
-            logger.error(f"Error processing video: {str(e)}", exc_info=True)
+            logger.error(f"Error starting video processing: {str(e)}", exc_info=True)
             return {
                 "success": False,
-                "error": str(e)
-            } 
+                "error": str(e),
+                "status": "failed",
+                "transcript_available": False,
+                "summary_available": False
+            }
+    
+    @staticmethod
+    def get_pipeline_status(meeting_id: int) -> Dict[str, Any]:
+        """Check the status of a running pipeline for a meeting"""
+        # Check if the meeting is in the active processes queue
+        in_progress = False
+        queue_size = active_processes.qsize()
+        
+        # Convert queue to list to check contents (not very efficient, but works for small queues)
+        temp_list = []
+        for _ in range(queue_size):
+            try:
+                item = active_processes.get_nowait()
+                temp_list.append(item)
+                active_processes.task_done()
+                if item == meeting_id:
+                    in_progress = True
+            except:
+                break
+                
+        # Put items back in queue
+        for item in temp_list:
+            active_processes.put(item)
+            
+        if in_progress:
+            return {
+                "status": "processing",
+                "message": "Video is still being processed"
+            }
+        
+        # Check if we have results in the database
+        try:
+            meeting = MeetingService.get_meeting_by_id(meeting_id)
+            if meeting and meeting.get("transcript_path") and meeting.get("summary_path"):
+                return {
+                    "status": "completed",
+                    "message": "Processing completed successfully",
+                    "transcript_available": True,
+                    "summary_available": True
+                }
+            elif meeting and meeting.get("transcript_path"):
+                return {
+                    "status": "partial",
+                    "message": "Transcript completed but summary not available",
+                    "transcript_available": True,
+                    "summary_available": False
+                }
+        except:
+            pass
+            
+        return {
+            "status": "unknown",
+            "message": "Processing status unknown"
+        } 

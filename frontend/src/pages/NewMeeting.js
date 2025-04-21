@@ -166,18 +166,16 @@ const NewMeeting = () => {
         
         // If there's a warning but processing succeeded
         if (result.warning) {
-          setUploadStatus(`Processing complete with limitations: ${result.warning}`);
+          setUploadStatus(`Processing started with limitations: ${result.warning}`);
         } else {
-          setUploadStatus('Processing complete!');
+          setUploadStatus('Processing started. Converting video to audio...');
         }
         
-        setUploadProgress(100);
+        setUploadProgress(40);
         
-        // Short delay before redirecting to show completion
-        setTimeout(() => {
-          // Redirect to the meeting page
-          window.location.href = `/meetings/${meeting_id}`;
-        }, 2000);
+        // Start polling for status
+        checkProcessingStatus(meeting_id);
+        
       } catch (error) {
         console.error('API Error:', error);
         setUploadError(`API Error: ${error.message}`);
@@ -187,6 +185,125 @@ const NewMeeting = () => {
       console.error('Error uploading video:', error);
       setUploadError(`Error: ${error.message}`);
       setIsUploading(false);
+    }
+  };
+
+  // Add a function to check processing status
+  const checkProcessingStatus = async (meeting_id, pollCount = 0) => {
+    try {
+      // Maximum number of poll attempts (3 minutes at 5 second intervals)
+      const MAX_POLLS = 36;
+      
+      if (pollCount >= MAX_POLLS) {
+        setUploadStatus('Processing is taking longer than expected. You will be redirected to the meeting page where you can check the status.');
+        setTimeout(() => {
+          window.location.href = `/meetings/${meeting_id}`;
+        }, 2000);
+        return;
+      }
+      
+      // Update progress based on poll count (from 40% to 95%)
+      const progressIncrement = 55 / MAX_POLLS;
+      const newProgress = Math.min(95, 40 + (progressIncrement * pollCount)); 
+      setUploadProgress(Math.round(newProgress));
+
+      // Every 5th check, directly verify meeting data
+      if (pollCount > 0 && pollCount % 5 === 0) {
+        try {
+          // Get meeting data directly
+          const meetingResponse = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/meetings/${meeting_id}`);
+          if (meetingResponse.ok) {
+            const meetingData = await meetingResponse.json();
+            
+            // If we have a transcript path, we can redirect
+            if (meetingData.transcript_path) {
+              setUploadStatus('Processing complete! Redirecting to meeting...');
+              setUploadProgress(100);
+              setTimeout(() => {
+                window.location.href = `/meetings/${meeting_id}`;
+              }, 1500);
+              return;
+            }
+          }
+        } catch (err) {
+          console.log('Error checking meeting data directly:', err);
+        }
+      }
+
+      // Fetch the current status
+      const statusResponse = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/meetings/${meeting_id}/pipeline-status`);
+      
+      if (!statusResponse.ok) {
+        throw new Error(`Failed to get status: ${statusResponse.status}`);
+      }
+      
+      const statusData = await statusResponse.json();
+      console.log('Pipeline status:', statusData);
+      
+      // Update UI based on status
+      if (statusData.status === 'completed') {
+        setUploadStatus('Processing complete! Redirecting to meeting...');
+        setUploadProgress(100);
+        
+        // Redirect after a short delay
+        setTimeout(() => {
+          window.location.href = `/meetings/${meeting_id}`;
+        }, 1500);
+        return;
+      } 
+      else if (statusData.status === 'partial') {
+        setUploadStatus('Transcript ready, but summary is still processing...');
+        
+        // If we've been polling for a while with partial status, just redirect
+        if (pollCount > 10) {
+          setUploadStatus('Transcript is ready. Redirecting to meeting page...');
+          setUploadProgress(100);
+          setTimeout(() => {
+            window.location.href = `/meetings/${meeting_id}`;
+          }, 1500);
+          return;
+        }
+        
+        // Continue polling, but at a slower rate
+        setTimeout(() => checkProcessingStatus(meeting_id, pollCount + 1), 5000);
+      }
+      else if (statusData.status === 'processing') {
+        // Update status message based on progress
+        if (pollCount < 5) {
+          setUploadStatus('Converting video to audio...');
+        } else if (pollCount < 15) {
+          setUploadStatus('Transcribing audio...');
+        } else if (pollCount < 30) {
+          setUploadStatus('Analyzing transcript and creating summary...');
+        } else {
+          setUploadStatus('Still processing... This may take a few minutes for long videos.');
+        }
+        
+        // Continue polling
+        setTimeout(() => checkProcessingStatus(meeting_id, pollCount + 1), 5000);
+      }
+      else {
+        // Unknown status, check a few more times then redirect
+        if (pollCount > 10) {
+          setUploadStatus('Redirecting to meeting page where you can check processing status...');
+          setTimeout(() => {
+            window.location.href = `/meetings/${meeting_id}`;
+          }, 2000);
+        } else {
+          setTimeout(() => checkProcessingStatus(meeting_id, pollCount + 1), 5000);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking status:', error);
+      // If we can't check status, just redirect after a few attempts
+      if (pollCount > 5) {
+        setUploadStatus('Unable to check processing status. Redirecting to meeting page...');
+        setTimeout(() => {
+          window.location.href = `/meetings/${meeting_id}`;
+        }, 2000);
+      } else {
+        setTimeout(() => checkProcessingStatus(meeting_id, pollCount + 1), 5000);
+      }
     }
   };
 

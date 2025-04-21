@@ -373,21 +373,119 @@ const MeetingDetail = () => {
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [uploadError, setUploadError] = useState(null);
   const fileInputRef = useRef(null);
+  const [pipelineStatus, setPipelineStatus] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingMessage, setProcessingMessage] = useState('');
+  const [statusPollingCount, setStatusPollingCount] = useState(0);
 
   // Fetch meeting data
   useEffect(() => {
     fetchMeeting();
   }, [id]);
 
+  // Check pipeline status if needed
+  useEffect(() => {
+    if (meeting && (!meeting.transcript_path || !meeting.summary_path)) {
+      // Start checking pipeline status
+      checkPipelineStatus();
+    }
+  }, [meeting, id]);
+
   const fetchMeeting = async () => {
     try {
       setLoading(true);
       const data = await api.get(`/meetings/${id}`);
       setMeeting(data);
-      setLoading(false);
+      
+      // Check if the meeting is still being processed
+      const isBeingProcessed = !data.transcript_path || !data.summary_path;
+      setIsProcessing(isBeingProcessed);
+      
+      if (!isBeingProcessed) {
+        setLoading(false);
+      }
     } catch (err) {
       setError(err.message || 'Failed to fetch meeting details');
       setLoading(false);
+    }
+  };
+
+  const checkPipelineStatus = async () => {
+    try {
+      // Maximum number of polls (5 minutes at 5s intervals)
+      const MAX_POLLS = 60;
+      
+      // If we've been polling too long, stop and show the page anyway
+      if (statusPollingCount >= MAX_POLLS) {
+        console.log('Exceeded maximum polling attempts, showing page anyway');
+        setIsProcessing(false);
+        setLoading(false);
+        return;
+      }
+      
+      const statusData = await api.get(`/meetings/${id}/pipeline-status`);
+      setPipelineStatus(statusData);
+      
+      console.log('Pipeline status:', statusData);
+      
+      // Update UI based on status
+      if (statusData.status === 'processing') {
+        setIsProcessing(true);
+        
+        // Set appropriate message based on polling count
+        if (statusPollingCount < 5) {
+          setProcessingMessage('Converting video to audio...');
+        } else if (statusPollingCount < 15) {
+          setProcessingMessage('Transcribing audio...');
+        } else if (statusPollingCount < 30) {
+          setProcessingMessage('Analyzing transcript and creating summary...');
+        } else {
+          setProcessingMessage('Still processing... This may take a few minutes for long videos.');
+        }
+        
+        // Continue polling
+        setStatusPollingCount(prev => prev + 1);
+        setTimeout(checkPipelineStatus, 5000);
+      } 
+      else if (statusData.status === 'partial') {
+        setIsProcessing(true);
+        setProcessingMessage('Transcript ready, but summary is still processing...');
+        
+        // Continue polling, but at a slower rate
+        setStatusPollingCount(prev => prev + 1);
+        setTimeout(checkPipelineStatus, 5000);
+      }
+      else if (statusData.status === 'completed') {
+        // Refresh meeting data to ensure we have the latest transcript/summary
+        await fetchMeeting();
+        setIsProcessing(false);
+        setLoading(false);
+      }
+      else {
+        // Unknown status - if we have transcript data already, show the page
+        const data = await api.get(`/meetings/${id}`);
+        
+        if (data.transcript_path || statusPollingCount > 10) {
+          // We have transcript data or we've tried enough times, show the page
+          setMeeting(data);
+          setIsProcessing(false);
+          setLoading(false);
+        } else {
+          setProcessingMessage('Checking processing status...');
+          setStatusPollingCount(prev => prev + 1);
+          setTimeout(checkPipelineStatus, 5000);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking pipeline status:', error);
+      // After a few attempts, stop polling and show the page anyway
+      if (statusPollingCount > 5) {
+        setIsProcessing(false);
+        setLoading(false);
+      } else {
+        setStatusPollingCount(prev => prev + 1);
+        setTimeout(checkPipelineStatus, 5000);
+      }
     }
   };
 
@@ -441,8 +539,20 @@ const MeetingDetail = () => {
   // Loading indicator
   if (loading) {
     return (
-      <div className="h-screen bg-gray-50 dark:bg-gray-900 flex justify-center items-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      <div className="h-screen bg-gray-50 dark:bg-gray-900 flex flex-col justify-center items-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mb-4"></div>
+        {isProcessing && (
+          <div className="text-center max-w-md">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Processing your meeting</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">{processingMessage}</p>
+            <div className="w-full bg-gray-200 dark:bg-gray-700 h-2 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-purple-500 rounded-full transition-all duration-500 ease-in-out" 
+                style={{ width: `${Math.min(95, statusPollingCount * 2)}%` }} 
+              />
+            </div>
+          </div>
+        )}
       </div>
     );
   }
