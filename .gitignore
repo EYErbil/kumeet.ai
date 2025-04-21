@@ -40,3 +40,10 @@ yarn-error.log*
 *.swp
 *.swo
 .DS_Store
+Thumbs.db
+
+# Project specific
+summarizer/data/
+summarizer/results/
+*.db
+*.sqlite3

@@ -20,8 +20,10 @@ services:
       - DB_NAME=postgres
       - DB_USER=postgres
       - DB_PASSWORD=PASSWORD
+      - SUMMARIZER_URL=http://summarizer:8001
     depends_on:
       - db
+      - summarizer
     networks:
       - app-network
 
@@ -40,6 +42,35 @@ services:
       - /app/node_modules
     depends_on:
       - backend
+    networks:
+      - app-network
+
+  summarizer:
+    build:
+      context: ./summarizer
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - HF_TOKEN=hf_your_token_here
+      - GOOGLE_API_KEY=AIzaSyBcizqje0iym5bPHx-OoepPbGqGcuLADKM
+      - WHISPER_MODEL=normal
+      - USE_GPU=true
+      - MIN_DURATION=0.5
+      - GAP_THRESHOLD=4.0
+      - MAX_TOKENS_PER_CHUNK=800
+      - MEETING_TYPE=generic meeting
+      - FOCUS_REQUEST=Focus on tasks, decisions, deadlines.
+    volumes:
+      - ./summarizer/data:/app/data
+      - ./summarizer/results:/app/results
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     networks:
       - app-network
 
