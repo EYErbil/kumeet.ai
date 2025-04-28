@@ -10,6 +10,7 @@ from services.actionItems_service import ActionItemsService
 from services.summarizer_service import SummarizerService
 from .auth import get_current_user
 import json
+from summarizer.db import save_transcript_in_db, init_db
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -406,6 +407,13 @@ async def upload_meeting_transcript(
         if not success:
             raise HTTPException(status_code=500, detail="Failed to update transcript segments")
         
+        # Create a session ID
+        session_id = f"meeting_{meeting_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
+        # Also save to SQLite database for the summarizer
+        init_db()  # Initialize DB tables
+        save_transcript_in_db(session_id, transcript_data)
+        
         result = {
             "message": "Transcript updated successfully",
             "meeting_id": meeting_id,
@@ -426,9 +434,6 @@ async def upload_meeting_transcript(
             # Generate a summary
             try:
                 from summarizer.summarize import summarize_transcript
-                
-                # Create a session ID
-                session_id = f"meeting_{meeting_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
                 
                 # Ensure results directory exists
                 results_dir = os.path.join(os.getcwd(), "results", f"{session_id}")

@@ -241,6 +241,13 @@ class SummarizerService:
                                 import json
                                 transcript_data = json.load(f)
                                 MeetingService.update_meeting_transcript_segments(meeting_id, transcript_data)
+                                
+                                # Also save to SQLite for the summarizer to use
+                                from summarizer.db import save_transcript_in_db, init_db
+                                
+                                # Initialize the DB first to ensure tables exist
+                                init_db()
+                                save_transcript_in_db(session_id, transcript_data)
                         except Exception as e:
                             logger.error(f"Error loading transcript file: {str(e)}")
                 

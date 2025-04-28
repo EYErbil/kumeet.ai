@@ -1,5 +1,7 @@
-pip install -U openai-whisper
-pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
-pip install pyannote.audio
-pip install -U openai
-pip install faster-whisper
+openai-whisper==20231117
+torch==1.10.1
+torchvision==0.11.2
+torchaudio==0.10.1
+pyannote.audio==3.1.0
+openai==1.0.0
+faster-whisper==0.10.0

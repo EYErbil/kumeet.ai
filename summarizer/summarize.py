@@ -310,6 +310,9 @@ def summarize_transcript(session_id, output_dir, meeting_type=None, min_importan
     start_time = time.time()
     logger.info(f"Starting summarization for session {session_id}")
     
+    # Initialize the database to ensure tables exist
+    init_db()
+    
     transcript = load_transcript_from_db(session_id)
     if not transcript:
         logger.error(f"No transcript found for session {session_id}")

@@ -33,6 +33,9 @@ def process_pipeline(input_file, quality='normal', meeting_type=None, min_import
     """Main processing pipeline for audio/video files"""
     pipeline_start = time.time()
     
+    # Initialize the database to ensure tables exist
+    init_db()
+    
     base_name = os.path.basename(input_file)
     ext = os.path.splitext(base_name)[1].lower()
 

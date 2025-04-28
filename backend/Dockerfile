@@ -25,10 +25,10 @@ RUN apt-get update && \
 COPY requirements.txt .
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -r requirements.txt
 
 # Install summarizer dependencies directly
-RUN pip install --no-cache-dir \
+RUN pip install \
     pyannote.audio \
     faster-whisper \
     torch \

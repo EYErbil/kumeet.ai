@@ -124,3 +124,8 @@ async def debug_info():
 async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled exception: {str(exc)}", exc_info=True)
     return {"detail": "An internal server error occurred"}
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize the database on startup"""
+    init_db()
