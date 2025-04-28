@@ -26,6 +26,12 @@ services:
       - WHISPER_MODEL=normal
       - HF_TOKEN=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
       - USE_DIARIZATION=false
+    entrypoint: >
+      bash -c "
+      mkdir -p /app/results /app/uploads /app/data /app/logs &&
+      chmod -R 777 /app/results /app/uploads /app/data /app/logs &&
+      uvicorn main:app --host 0.0.0.0 --port 8000
+      "
     volumes:
       - ./backend:/app
       - ./summarizer:/app/summarizer
@@ -34,7 +40,8 @@ services:
       - backend_uploads:/app/uploads
       - backend_results:/app/results
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - app-network
     restart: always
@@ -64,6 +71,11 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: PASSWORD
       POSTGRES_DB: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     ports:
       - "5432:5432"
     volumes:
