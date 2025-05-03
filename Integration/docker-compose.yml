@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  backend:
+    build: 
+      context: ./kumeet.ai-develop/backend
+      dockerfile: Dockerfile
+    container_name: kumeet-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://kumeetuser:kumeetpass@db:5432/kumeet
+      - SHARED_VOLUME_PATH=/app/shared_data
+      - UPLOAD_DIR=/app/shared_data/uploads
+      - DEBUG=true
+      - FIREBASE_DEVELOPMENT_MODE=true
+    volumes:
+      - shared_data:/app/shared_data
+    depends_on:
+      data-preprocess:
+        condition: service_healthy
+      db:
+        condition: service_started
+    restart: unless-stopped
+    
+  data-preprocess:
+    build: 
+      context: ./kumeet.ai-data-preprocess-feature-summarization
+      dockerfile: Dockerfile
+    container_name: kumeet-data-preprocess
+    volumes:
+      - shared_data:/app/shared_data
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=0
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os; os.path.exists('/app/summarizer/config.py') and os.path.exists('/app/run-summarizer.sh') and exit(0) or exit(1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    
+  frontend:
+    build: 
+      context: ./kumeet.ai-develop/frontend
+      dockerfile: Dockerfile
+    container_name: kumeet-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    restart: unless-stopped
+    
+  db:
+    image: postgres:14
+    container_name: kumeet-db
+    environment:
+      - POSTGRES_USER=kumeetuser
+      - POSTGRES_PASSWORD=kumeetpass
+      - POSTGRES_DB=kumeet
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kumeetuser -d kumeet"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  shared_data:
+    name: kumeet_shared_data
+  postgres_data:
+    name: kumeet_postgres_data 
