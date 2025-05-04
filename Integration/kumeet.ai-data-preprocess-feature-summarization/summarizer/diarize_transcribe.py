@@ -29,7 +29,7 @@ def get_whisper_model_name(quality_setting="normal", language=None):
         return "base.en" if is_english else "base"
     elif quality_setting == "better":
         # For better quality, use large model
-        return "large.en" if is_english else "large"
+        return "base.en" if is_english else "base"
     else:  # best
         # For best quality, use turbo model (no language-specific version)
         return "turbo"

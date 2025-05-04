@@ -16,6 +16,7 @@ services:
       - FIREBASE_DEVELOPMENT_MODE=true
     volumes:
       - shared_data:/app/shared_data
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       data-preprocess:
         condition: service_healthy
@@ -30,17 +31,19 @@ services:
     container_name: kumeet-data-preprocess
     volumes:
       - shared_data:/app/shared_data
-    restart: unless-stopped
+      - model_cache:/root/.cache
     deploy:
       resources:
         reservations:
           devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+            - driver: nvidia     # optional; add it if you have more than one runtime
+              count: 1           # or "all"
+              capabilities: [ gpu ]
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - CUDA_VISIBLE_DEVICES=0
+    restart: unless-stopped
+
     healthcheck:
       test: ["CMD", "python", "-c", "import os; os.path.exists('/app/summarizer/config.py') and os.path.exists('/app/run-summarizer.sh') and exit(0) or exit(1)"]
       interval: 10s
@@ -83,4 +86,6 @@ volumes:
   shared_data:
     name: kumeet_shared_data
   postgres_data:
-    name: kumeet_postgres_data 
+    name: kumeet_postgres_data
+  model_cache: # <‑‑ new
+    name: kumeet_model_cache

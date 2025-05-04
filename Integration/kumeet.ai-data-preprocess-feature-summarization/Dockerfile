@@ -1,9 +1,19 @@
-FROM python:3.10-slim
+# ─────────────────────────────────────────────────────────────
+# CUDA 12.6  +  cuDNN 9.1  runtime  (Ubuntu 22.04)
+# ─────────────────────────────────────────────────────────────
+FROM nvidia/cuda:12.6.3-cudnn-runtime-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Install Python 3.10, pip, and other system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.10 \
+    python3-pip \
+    python3.10-dev \
     ffmpeg \
     libsndfile1 \
     git \
@@ -11,20 +21,29 @@ RUN apt-get update && apt-get install -y \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
+# Make python3.10 the default python
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1
+RUN update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1
+
 RUN pip install typing-extensions==4.10.0
 # Install PyTorch with CUDA support (specific version as requested)
-RUN pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
+# The base image already has CUDA, so PyTorch should find it.
+RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
 
-# Install Python dependencies directly (no requirements.txt)
-RUN pip install openai-whisper --no-deps && \
-    pip install faster-whisper --no-deps && \
-    pip install pyannote.audio --no-deps && \
+
+# Install Python dependencies
+# Removed --no-deps as discussed
+RUN pip install openai-whisper  && \
+    pip install faster-whisper  && \
+    pip install pyannote.audio  && \
     pip install -U openai && \
-    pip install pandas numpy google-generativeai scikit-learn transformers protobuf pydantic
+    pip install pandas numpy google-generativeai scikit-learn transformers protobuf pydantic && \
+    pip install av && \
+    pip install google-api-python-client
 
 # Copy the source code
 COPY . .
-RUN python -c "import torch; print('Torch Version:', torch.__version__); print('CUDA Version:', torch.version.cuda)"
+RUN python -c "import torch; print('Torch Version:', torch.__version__); print('CUDA Available:', torch.cuda.is_available()); print('CUDA Version Detected by PyTorch:', torch.version.cuda); import os; print('NVIDIA_VISIBLE_DEVICES:', os.environ.get('NVIDIA_VISIBLE_DEVICES'))"
 
 # Create directories for shared data
 RUN mkdir -p /app/shared_data/uploads /app/shared_data/results
