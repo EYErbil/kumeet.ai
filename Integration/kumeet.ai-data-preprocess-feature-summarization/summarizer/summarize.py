@@ -4,19 +4,20 @@ import os
 import pandas as pd
 import json
 
-from google import genai
+# Fix the import for Google Generative AI
+import google.generativeai as genai
 
 from config import (
     MAX_TOKENS_PER_CHUNK,
     MEETING_TYPE,
-    FOCUS_REQUEST
+    FOCUS_REQUEST,
+    GEMINI_API_KEY  # Import the key from config
 )
 from db import load_transcript_from_db, save_summary_in_db
 from analysis import extract_items_with_scores_gemini, save_extracted_items_in_db
 
-# gemini is used for summarization
-GEMINI_API_KEY = "AIzaSyBcizqje0iym5bPHx-OoepPbGqGcuLADKM"
-gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+# Configure the genai client with the API key
+genai.configure(api_key=GEMINI_API_KEY)
 
 
 def chunk_transcript_data(transcript, max_tokens=800):
@@ -113,10 +114,10 @@ def summarize_chunk(chunk_text: str, meeting_type: str, focus: str, focus_questi
     # Combine all parts into the final prompt
     prompt = "".join(prompt_parts)
 
-    response = gemini_client.models.generate_content(
-        model="gemini-2.0-flash",
-        contents=prompt
-    )
+    # Use GenerativeModel instead of client.models
+    model = genai.GenerativeModel("gemini-2.0-flash")
+    response = model.generate_content(contents=prompt)
+    
     return response.text
 
 

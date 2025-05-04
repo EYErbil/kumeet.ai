@@ -16,7 +16,7 @@ GEMINI_API_KEY = "AIzaSyBcizqje0iym5bPHx-OoepPbGqGcuLADKM"
 ########################################
 # DIRECTORY / FILE SETTINGS
 ########################################
-RESULTS_DIR = "results"   # We'll create a subdir in here for each upload
+RESULTS_DIR = "/app/shared_data/results"   # We'll create a subdir in here for each upload
 
 ########################################
 # DIARIZATION & TRANSCRIPTION

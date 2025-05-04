@@ -133,25 +133,6 @@ class SummarizationService:
             # with a subfolder named with the session_id
             results_dir = os.path.join(shared_volume, "results", session_id)
             
-            # Check if the results directory exists
-            if not os.path.exists(results_dir):
-                # Try the parent results directory as fallback
-                parent_results_dir = os.path.join(shared_volume, "results")
-                if os.path.exists(parent_results_dir):
-                    # List all subdirectories and find one that might contain our results
-                    subdirs = [d for d in os.listdir(parent_results_dir) if os.path.isdir(os.path.join(parent_results_dir, d))]
-                    matching_dirs = [d for d in subdirs if session_id in d]
-                    
-                    if matching_dirs:
-                        results_dir = os.path.join(parent_results_dir, matching_dirs[0])
-                        logger.info(f"Found results in alternative directory: {results_dir}")
-                    else:
-                        logger.error(f"Results directory not found: {results_dir}")
-                        return {"success": False, "error": f"Results directory not found: {results_dir}"}
-                else:
-                    logger.error(f"Results directory not found: {results_dir}")
-                    return {"success": False, "error": f"Results directory not found: {results_dir}"}
-            
             # Process and update our database with the results
             processed = SummarizationService._process_results(meeting_id, session_id, results_dir)
             

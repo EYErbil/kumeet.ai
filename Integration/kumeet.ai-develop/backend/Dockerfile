@@ -19,7 +19,9 @@ COPY . .
 
 # Create shared data directories
 RUN mkdir -p /app/shared_data/uploads /app/shared_data/results
-
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends docker.io \
+ && rm -rf /var/lib/apt/lists/*
 # Expose the port the app runs on
 EXPOSE 8000
 

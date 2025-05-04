@@ -4,15 +4,15 @@ import json
 import sqlite3
 
 from config import DB_PATH, GEMINI_API_KEY
-from google import genai
+import google.generativeai as genai
 from db import (
     load_transcript_from_db,
     save_action_items_in_db,
     save_question_answer_in_db
 )
 
-# Create a genai client
-gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+# Configure the genai client with the API key
+genai.configure(api_key=GEMINI_API_KEY)
 
 def extract_items_with_scores_gemini(text, chunk_idx, chunk_start, chunk_end):
     """
@@ -29,10 +29,10 @@ def extract_items_with_scores_gemini(text, chunk_idx, chunk_start, chunk_end):
         f"{text}"
     )
 
-    response = gemini_client.models.generate_content(
-        model="gemini-2.0-flash",
-        contents=prompt
-    )
+    # Use GenerativeModel instead of client.models
+    model = genai.GenerativeModel("gemini-2.0-flash")
+    response = model.generate_content(contents=prompt)
+    
     raw = response.text
     try:
         data = json.loads(raw)
@@ -80,10 +80,10 @@ def answer_user_question(session_id, question_text):
         "Please provide a concise answer."
     )
 
-    response = gemini_client.models.generate_content(
-        model="gemini-2.0-flash",
-        contents=prompt
-    )
+    # Use GenerativeModel instead of client.models
+    model = genai.GenerativeModel("gemini-2.0-flash")
+    response = model.generate_content(contents=prompt)
+    
     answer = response.text
 
     # store Q&A
