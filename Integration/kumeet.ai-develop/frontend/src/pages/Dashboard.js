@@ -149,6 +149,7 @@ const Dashboard = () => {
       date: 'Mon, April 29, 2024',
       time: '2:00 PM',
       duration: '44m',
+      duration_seconds: 2640, // 44 minutes in seconds
       description: 'The team convened for a focused discussion on the upcoming launch of the SmartSync feature, a pivotal update designed to enhance real-time collaboration.',
       category: 'Strategic planning',
       platform: 'teams',
@@ -165,6 +166,7 @@ const Dashboard = () => {
       date: 'Mon, April 29, 2024',
       time: '3:00 PM',
       duration: '60m',
+      duration_seconds: 3600, // 60 minutes in seconds
       description: 'The team discussed project progress, highlighting near-completion of backend and frontend development. They addressed challenges in integrating a third-party API.',
       category: 'Development',
       platform: 'google',
@@ -191,6 +193,33 @@ const Dashboard = () => {
   const [loadingActions, setLoadingActions] = useState(true);
   const [actionsError, setActionsError] = useState(null);
 
+  // State for total meeting time
+  const [totalMeetingTime, setTotalMeetingTime] = useState("0h 0m");
+
+  // Calculate total meeting time from meetings data
+  const calculateTotalMeetingTime = (meetings) => {
+    if (!meetings || meetings.length === 0) {
+      return "0h 0m";
+    }
+
+    // Sum up all durations
+    const totalSeconds = meetings.reduce((total, meeting) => {
+      return total + (meeting.duration_seconds || 0);
+    }, 0);
+    
+    // Convert to hours, minutes format
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    } else if (minutes > 0) {
+      return `${minutes}m`;
+    } else {
+      return "0h 0m";
+    }
+  };
+
   // Fetch recent meetings
   useEffect(() => {
     const fetchRecentMeetings = async () => {
@@ -212,10 +241,16 @@ const Dashboard = () => {
             return meetingObj;
           });
           setRecentMeetings(formattedMeetings);
+          
+          // Calculate and set total meeting time
+          setTotalMeetingTime(calculateTotalMeetingTime(formattedMeetings));
         } else {
           console.warn('Recent meetings API returned unexpected format:', response);
           // Fallback to sample data
           setRecentMeetings(sampleMeetings);
+          
+          // Calculate and set total meeting time using sample data
+          setTotalMeetingTime(calculateTotalMeetingTime(sampleMeetings));
         }
         
         setLoadingMeetings(false);
@@ -225,6 +260,10 @@ const Dashboard = () => {
         setMeetingsError(error.message || 'Failed to fetch recent meetings');
         // Fallback to sample data
         setRecentMeetings(sampleMeetings);
+        
+        // Calculate and set total meeting time using sample data
+        setTotalMeetingTime(calculateTotalMeetingTime(sampleMeetings));
+        
         setLoadingMeetings(false);
       }
     };
@@ -388,7 +427,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <StatCard 
           title="dashboard.stats.totalMeetings" 
-          value={recentMeetings.length || "42"} 
+          value={recentMeetings.length || "0"} 
           icon={<FaVideo size={16} />}
           description="dashboard.stats.last30Days" 
           trend="up" 
@@ -396,7 +435,7 @@ const Dashboard = () => {
         />
         <StatCard 
           title="dashboard.stats.meetingTime" 
-          value="38h 24m" 
+          value={totalMeetingTime} 
           icon={<FaClock size={16} />}
           description="dashboard.stats.last30Days" 
           trend="up" 
@@ -404,7 +443,7 @@ const Dashboard = () => {
         />
         <StatCard 
           title="dashboard.stats.actionItems" 
-          value={actionItems.length || "86"} 
+          value={actionItems.length || "0"} 
           icon={<FaListAlt size={16} />}
           description="dashboard.stats.completed" 
           trend="down" 
