@@ -31,8 +31,6 @@ CREATE TABLE IF NOT EXISTS meetings (
     duration_seconds INTEGER,
     original_video_path VARCHAR(500),
     audio_path VARCHAR(500),
-    start_time TIMESTAMP WITH TIME ZONE,
-    end_time TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_user FOREIGN KEY (firebase_uid) REFERENCES users(firebase_uid)
 );
@@ -45,7 +43,6 @@ CREATE TABLE IF NOT EXISTS speaker_segments (
     speaker_label VARCHAR(50) NOT NULL, -- e.g., "speaker_0", "speaker_1"
     start_time DECIMAL(10, 3) NOT NULL, -- in seconds with millisecond precision
     end_time DECIMAL(10, 3) NOT NULL,   -- in seconds with millisecond precision
-    duration DECIMAL(10, 3) NOT NULL,   -- calculated duration
     transcript TEXT,                    -- the transcribed text for this segment
     CONSTRAINT fk_meeting FOREIGN KEY (meeting_id) REFERENCES meetings(meeting_id)
 );

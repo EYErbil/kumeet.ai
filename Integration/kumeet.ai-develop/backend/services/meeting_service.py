@@ -416,7 +416,7 @@ class MeetingService:
             return []
 
     @staticmethod
-    def create_meeting(title, description=None, meeting_type='general', meeting_date=None, duration_seconds=3600, firebase_uid=None):
+    def create_meeting(title, description=None, meeting_type='general', meeting_date=None, duration_seconds=3600, firebase_uid=None, audio_file_path=None):
         """
         Create a new meeting
         
@@ -427,6 +427,7 @@ class MeetingService:
             meeting_date (datetime): Meeting date (default: now)
             duration_seconds (int): Meeting duration in seconds (default: 3600 - 1 hour)
             firebase_uid (str): Optional user ID (if not provided, uses a default development user)
+            audio_file_path (str): Optional path to uploaded audio file to extract duration
             
         Returns:
             int: ID of the created meeting
@@ -435,6 +436,26 @@ class MeetingService:
             # Default values
             if not meeting_date:
                 meeting_date = datetime.now()
+            
+            # Calculate the duration from the audio file if provided
+            if audio_file_path and os.path.exists(audio_file_path):
+                try:
+                    import moviepy.editor as mp
+                    logger.info(f"Extracting duration from audio file: {audio_file_path}")
+                    
+                    # Load the audio file using moviepy
+                    audio_clip = mp.AudioFileClip(audio_file_path)
+                    
+                    # Get duration in seconds
+                    duration_seconds = int(audio_clip.duration)
+                    logger.info(f"Extracted duration: {duration_seconds} seconds")
+                    
+                    # Close the clip to release resources
+                    audio_clip.close()
+                except Exception as e:
+                    logger.error(f"Error extracting audio duration: {e}")
+                    # Keep the default duration if extraction fails
+                    logger.warning(f"Using default duration of {duration_seconds} seconds")
                 
             # Use default firebase_uid for development if none provided
             if not firebase_uid:
@@ -499,7 +520,7 @@ class MeetingService:
                     )
                     
                     meeting_id = cur.fetchone()[0]
-                    logger.info(f"Created meeting with ID {meeting_id} for user {firebase_uid}")
+                    logger.info(f"Created meeting with ID {meeting_id} for user {firebase_uid} with duration {duration_seconds} seconds")
                     
                     return meeting_id
                     

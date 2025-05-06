@@ -64,93 +64,139 @@ const Tab = ({ icon, label, active, onClick }) => {
 };
 
 // Meeting Notes component
-const MeetingNotes = ({ notes, meetingId, meetingTitle, meetingDate }) => {
+const MeetingNotes = ({ notes: initialNotes, meetingId, meetingTitle, meetingDate }) => {
   const [editMode, setEditMode] = useState(false);
   const [editContent, setEditContent] = useState('');
   const [editTitle, setEditTitle] = useState('');
   const [editDate, setEditDate] = useState('');
   const [selectedNote, setSelectedNote] = useState(null);
+  const [notes, setNotes] = useState(initialNotes || []);
+  const [loading, setLoading] = useState(true);
+  const [isNewNote, setIsNewNote] = useState(false);
 
-  // Mock function for updating notes (in a real app, this would call the API)
-  const updateNote = async (noteId, updatedData) => {
-    // Find the note in our local state
-    const noteToUpdate = notes.find(note => note.id === noteId);
-    if (!noteToUpdate) return null;
-
-    // Return updated note (mock response)
-    return {
-      ...noteToUpdate,
-      ...updatedData,
-      updatedAt: new Date().toISOString()
-    };
-  };
-
-  // Mock function for creating notes
-  const createNote = async (noteData) => {
-    // Create a new note ID
-    const noteId = Date.now().toString();
-
-    // Return the new note (mock response)
-    return {
-      id: noteId,
-      content: noteData.content,
-      createdBy: noteData.createdBy,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      meetingId: noteData.meetingId,
-      meetingTitle: noteData.meetingTitle,
-      meetingDate: noteData.meetingDate
-    };
-  };
-
-  // Mock function for deleting notes
-  const deleteNote = async (noteId) => {
-    return true; // Success
-  };
-
-  // Handle create new note
-  const handleCreateNote = async () => {
-    try {
-      const newNoteData = {
-        meetingId,
-        meetingTitle,
-        meetingDate,
-        content: 'Start typing your meeting notes here...',
-        createdBy: {
-          id: '1', // In a real app, this would be the current user's ID
-          name: 'Current User' // In a real app, this would be the current user's name
+  // Fetch notes for this meeting on component mount
+  useEffect(() => {
+    const fetchMeetingNotes = async () => {
+      try {
+        setLoading(true);
+        console.log(`Fetching notes for meeting ${meetingId}`);
+        const response = await api.get(`/notes/meeting/${meetingId}`);
+        
+        if (response && response.notes && Array.isArray(response.notes)) {
+          console.log(`Found ${response.notes.length} notes for meeting ${meetingId}`);
+          setNotes(response.notes);
+        } else {
+          console.log('No notes found or invalid response format');
+          setNotes([]);
         }
-      };
+      } catch (error) {
+        console.error(`Error fetching notes for meeting ${meetingId}:`, error);
+        setNotes([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchMeetingNotes();
+  }, [meetingId]);
 
-      const newNote = await createNote(newNoteData);
-
-      setSelectedNote(newNote);
-      setEditContent(newNote.content);
-      setEditTitle(newNote.meetingTitle);
-      setEditDate(newNote.meetingDate);
-      setEditMode(true);
-    } catch (error) {
-      console.error('Failed to create note:', error);
-    }
-  };
-
-  // Handle save note
-  const handleSaveNote = async () => {
+  // Handle update note
+  const handleUpdateNote = async () => {
     if (!selectedNote) return;
 
     try {
       const updatedData = {
         content: editContent,
         meetingTitle: editTitle,
-        meetingDate: editDate
+        meetingDate: editDate,
+        meetingId: meetingId
       };
 
-      const updatedNote = await updateNote(selectedNote.id, updatedData);
+      // Call API to update the note
+      const response = await api.put(`/notes/${selectedNote.id}`, updatedData);
+      console.log('Update response:', response);
 
-      setSelectedNote(updatedNote);
+      if (response && response.id) {
+        // Update the note in local state
+        const updatedNotes = notes.map(note => 
+          note.id === selectedNote.id ? {...response, updatedAt: new Date().toISOString()} : note
+        );
+        setNotes(updatedNotes);
+        setSelectedNote({...response, updatedAt: new Date().toISOString()});
+      }
+      
       setEditMode(false);
     } catch (error) {
       console.error('Failed to update note:', error);
+      alert('Failed to update note: ' + (error.message || 'Unknown error'));
+    }
+  };
+
+  // Handle create new note
+  const handleCreateNote = () => {
+    // Set up a new draft note
+    const tempNote = {
+      id: `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      meetingId: meetingId,
+      meetingTitle: meetingTitle || "Meeting Note",
+      meetingDate: meetingDate || new Date().toLocaleDateString(),
+      content: "",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      isTemp: true
+    };
+
+    // Set this as the selected note and enable edit mode
+    setSelectedNote(tempNote);
+    setEditContent(tempNote.content);
+    setEditTitle(tempNote.meetingTitle);
+    setEditDate(tempNote.meetingDate);
+    setEditMode(true);
+    setIsNewNote(true);
+  };
+
+  // Handle save new note
+  const handleSaveNewNote = async () => {
+    try {
+      // Validate fields
+      if (!editContent.trim()) {
+        alert("Note content cannot be empty");
+        return;
+      }
+
+      const newNoteData = {
+        meetingId: meetingId,
+        meetingTitle: editTitle,
+        meetingDate: editDate,
+        content: editContent
+      };
+
+      // Call API to create the note
+      const response = await api.post('/notes', newNoteData);
+      console.log('Create response:', response);
+
+      if (response && response.id) {
+        // Format the note for the frontend and add to state
+        const createdNote = {
+          id: response.id,
+          content: editContent,
+          meetingId: meetingId,
+          meetingTitle: editTitle,
+          meetingDate: editDate,
+          createdAt: response.createdAt || new Date().toISOString(),
+          updatedAt: response.updatedAt || new Date().toISOString(),
+          createdBy: response.createdBy || { id: '1', name: 'Current User' }
+        };
+
+        // Add to notes collection and exit edit mode
+        setNotes([createdNote, ...notes]);
+        setSelectedNote(createdNote);
+        setEditMode(false);
+        setIsNewNote(false);
+      }
+    } catch (error) {
+      console.error('Failed to create note:', error);
+      alert('Failed to create note: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -158,24 +204,58 @@ const MeetingNotes = ({ notes, meetingId, meetingTitle, meetingDate }) => {
   const handleDeleteNote = async () => {
     if (!selectedNote) return;
 
+    // Show confirmation dialog
+    if (!window.confirm("Are you sure you want to delete this note?")) {
+      return;
+    }
+
     try {
-      await deleteNote(selectedNote.id);
+      // Call API to delete the note
+      await api.del(`/notes/${selectedNote.id}`);
+      console.log(`Note ${selectedNote.id} deleted successfully`);
+      
+      // Remove from local state
+      const updatedNotes = notes.filter(note => note.id !== selectedNote.id);
+      setNotes(updatedNotes);
       setSelectedNote(null);
     } catch (error) {
       console.error('Failed to delete note:', error);
+      alert('Failed to delete note: ' + (error.message || 'Unknown error'));
     }
+  };
+
+  // Cancel editing or creating a note
+  const handleCancelCreate = () => {
+    if (isNewNote) {
+      setSelectedNote(null);
+    }
+    setEditMode(false);
+    setIsNewNote(false);
   };
 
   // Format date for display
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      return dateString || 'Unknown date';
+    }
   };
+
+  // If loading, show a loading indicator
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+      </div>
+    );
+  }
 
   // If no notes exist yet, show a message and create button
   if (!notes || notes.length === 0) {
@@ -230,6 +310,7 @@ const MeetingNotes = ({ notes, meetingId, meetingTitle, meetingDate }) => {
                 setEditTitle(note.meetingTitle);
                 setEditDate(note.meetingDate);
                 setEditMode(false);
+                setIsNewNote(false);
               }}
             >
               <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
@@ -278,35 +359,35 @@ const MeetingNotes = ({ notes, meetingId, meetingTitle, meetingDate }) => {
                     </div>
                   </div>
 
-                  <div className="flex-1 mb-4 flex flex-col">
+                  <div className="flex-grow mb-4">
                     <label htmlFor="note-content" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Content
                     </label>
-                    <div className="flex-1 relative">
-                      <textarea
-                        id="note-content"
-                        value={editContent}
-                        onChange={(e) => setEditContent(e.target.value)}
-                        className="w-full h-full absolute inset-0 p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                        style={{ minHeight: '300px', height: 'calc(100% - 20px)' }}
-                        placeholder="Enter note content here..."
-                      />
-                    </div>
+                    <textarea
+                      id="note-content"
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                      className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none h-64"
+                      style={{ minHeight: '200px' }}
+                      placeholder="Enter note content here..."
+                    />
                   </div>
 
-                  <div className="flex justify-end space-x-3 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <button
-                      onClick={() => setEditMode(false)}
-                      className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleSaveNote}
-                      className="px-3 py-1 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700"
-                    >
-                      Save
-                    </button>
+                  <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex justify-end space-x-3">
+                      <button
+                        onClick={handleCancelCreate}
+                        className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={isNewNote ? handleSaveNewNote : handleUpdateNote}
+                        className="px-3 py-1 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                      >
+                        {isNewNote ? "Create Note" : "Save"}
+                      </button>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -368,6 +449,7 @@ const MeetingDetail = () => {
   const [meeting, setMeeting] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [meetingNotes, setMeetingNotes] = useState([]);
 
   // Fetch meeting data
   useEffect(() => {
@@ -376,6 +458,18 @@ const MeetingDetail = () => {
         setLoading(true);
         const data = await api.get(`/meetings/${id}`);
         setMeeting(data);
+        
+        // Try to fetch notes for this meeting
+        try {
+          const notesResponse = await api.get(`/notes/meeting/${id}`);
+          if (notesResponse && notesResponse.notes) {
+            setMeetingNotes(notesResponse.notes);
+          }
+        } catch (notesError) {
+          console.error('Error fetching meeting notes:', notesError);
+          // Continue even if notes fetching fails
+        }
+        
         setLoading(false);
       } catch (err) {
         setError(err.message || 'Failed to fetch meeting details');
@@ -385,6 +479,18 @@ const MeetingDetail = () => {
 
     fetchMeeting();
   }, [id]);
+  
+  // Function to refresh notes after adding new ones
+  const refreshNotes = async () => {
+    try {
+      const notesResponse = await api.get(`/notes/meeting/${id}`);
+      if (notesResponse && notesResponse.notes) {
+        setMeetingNotes(notesResponse.notes);
+      }
+    } catch (notesError) {
+      console.error('Error refreshing meeting notes:', notesError);
+    }
+  };
 
   // Loading indicator
   if (loading) {
@@ -595,7 +701,7 @@ const MeetingDetail = () => {
         {activeTab === 'notes' && (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <MeetingNotes
-              notes={meeting.notes || []}
+              notes={meetingNotes}
               meetingId={id}
               meetingTitle={title}
               meetingDate={date}
