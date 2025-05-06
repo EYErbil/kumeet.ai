@@ -49,14 +49,29 @@ def single_pass_whisper(audio_file, quality_setting="normal", language=None):
     # Get the appropriate model name based on settings
     whisper_model_name = get_whisper_model_name(quality_setting, language)
 
+    # Determine compute device and type
+    device = "cpu"
+    compute_type = "int8"
+
+    # Check if GPU is available and enabled
+    if USE_GPU and torch.cuda.is_available():
+        print("Using GPU for transcription")
+        device = "cuda"
+        compute_type = "float16"
+    else:
+        if USE_GPU:
+            print("Warning: GPU requested but not available. Using CPU for transcription.")
+        else:
+            print("Using CPU for transcription (as configured)")
+
     # Initialize faster-whisper model
     model = WhisperModel(
         whisper_model_name,
-        device="cuda" if USE_GPU else "cpu",
-        compute_type="float16" if USE_GPU else "int8"
+        device=device,
+        compute_type=compute_type
     )
 
-    # Transcribe with faster-whisper
+    # Rest of the function remains the same
     segments, info = model.transcribe(
         audio_file,
         beam_size=5,
@@ -75,7 +90,7 @@ def single_pass_whisper(audio_file, quality_setting="normal", language=None):
             }
             for i, segment in enumerate(segments)
         ],
-        "language": info.language,  # This will be a 2-letter code like "en", "tr"
+        "language": info.language,
         "language_probability": info.language_probability
     }
 
@@ -90,11 +105,11 @@ def pyannote_diarize(audio_file, hf_token=HF_TOKEN, use_gpu=True):
         "pyannote/speaker-diarization-3.1",
         use_auth_token=hf_token
     )
-    if use_gpu:
-        pipeline.to(torch.device("cuda"))
-    diarization_result = pipeline(audio_file)
-    return diarization_result
+    device = torch.device("cuda" if use_gpu and torch.cuda.is_available() else "cpu")
+    print(f"[INFO] Diarization is using device: {device}")
+    pipeline.to(device)
 
+    return pipeline(audio_file)
 
 def merge_close_segments(segments, max_gap=GAP_THRESHOLD):
     """
@@ -235,7 +250,7 @@ def combine_whisper_and_diarization(whisper_segments, diarization_annotation, mi
     return merged_final
 
 
-def diarize_and_transcribe(audio_file, output_dir, session_id=None, quality_setting="normal"):
+def diarize_and_transcribe(audio_file, output_dir, session_id=None, quality_setting="normal", use_gpu=USE_GPU):
     """
     1) Single-pass diarization (pyannote)
     2) Single-pass whisper (like 'whisper test.wav')

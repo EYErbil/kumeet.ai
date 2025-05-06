@@ -34,14 +34,29 @@ class Settings(BaseSettings):
     DB_HOST: str = os.environ.get("DB_HOST", "localhost")
     DB_PORT: str = os.environ.get("DB_PORT", "5432")
     DB_NAME: str = os.environ.get("DB_NAME", "kumeet")
-    DB_USER: str = os.environ.get("DB_USER", "kumeetuser")
-    DB_PASSWORD: str = os.environ.get("DB_PASSWORD", "kumeetpass")
+    DB_USER: str = os.environ.get("DB_USER", "postgres")
+    DB_PASSWORD: str = os.environ.get("DB_PASSWORD", "uzay11ilgin")
     DATABASE_URL: Optional[str] = os.environ.get("DATABASE_URL")
     DB_POOL_MIN_SIZE: int = 1
     DB_POOL_MAX_SIZE: int = 10
-    
+
     # Firebase settings
-    FIREBASE_CREDENTIALS_PATH: Optional[str] = os.environ.get("FIREBASE_CREDENTIALS_PATH", "./config/firebase-credentials.json")
+    FIREBASE_CREDENTIALS_PATH: Optional[str] = os.environ.get("FIREBASE_CREDENTIALS_PATH",
+                                                              "./config/firebase-credentials.json")
+    FIREBASE_PROJECT_ID: Optional[str] = None
+    FIREBASE_PRIVATE_KEY: Optional[str] = None
+    FIREBASE_CLIENT_EMAIL: Optional[str] = None
+
+    # Google Calendar settings
+    GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
+    GOOGLE_REDIRECT_URI: Optional[str] = None
+
+    # Outlook Calendar settings
+    OUTLOOK_CLIENT_ID: Optional[str] = None
+    OUTLOOK_TENANT_ID: Optional[str] = None
+    OUTLOOK_CLIENT_SECRET: Optional[str] = None
+    OUTLOOK_REDIRECT_URI: Optional[str] = None
     
     # Logging settings
     LOG_LEVEL: str = "INFO"

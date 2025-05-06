@@ -24,7 +24,10 @@ RESULTS_DIR = "/app/shared_data/results"   # We'll create a subdir in here for e
 MIN_DURATION   = 0.5
 GAP_THRESHOLD  = 4.0
 WHISPER_MODEL  = "normal"  # Can be "normal", "better", or "best"
-USE_GPU        = True  # if you have a CUDA device
+import torch
+
+USE_GPU = torch.cuda.is_available()
+DEVICE = "cuda" if USE_GPU else "cpu"
 
 ########################################
 # DB SETTINGS
