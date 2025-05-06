@@ -174,6 +174,10 @@ class SummarizationService:
                 "action_items": [
                     os.path.join(results_dir, "summary.csv"),
                     os.path.join(results_dir, f"{session_id}_summary.csv")
+                ],
+                "summary_json": [
+                    os.path.join(results_dir, "summary.json"),
+                    os.path.join(results_dir, f"{session_id}_summary.json")
                 ]
             }
             
@@ -192,7 +196,7 @@ class SummarizationService:
                 return False
             
             # Warning for missing files
-            for file_type in ["transcript_csv", "transcript_json", "action_items"]:
+            for file_type in ["transcript_csv", "transcript_json", "action_items", "summary_json"]:
                 if file_type not in found_files:
                     logger.warning(f"{file_type} file not found in {results_dir}")
             
@@ -223,11 +227,79 @@ class SummarizationService:
                 meeting_id, summary, transcript, action_items
             )
             
+            # Process and insert summary.json if it exists
+            if "summary_json" in found_files:
+                SummarizationService._process_summary_json(meeting_id, found_files["summary_json"])
+            
             logger.info(f"Successfully processed results for meeting {meeting_id}")
             return True
             
         except Exception as e:
             logger.error(f"Error processing results: {str(e)}")
+            return False
+
+    @staticmethod
+    def _process_summary_json(meeting_id, file_path):
+        """
+        Parse summary JSON file and insert into meeting_summaries table
+        
+        Args:
+            meeting_id (int): ID of the meeting
+            file_path (str): Path to the summary.json file
+        """
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                summary_data = json.load(f)
+                
+            if not summary_data:
+                logger.warning(f"Empty summary.json file for meeting {meeting_id}")
+                return False
+            
+            # Extract and format the content from the summary chunks
+            summary_chunks = []
+            for item in summary_data:
+                # Format each chunk with text and importance score
+                chunk_text = item.get('text', '').strip()
+                importance = item.get('importance', 5)
+                timestamp = item.get('timestamp', '')
+                
+                if chunk_text:
+                    # Clean up text (remove asterisk if present)
+                    if chunk_text.startswith('*'):
+                        chunk_text = chunk_text[1:].strip()
+                    
+                    summary_chunks.append({
+                        'text': chunk_text,
+                        'importance': importance,
+                        'timestamp': timestamp
+                    })
+            
+            # Sort chunks by importance (descending)
+            summary_chunks.sort(key=lambda x: x.get('importance', 0), reverse=True)
+            
+            # Format the content - just the list items without a header
+            formatted_content = ""
+            for i, chunk in enumerate(summary_chunks, 1):
+                formatted_content += f"{i}. {chunk['text']} "
+                if chunk['timestamp']:
+                    formatted_content += f"[{chunk['timestamp']}] "
+                formatted_content += f"(Importance: {chunk['importance']})\n\n"
+            
+            # Insert into meeting_summaries table
+            with transaction() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                    INSERT INTO meeting_summaries (meeting_id, summary_type, content)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (meeting_id, summary_type) 
+                    DO UPDATE SET content = EXCLUDED.content
+                    """, (meeting_id, "detailed", formatted_content))
+                    
+            logger.info(f"Successfully inserted summary.json content for meeting {meeting_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error processing summary.json: {str(e)}")
             return False
 
     @staticmethod

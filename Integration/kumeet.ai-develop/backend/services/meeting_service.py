@@ -206,7 +206,7 @@ class MeetingService:
 
                     # Get summaries
                     cur.execute("""
-                        SELECT summary_type, content
+                        SELECT summary_type, content, created_at
                         FROM meeting_summaries
                         WHERE meeting_id = %s
                     """, (meeting_id,))
@@ -215,7 +215,10 @@ class MeetingService:
                     meeting['summaries'] = {}
 
                     for summary in summaries:
-                        meeting['summaries'][summary['summary_type']] = summary['content']
+                        meeting['summaries'][summary['summary_type']] = {
+                            'content': summary['content'],
+                            'created_at': summary['created_at']
+                        }
 
                     # Get action items
                     cur.execute("""

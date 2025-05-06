@@ -66,7 +66,8 @@ CREATE TABLE IF NOT EXISTS meeting_summaries (
     summary_type VARCHAR(100), -- e.g., "general", "action_items", "decisions"
     content TEXT NOT NULL,              -- the actual summary content
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_meeting FOREIGN KEY (meeting_id) REFERENCES meetings(meeting_id)
+    CONSTRAINT fk_meeting FOREIGN KEY (meeting_id) REFERENCES meetings(meeting_id),
+    CONSTRAINT unique_summary_type_per_meeting UNIQUE (meeting_id, summary_type)
 );
 """
 

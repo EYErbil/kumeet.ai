@@ -608,29 +608,45 @@ const MeetingDetail = () => {
           <div className="space-y-6">
             <CollapsibleSection icon={<FaFileAlt size={16} className="text-gray-600 dark:text-gray-400" />} title="Overview">
               <p className="text-gray-700 dark:text-gray-300">
-                {meeting.summaries?.general ||
+                {meeting.summaries?.general?.content ||
                   "The team discussed project progress, highlighting near-completion of backend and frontend development. " +
                   "Overall, the meeting was productive with clear action items and next steps defined."}
               </p>
             </CollapsibleSection>
 
             <CollapsibleSection icon={<FaList size={16} className="text-gray-600 dark:text-gray-400" />} title="Key points">
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="space-y-6">
                 <div>
-                  <h4 className="font-medium text-gray-900 dark:text-white mb-3">Project progress</h4>
+                  <h4 className="font-medium text-gray-900 dark:text-white mb-3">Summary</h4>
                   <ul className="space-y-2">
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 mt-2 bg-purple-600 rounded-full mr-2"></span>
-                      <span className="text-gray-700 dark:text-gray-300">Backend development progressing well, with significant contributions from Jane Smith.</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 mt-2 bg-purple-600 rounded-full mr-2"></span>
-                      <span className="text-gray-700 dark:text-gray-300">Frontend dashboard redesign nearing completion, ready for testing.</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 mt-2 bg-purple-600 rounded-full mr-2"></span>
-                      <span className="text-gray-700 dark:text-gray-300">Positive feedback received on UI designs.</span>
-                    </li>
+                    {meeting.summaries?.detailed ? (
+                      // Parse and display the detailed summary content
+                      meeting.summaries.detailed.content
+                        .split('\n\n')
+                        .filter(item => item.trim().match(/^\d+\./)) // Filter for numbered items
+                        .map((item, index) => (
+                          <li key={index} className="flex items-start">
+                            <span className="w-2 h-2 mt-2 bg-purple-600 rounded-full mr-2"></span>
+                            <span className="text-gray-700 dark:text-gray-300">{item}</span>
+                          </li>
+                        ))
+                    ) : (
+                      // Fallback content
+                      <>
+                        <li className="flex items-start">
+                          <span className="w-2 h-2 mt-2 bg-purple-600 rounded-full mr-2"></span>
+                          <span className="text-gray-700 dark:text-gray-300">Backend development progressing well, with significant contributions from Jane Smith.</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="w-2 h-2 mt-2 bg-purple-600 rounded-full mr-2"></span>
+                          <span className="text-gray-700 dark:text-gray-300">Frontend dashboard redesign nearing completion, ready for testing.</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="w-2 h-2 mt-2 bg-purple-600 rounded-full mr-2"></span>
+                          <span className="text-gray-700 dark:text-gray-300">Positive feedback received on UI designs.</span>
+                        </li>
+                      </>
+                    )}
                   </ul>
                 </div>
 
