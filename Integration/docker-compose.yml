@@ -14,7 +14,7 @@ services:
       - UPLOAD_DIR=/app/shared_data/uploads
       - DEBUG=true
       - FIREBASE_DEVELOPMENT_MODE=true
-      - USE_GPU=FALSE
+      - USE_GPU=auto
     volumes:
       - shared_data:/app/shared_data
       - /var/run/docker.sock:/var/run/docker.sock

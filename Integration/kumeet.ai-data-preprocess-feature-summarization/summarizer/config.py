@@ -25,9 +25,17 @@ MIN_DURATION   = 0.5
 GAP_THRESHOLD  = 4.0
 WHISPER_MODEL  = "normal"  # Can be "normal", "better", or "best"
 import torch
+USE_GPU_ENV = os.environ.get('USE_GPU', 'auto').lower()
+if USE_GPU_ENV == 'false':
+    USE_GPU = False
+elif USE_GPU_ENV == 'true':
+    USE_GPU = True
+else:  # 'auto' or any other value
+    USE_GPU = torch.cuda.is_available()
 
-USE_GPU = torch.cuda.is_available()
-DEVICE = "cuda" if USE_GPU else "cpu"
+# Define device based on USE_GPU
+DEVICE = "cuda" if USE_GPU and torch.cuda.is_available() else "cpu"
+print(f"[CONFIG] USE_GPU setting: {USE_GPU}, Actual device: {DEVICE}")
 
 ########################################
 # DB SETTINGS

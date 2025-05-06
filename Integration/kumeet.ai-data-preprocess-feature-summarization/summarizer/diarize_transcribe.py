@@ -97,7 +97,7 @@ def single_pass_whisper(audio_file, quality_setting="normal", language=None):
     return result
 
 
-def pyannote_diarize(audio_file, hf_token=HF_TOKEN, use_gpu=True):
+def pyannote_diarize(audio_file, hf_token=HF_TOKEN, use_gpu=USE_GPU):
     """
     One-pass diarization, returning a pyannote Annotation object.
     """
@@ -105,10 +105,11 @@ def pyannote_diarize(audio_file, hf_token=HF_TOKEN, use_gpu=True):
         "pyannote/speaker-diarization-3.1",
         use_auth_token=hf_token
     )
-    device = torch.device("cuda" if use_gpu and torch.cuda.is_available() else "cpu")
+    can_use_gpu = use_gpu and torch.cuda.is_available()
+    device = torch.device("cuda" if can_use_gpu else "cpu")
     print(f"[INFO] Diarization is using device: {device}")
-    pipeline.to(device)
 
+    pipeline.to(device)
     return pipeline(audio_file)
 
 def merge_close_segments(segments, max_gap=GAP_THRESHOLD):
