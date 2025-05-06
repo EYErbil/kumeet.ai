@@ -123,7 +123,7 @@ const NewMeeting = () => {
       
       // Create the meeting first to get meeting_id
       console.log("Creating meeting...");
-      const meetingData = await post('/meetings', {
+      const meetingData = await post('/meetings/create', {
         title: meetingName || "Untitled Meeting",
         meeting_type: meetingType,
       });

@@ -2,19 +2,12 @@ from firebase_admin import auth
 from firebase_admin.auth import UserNotFoundError, EmailAlreadyExistsError
 from fastapi import HTTPException
 from typing import Dict, Any, Optional
-import os
 from pydantic import BaseModel, EmailStr
 from utils.logger import setup_logger
 from services.user_service import UserService
-from config.settings import settings
 
 # Set up logger for this module
 logger = setup_logger(__name__)
-
-# Check for development mode
-DEV_MODE = settings.DEBUG or os.environ.get("FIREBASE_DEVELOPMENT_MODE", "").lower() in ("true", "1", "yes")
-if DEV_MODE:
-    logger.warning("Auth Service running in DEVELOPMENT MODE - Firebase authentication will be bypassed")
 
 class UserData(BaseModel):
     email: EmailStr
@@ -45,46 +38,6 @@ async def create_user(user_data: UserData) -> Dict[str, Any]:
     try:
         logger.info(f"Creating new user with email: {user_data.email}")
         user_service = UserService()
-        
-        # In development mode, skip Firebase and create user directly in database
-        if DEV_MODE:
-            logger.warning(f"DEV MODE: Creating user without Firebase authentication: {user_data.email}")
-            # Generate a fake UID for dev mode
-            dev_uid = f"dev-{user_data.email.replace('@', '-at-')}"
-            
-            # Check if user already exists in our database
-            existing_user = user_service.get_user_by_email(user_data.email)
-            if existing_user:
-                logger.info(f"DEV MODE: User already exists in database: {user_data.email}")
-                return {
-                    "uid": existing_user['firebase_uid'],
-                    "email": existing_user['email'],
-                    "firstName": existing_user['first_name'],
-                    "lastName": existing_user['last_name'],
-                    "created_at": existing_user['created_at'].isoformat() if existing_user['created_at'] else None
-                }
-            
-            # Create user in database
-            logger.info(f"DEV MODE: Creating user in database with uid: {dev_uid}")
-            user_service.create_user(
-                firebase_uid=dev_uid,
-                email=user_data.email,
-                first_name=user_data.firstName,
-                last_name=user_data.lastName
-            )
-            
-            # Get the created user from database
-            db_user = user_service.get_user_by_firebase_uid(dev_uid)
-            if not db_user:
-                raise Exception("User was created but could not be retrieved")
-            
-            return {
-                "uid": db_user['firebase_uid'],
-                "email": db_user['email'],
-                "firstName": db_user['first_name'],
-                "lastName": db_user['last_name'],
-                "created_at": db_user['created_at'].isoformat() if db_user['created_at'] else None
-            }
         
         # First check if user exists in Firebase
         try:
@@ -205,36 +158,6 @@ async def verify_token(id_token: str) -> Dict[str, Any]:
         HTTPException: If token verification fails or user not found in database
     """
     try:
-        # In development mode, use a dev user or create one
-        if DEV_MODE:
-            logger.warning("DEV MODE: Using development user without token verification")
-            
-            # Use admin/dev user in development mode
-            dev_email = "dev-admin@example.com"
-            dev_uid = f"dev-{dev_email.replace('@', '-at-')}"
-            
-            user_service = UserService()
-            db_user = user_service.get_user_by_firebase_uid(dev_uid)
-            
-            if not db_user:
-                # Create dev user if it doesn't exist
-                logger.info(f"DEV MODE: Creating development user: {dev_email}")
-                user_service.create_user(
-                    firebase_uid=dev_uid,
-                    email=dev_email,
-                    first_name="Development",
-                    last_name="User"
-                )
-                db_user = user_service.get_user_by_firebase_uid(dev_uid)
-            
-            return {
-                "uid": db_user['firebase_uid'],
-                "email": db_user['email'],
-                "firstName": db_user['first_name'],
-                "lastName": db_user['last_name'],
-                "created_at": db_user['created_at'].isoformat() if db_user['created_at'] else None
-            }
-        
         logger.info("Verifying Firebase ID token")
         decoded_token = auth.verify_id_token(id_token)
         firebase_uid = decoded_token.get('uid')
@@ -304,25 +227,6 @@ async def get_user_by_id(uid: str) -> Dict[str, Any]:
         HTTPException: If user is not found or other errors occur
     """
     try:
-        # In development mode, skip Firebase authentication
-        if DEV_MODE:
-            logger.warning(f"DEV MODE: Retrieving user without Firebase: {uid}")
-            user_service = UserService()
-            db_user = user_service.get_user_by_firebase_uid(uid)
-            
-            if not db_user:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"User not found with uid: {uid}"
-                )
-            
-            return {
-                "uid": db_user['firebase_uid'],
-                "email": db_user['email'],
-                "displayName": f"{db_user['first_name']} {db_user['last_name']}",
-                "emailVerified": True
-            }
-        
         logger.info(f"Fetching user data for uid: {uid}")
         user = auth.get_user(uid)
         logger.info(f"Successfully retrieved user data for uid: {uid}")

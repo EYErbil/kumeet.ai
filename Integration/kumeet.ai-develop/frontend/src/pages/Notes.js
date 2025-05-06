@@ -116,6 +116,7 @@ const Notes = () => {
   const [editDate, setEditDate] = useState('');
   const [meetingOptions, setMeetingOptions] = useState([]);
   const [selectedMeetingId, setSelectedMeetingId] = useState('');
+  const [isNewNote, setIsNewNote] = useState(false);
 
   // State for notes
   const [notes, setNotes] = useState([]);
@@ -347,6 +348,9 @@ const Notes = () => {
   const handleSaveNote = async () => {
     if (!selectedNote) return;
 
+    // Don't process if we're in new note mode - use handleSaveNewNote instead
+    if (isNewNote) return;
+
     try {
       const updatedData = {
         content: editContent,
@@ -442,87 +446,93 @@ const Notes = () => {
     }
   };
 
-  // Handle create new note
-  const handleCreateNote = async () => {
+  // Handle create new note (modified to not make API call immediately)
+  const handleCreateNote = () => {
+    const today = new Date().toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    });
+
+    // Set up a new note form without creating in database yet
+    const tempNote = {
+      id: `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      meetingId: null,
+      meetingTitle: "New Note",
+      meetingDate: today,
+      content: "",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      isTemp: true
+    };
+
+    // Select the new note
+    setSelectedNote(tempNote);
+    setEditContent(tempNote.content);
+    setEditTitle(tempNote.meetingTitle);
+    setEditDate(tempNote.meetingDate);
+    setSelectedMeetingId(tempNote.meetingId);
+    setEditMode(true);
+    setIsNewNote(true); // Flag that we're creating a new note
+  };
+
+  // Handle cancel creation
+  const handleCancelCreate = () => {
+    setSelectedNote(null);
+    setEditMode(false);
+    setIsNewNote(false);
+  };
+
+  // Handle save new note - only called when creating a new note
+  const handleSaveNewNote = async () => {
     try {
-      const today = new Date().toLocaleDateString('en-US', {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric'
-      });
-
-      const newNoteData = {
-        meetingId: null,
-        meetingTitle: t('notes.newNote'),
-        meetingDate: today,
-        content: t('notes.contentPlaceholder'),
-        createdBy: {
-          id: '1', // In a real app, this would be the current user's ID
-          name: 'Current User' // In a real app, this would be the current user's name
-        }
-      };
-
-      // Generate a temporary client ID for the note before server creates one
-      const clientId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-
-      // Optimistically add to state with the temp ID
-      const tempNote = {
-        id: clientId,
-        ...newNoteData,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        isTemp: true // Flag to indicate this is a temporary note
-      };
-
-      // Update local state
-      const updatedNotes = [tempNote, ...notes];
-      setNotes(updatedNotes);
-
-      // Update localStorage for persistence
-      try {
-        localStorage.setItem('kumeet_notes', JSON.stringify(updatedNotes));
-      } catch (e) {
-        console.warn('Failed to save notes to localStorage:', e);
+      // Validate fields
+      if (!editContent.trim()) {
+        alert("Note content cannot be empty");
+        return;
       }
 
-      // Select the new note
-      setSelectedNote(tempNote);
-      setEditContent(tempNote.content);
-      setEditTitle(tempNote.meetingTitle);
-      setEditDate(tempNote.meetingDate);
-      setSelectedMeetingId(tempNote.meetingId);
-      setEditMode(true);
+      const newNoteData = {
+        meetingId: selectedMeetingId || null,
+        meetingTitle: editTitle,
+        meetingDate: editDate,
+        content: editContent
+      };
 
-      // Now call the API
+      // Call API to create note
       const response = await api.post('/notes', newNoteData);
       console.log('Create response:', response);
 
-      // If we got a valid response, update our local state with the server ID
       if (response && response.id) {
-        const serverNote = {
-          ...tempNote,
+        // Format the note for the frontend
+        const createdNote = {
           id: response.id,
-          isTemp: false
+          content: editContent,
+          meetingId: selectedMeetingId || null,
+          meetingTitle: editTitle,
+          meetingDate: editDate,
+          createdAt: response.createdAt || new Date().toISOString(),
+          updatedAt: response.updatedAt || new Date().toISOString(),
+          createdBy: response.createdBy || { id: '1', name: 'Current User' }
         };
 
-        // Update local state, replacing the temp note with the server note
-        const updatedWithServerNotes = notes.map(note =>
-          note.id === clientId ? serverNote : note
-        );
+        // Add to notes collection and exit edit mode
+        const updatedNotes = [createdNote, ...notes];
+        setNotes(updatedNotes);
+        setSelectedNote(createdNote);
+        setEditMode(false);
+        setIsNewNote(false);
 
-        setNotes(updatedWithServerNotes);
-        setSelectedNote(serverNote);
-
-        // Update localStorage with server data
+        // Update localStorage
         try {
-          localStorage.setItem('kumeet_notes', JSON.stringify(updatedWithServerNotes));
+          localStorage.setItem('kumeet_notes', JSON.stringify(updatedNotes));
         } catch (e) {
           console.warn('Failed to save notes to localStorage:', e);
         }
       }
     } catch (error) {
       console.error('Failed to create note:', error);
-      // Note is still in local state even if server call failed
+      alert('Failed to create note: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -535,13 +545,16 @@ const Notes = () => {
           </Link>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('notes.title')}</h1>
         </div>
-        <button
-          onClick={handleCreateNote}
-          className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
-        >
-          <FaPlus className="mr-2" />
-          <span>{t('notes.newNote')}</span>
-        </button>
+        {/* Only show New Note button when NOT in edit mode */}
+        {!editMode && (
+          <button
+            onClick={handleCreateNote}
+            className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+          >
+            <FaPlus className="mr-2" />
+            <span>{t('notes.newNote')}</span>
+          </button>
+        )}
       </div>
 
       {error && (
@@ -563,7 +576,7 @@ const Notes = () => {
           <div className="relative mb-4">
             <input
               type="text"
-              placeholder={t('notes.searchPlaceholder')}
+              placeholder="Search for a note"
               value={searchTerm}
               onChange={handleSearch}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
@@ -587,7 +600,7 @@ const Notes = () => {
               ))
             ) : (
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                {t('notes.noNotesFound')}
+                No Notes Found
               </div>
             )}
           </div>
@@ -602,7 +615,7 @@ const Notes = () => {
                   <div className="mb-4 space-y-3">
                     <div>
                       <label htmlFor="note-title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        {t('notes.noteTitle')}
+                        Note Title
                       </label>
                       <input
                         id="note-title"
@@ -615,7 +628,7 @@ const Notes = () => {
                     </div>
                     <div>
                       <label htmlFor="note-date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        {t('notes.noteDate')}
+                        Note Date
                       </label>
                       <input
                         id="note-date"
@@ -649,35 +662,36 @@ const Notes = () => {
                     </div>
                   </div>
 
-                  <div className="flex-1 mb-4 flex flex-col">
+                  <div className="flex-grow mb-4">
                     <label htmlFor="note-content" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      {t('notes.noteContent')}
+                      Note Content
                     </label>
-                    <div className="flex-1 relative">
-                      <textarea
-                        id="note-content"
-                        value={editContent}
-                        onChange={(e) => setEditContent(e.target.value)}
-                        className="w-full h-full absolute inset-0 p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                        style={{ minHeight: '300px', height: 'calc(100% - 20px)' }}
-                        placeholder={t('notes.contentPlaceholder')}
-                      />
-                    </div>
+                    <textarea
+                      id="note-content"
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                      className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none h-64"
+                      style={{ minHeight: "200px" }}
+                      placeholder="Start typing your note here..."
+                    />
                   </div>
 
-                  <div className="flex justify-end space-x-3 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <button
-                      onClick={() => setEditMode(false)}
-                      className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
-                    >
-                      {t('common.cancel')}
-                    </button>
-                    <button
-                      onClick={handleSaveNote}
-                      className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
-                    >
-                      {t('common.save')}
-                    </button>
+                  {/* Always show the action buttons at the bottom when in edit mode */}
+                  <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex justify-end space-x-3">
+                      <button
+                        onClick={isNewNote ? handleCancelCreate : () => setEditMode(false)}
+                        className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        {isNewNote ? "Cancel" : t('common.cancel')}
+                      </button>
+                      <button
+                        onClick={isNewNote ? handleSaveNewNote : handleSaveNote}
+                        className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                      >
+                        {isNewNote ? "Create Note" : t('common.save')}
+                      </button>
+                    </div>
                   </div>
                 </div>
               ) : (

@@ -91,10 +91,19 @@ const MeetingList = () => {
     const fetchMeetings = async () => {
       try {
         setLoading(true);
-        const response = await api.get('/meetings');
-        setMeetings(response.meetings);
+        // Try GET first, if that fails, fall back to POST
+        try {
+          const response = await api.get('/meetings');
+          setMeetings(response.meetings);
+        } catch (getError) {
+          console.warn('GET request for meetings failed, falling back to POST', getError);
+          // Try POST as fallback if GET fails with 405
+          const response = await api.post('/meetings', {});
+          setMeetings(response.meetings);
+        }
         setLoading(false);
       } catch (err) {
+        console.error('Failed to fetch meetings:', err);
         setError(err.message || 'Failed to fetch meetings');
         setLoading(false);
       }

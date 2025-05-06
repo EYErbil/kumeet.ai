@@ -68,6 +68,21 @@ except Exception as e:
     logger.error(f"Error creating PostgreSQL connection pool: {e}")
     connection_pool = None
 
+# Create a global database connection for direct use
+try:
+    conn = psycopg2.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASSWORD
+    )
+    conn.autocommit = False
+    logger.info("Created global database connection")
+except Exception as e:
+    logger.error(f"Error creating global database connection: {e}")
+    conn = None
+
 @contextmanager
 def get_db_connection():
     """

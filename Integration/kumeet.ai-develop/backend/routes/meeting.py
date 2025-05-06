@@ -11,6 +11,8 @@ from services.summarization_service import SummarizationService
 from utils.api_responses import success_response, error_response, not_found_response
 from config.settings import settings
 from .auth import get_current_user, get_optional_current_user
+from fastapi.responses import RedirectResponse
+import moviepy.editor as mp
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -59,19 +61,45 @@ class ErrorResponse(BaseModel):
     detail: str
 
 
+# Add an empty path GET route for redirection
+@router.get("")
+async def get_meetings_redirect():
+    """Redirect to the GET route with trailing slash"""
+    logger.info("Redirecting from /meetings to /meetings/")
+    return RedirectResponse(url="./meetings/")
+
 @router.get("/")
 async def get_meetings(
         limit: int = Query(50, description="Number of meetings to return"),
-        offset: int = Query(0, description="Offset for pagination")
+        offset: int = Query(0, description="Offset for pagination"),
+        current_user: Optional[Dict[str, Any]] = Depends(get_optional_current_user)
 ):
     """Get all meetings"""
     try:
-        meetings = MeetingService.get_meetings(limit=limit, offset=offset)
+        user_id = current_user.get("uid") if current_user else None
+        logger.info(f"Getting meetings for user: {user_id} with limit: {limit}, offset: {offset}")
+        meetings = MeetingService.get_meetings(user_id=user_id, limit=limit, offset=offset)
         return success_response({"meetings": meetings})
     except Exception as e:
         logger.error(f"Error in get_meetings: {e}")
         return error_response(str(e))
 
+# Add a POST endpoint for getting meetings since frontend falls back to POST
+@router.post("")
+async def get_meetings_post(
+        limit: int = Query(50, description="Number of meetings to return"),
+        offset: int = Query(0, description="Offset for pagination"),
+        current_user: Optional[Dict[str, Any]] = Depends(get_optional_current_user)
+):
+    """Get all meetings via POST method (fallback for frontend compatibility)"""
+    try:
+        user_id = current_user.get("uid") if current_user else None
+        logger.info(f"Getting meetings (POST method) for user: {user_id} with limit: {limit}, offset: {offset}")
+        meetings = MeetingService.get_meetings(user_id=user_id, limit=limit, offset=offset)
+        return success_response({"meetings": meetings})
+    except Exception as e:
+        logger.error(f"Error in get_meetings_post: {e}")
+        return error_response(str(e))
 
 @router.get("/recent")
 async def get_recent_meetings(
@@ -108,43 +136,6 @@ async def get_today_meetings():
         return success_response({"meetings": meetings})
     except Exception as e:
         logger.error(f"Error in get_today_meetings: {e}")
-        return error_response(str(e))
-
-
-@router.get("/{meeting_id}/action-items")
-async def get_meeting_action_items(
-        meeting_id: int,
-        limit: int = Query(50, description="Number of action items to return")
-):
-    """Get action items for a specific meeting"""
-    try:
-        logger.info(f"Getting action items for meeting ID: {meeting_id}")
-        
-        # First check if meeting exists
-        meeting = MeetingService.get_meeting_by_id(meeting_id)
-        if not meeting:
-            return not_found_response("Meeting")
-            
-        # Get action items for this meeting
-        action_items = ActionItemsService.get_action_items_for_meeting(meeting_id, limit)
-        
-        logger.info(f"Found {len(action_items)} action items for meeting {meeting_id}")
-        return success_response({"action_items": action_items})
-    except Exception as e:
-        logger.error(f"Error in get_meeting_action_items: {e}")
-        return error_response(str(e))
-
-
-@router.get("/{meeting_id}")
-async def get_meeting(meeting_id: int):
-    """Get a specific meeting by ID"""
-    try:
-        meeting = MeetingService.get_meeting_by_id(meeting_id)
-        if not meeting:
-            return not_found_response("Meeting")
-        return success_response(meeting)
-    except Exception as e:
-        logger.error(f"Error in get_meeting: {e}")
         return error_response(str(e))
 
 
@@ -187,6 +178,60 @@ async def get_action_items_for_meeting_alt(
         return success_response({"action_items": action_items})
     except Exception as e:
         logger.error(f"Error in get_action_items_for_meeting_alt: {e}")
+        return error_response(str(e))
+
+
+@router.get("/{meeting_id}/action-items")
+async def get_meeting_action_items(
+        meeting_id: int,
+        limit: int = Query(50, description="Number of action items to return")
+):
+    """Get action items for a specific meeting"""
+    try:
+        logger.info(f"Getting action items for meeting ID: {meeting_id}")
+        
+        # First check if meeting exists
+        meeting = MeetingService.get_meeting_by_id(meeting_id)
+        if not meeting:
+            return not_found_response("Meeting")
+            
+        # Get action items for this meeting
+        action_items = ActionItemsService.get_action_items_for_meeting(meeting_id, limit)
+        
+        logger.info(f"Found {len(action_items)} action items for meeting {meeting_id}")
+        return success_response({"action_items": action_items})
+    except Exception as e:
+        logger.error(f"Error in get_meeting_action_items: {e}")
+        return error_response(str(e))
+
+
+@router.get("/{meeting_id}/summary")
+async def get_meeting_summary(meeting_id: int):
+    """
+    Get the summary for a meeting
+    """
+    try:
+        # First check if meeting exists
+        meeting = MeetingService.get_meeting_by_id(meeting_id)
+        if not meeting:
+            return not_found_response("Meeting")
+        
+        # Get the summary
+        summary = SummarizationService.get_meeting_summary(meeting_id)
+        
+        if not summary:
+            return success_response({
+                "has_summary": False,
+                "message": "No summary available for this meeting"
+            })
+        
+        return success_response({
+            "has_summary": True,
+            "summary": summary
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting meeting summary: {str(e)}")
         return error_response(str(e))
 
 
@@ -291,6 +336,22 @@ async def upload_audio_for_meeting(
                 "audio_path": str(file_path)
             })
             logger.info(f"Meeting {meeting_id} updated with audio path: {file_path}")
+            
+            # Calculate and update the duration from the audio file
+            try:
+                audio_clip = mp.AudioFileClip(str(file_path))
+                duration_seconds = int(audio_clip.duration)
+                audio_clip.close()
+                
+                if duration_seconds > 0:
+                    logger.info(f"Extracted audio duration: {duration_seconds} seconds for meeting {meeting_id}")
+                    MeetingService.update_meeting(meeting_id, {
+                        "duration_seconds": duration_seconds
+                    })
+                    logger.info(f"Updated meeting {meeting_id} with duration: {duration_seconds} seconds")
+            except Exception as duration_error:
+                logger.error(f"Failed to extract audio duration: {str(duration_error)}")
+                # Don't fail the request if duration extraction fails
         except Exception as e:
             logger.error(f"Failed to update meeting with audio path: {str(e)}")
             # Don't return error here - processing was successful, so continue
@@ -313,37 +374,20 @@ async def upload_audio_for_meeting(
         )
 
 
-@router.get("/{meeting_id}/summary")
-async def get_meeting_summary(meeting_id: int):
-    """
-    Get the summary for a meeting
-    """
+@router.get("/{meeting_id}")
+async def get_meeting(meeting_id: int):
+    """Get a specific meeting by ID"""
     try:
-        # First check if meeting exists
         meeting = MeetingService.get_meeting_by_id(meeting_id)
         if not meeting:
             return not_found_response("Meeting")
-        
-        # Get the summary
-        summary = SummarizationService.get_meeting_summary(meeting_id)
-        
-        if not summary:
-            return success_response({
-                "has_summary": False,
-                "message": "No summary available for this meeting"
-            })
-        
-        return success_response({
-            "has_summary": True,
-            "summary": summary
-        })
-        
+        return success_response(meeting)
     except Exception as e:
-        logger.error(f"Error getting meeting summary: {str(e)}")
+        logger.error(f"Error in get_meeting: {e}")
         return error_response(str(e))
 
 
-@router.post("")
+@router.post("/create")
 async def create_meeting(
     meeting: MeetingCreate, 
     request: Request,

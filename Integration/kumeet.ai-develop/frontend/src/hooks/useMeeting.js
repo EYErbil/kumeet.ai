@@ -22,12 +22,21 @@ const useMeeting = (meetingId = null) => {
           setData(response);
         } else {
           // Fetch all meetings
-          const response = await api.get('/meetings');
-          setData(response.meetings);
+          // Try GET first, if that fails, fall back to POST
+          try {
+            const response = await api.get('/meetings');
+            setData(response.meetings);
+          } catch (getError) {
+            console.warn('GET request for meetings failed, falling back to POST', getError);
+            // Try POST as fallback if GET fails with 405
+            const response = await api.post('/meetings', {});
+            setData(response.meetings);
+          }
         }
 
         setLoading(false);
       } catch (err) {
+        console.error('Failed to fetch meeting data:', err);
         setError(err.message || 'Failed to fetch meeting data');
         setLoading(false);
       }

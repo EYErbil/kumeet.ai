@@ -8,7 +8,10 @@ import * as api from '../utils/api';
 // Meeting card component (unchanged)
 const MeetingCard = ({ meeting }) => {
   const { t } = useTranslation();
-  const { id, title, date, time, duration, description, category, attendees, platform } = meeting;
+  const { id, meeting_id, title, date, time, duration, description, category, attendees, platform } = meeting;
+  
+  // Use meeting_id if available, fallback to id, ensure it's a string
+  const meetingId = String(meeting_id || id);
 
   // Platform icon based on meeting platform
   const getPlatformIcon = () => {
@@ -22,8 +25,11 @@ const MeetingCard = ({ meeting }) => {
     }
   };
 
+  // Debug information - log the meetingId to help diagnose issues
+  console.log('MeetingCard rendering with ID:', id, 'meeting_id:', meeting_id, 'using meetingId:', meetingId);
+
   return (
-    <Link to={ROUTES.MEETINGS.DETAIL(id)} className="block">
+    <Link to={`/meetings/${meetingId}`} className="block">
       <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow duration-200">
         <div className="flex justify-between items-start mb-2">
           <h3 className="text-lg font-medium text-gray-900 dark:text-white">{title}</h3>
@@ -191,12 +197,33 @@ const Dashboard = () => {
       try {
         setLoadingMeetings(true);
         const response = await api.get('/meetings/recent');
-        setRecentMeetings(response.meetings);
+        
+        console.log('Recent meetings API response:', response);
+        
+        if (response && response.meetings && Array.isArray(response.meetings)) {
+          // Ensure consistent meeting ID property for each meeting
+          const formattedMeetings = response.meetings.map(meeting => {
+            const meetingObj = {
+              ...meeting,
+              id: meeting.id || meeting.meeting_id, // Ensure id is always available
+              meeting_id: meeting.meeting_id || meeting.id // Ensure meeting_id is always available
+            };
+            console.log('Processed recent meeting:', meetingObj);
+            return meetingObj;
+          });
+          setRecentMeetings(formattedMeetings);
+        } else {
+          console.warn('Recent meetings API returned unexpected format:', response);
+          // Fallback to sample data
+          setRecentMeetings(sampleMeetings);
+        }
+        
         setLoadingMeetings(false);
       } catch (error) {
         console.error('Error fetching recent meetings:', error);
+        console.error('Error details:', error.message, error.status, error.response);
         setMeetingsError(error.message || 'Failed to fetch recent meetings');
-        // Use sample data as fallback
+        // Fallback to sample data
         setRecentMeetings(sampleMeetings);
         setLoadingMeetings(false);
       }
@@ -211,21 +238,59 @@ const Dashboard = () => {
       try {
         setLoadingToday(true);
         const response = await api.get('/meetings/today');
-        setTodayMeetings(response.meetings);
+        
+        console.log('Today\'s meetings API response:', response);
+        
+        if (response && response.meetings && Array.isArray(response.meetings)) {
+          // Ensure consistent meeting ID property for each meeting
+          const formattedMeetings = response.meetings.map(meeting => {
+            const meetingObj = {
+              ...meeting,
+              id: meeting.id || meeting.meeting_id, // Ensure id is always available
+              meeting_id: meeting.meeting_id || meeting.id // Ensure meeting_id is always available
+            };
+            console.log('Processed today meeting:', meetingObj);
+            return meetingObj;
+          });
+          setTodayMeetings(formattedMeetings);
+        } else {
+          console.warn('Today\'s meetings API returned unexpected format:', response);
+          // Fallback to sample data
+          setTodayMeetings([
+            {
+              id: 1,
+              meeting_id: 1,
+              title: 'Daily Standup',
+              time: '10:00 AM',
+              platform: 'google',
+            },
+            {
+              id: 2,
+              meeting_id: 2,
+              title: 'Product Review',
+              time: '2:00 PM',
+              platform: 'teams',
+            }
+          ]);
+        }
+        
         setLoadingToday(false);
       } catch (error) {
         console.error('Error fetching today\'s meetings:', error);
+        console.error('Error details:', error.message, error.status, error.response);
         setTodayError(error.message || 'Failed to fetch today\'s meetings');
         // Fallback to sample data
         setTodayMeetings([
           {
             id: 1,
+            meeting_id: 1,
             title: 'Daily Standup',
             time: '10:00 AM',
             platform: 'google',
           },
           {
             id: 2,
+            meeting_id: 2,
             title: 'Product Review',
             time: '2:00 PM',
             platform: 'teams',
@@ -408,19 +473,25 @@ const Dashboard = () => {
                 renderLoading()
               ) : todayMeetings.length > 0 ? (
                 <div className="space-y-3">
-                  {todayMeetings.map((meeting, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="flex-shrink-0">
-                          {getPlatformIcon(meeting.platform)}
+                  {todayMeetings.map((meeting, index) => {
+                    // Use the same approach as MeetingCard for consistent ID handling
+                    // Make sure to convert ID to string
+                    const meetingId = String(meeting.meeting_id || meeting.id);
+                    console.log('Today meeting with ID:', meeting.id, 'meeting_id:', meeting.meeting_id, 'using meetingId:', meetingId);
+                    return (
+                      <Link to={`/meetings/${meetingId}`} key={index} className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 p-2 rounded-lg transition-colors duration-200">
+                        <div className="flex items-center space-x-3">
+                          <div className="flex-shrink-0">
+                            {getPlatformIcon(meeting.platform)}
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">{meeting.title}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">{meeting.time}</div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">{meeting.title}</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">{meeting.time}</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                      </Link>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-sm text-gray-500 dark:text-gray-400">{t('dashboard.todaysPlan.noMeetings')}</div>
@@ -512,7 +583,7 @@ const Dashboard = () => {
         <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">{t('dashboard.upcomingMeetings.title')}</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {/* Tomorrow's meetings */}
-          <div className="bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900 dark:to-blue-900 rounded-lg p-4">
+          <Link to={ROUTES.MEETINGS.LIST} className="bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900 dark:to-blue-900 rounded-lg p-4 hover:shadow-md transition-shadow duration-200">
             <div className="flex justify-between items-center mb-3">
               <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200">{t('dashboard.upcomingMeetings.tomorrow')}</h3>
               <div className="text-xs text-gray-500 dark:text-gray-400">May 2, 2024</div>
@@ -525,7 +596,7 @@ const Dashboard = () => {
               <div className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 border border-white dark:border-gray-800"></div>
               <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 border border-white dark:border-gray-800 flex items-center justify-center text-xs text-gray-600 dark:text-gray-300">+2</div>
             </div>
-          </div>
+          </Link>
           
           {/* Add meeting quick access */}
           <Link to={ROUTES.MEETINGS.NEW} className="flex flex-col items-center justify-center bg-white dark:bg-gray-800 rounded-lg p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-purple-300 dark:hover:border-purple-500 transition-colors">
