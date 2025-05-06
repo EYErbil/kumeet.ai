@@ -163,9 +163,13 @@ class SummarizationService:
                     os.path.join(results_dir, "summary.txt"),
                     os.path.join(results_dir, f"{session_id}_summary.txt")
                 ],
-                "transcript": [
+                "transcript_csv": [
                     os.path.join(results_dir, "transcript.csv"),
                     os.path.join(results_dir, f"{session_id}_transcript.csv")
+                ],
+                "transcript_json": [
+                    os.path.join(results_dir, "transcript.json"),
+                    os.path.join(results_dir, f"{session_id}_transcript.json")
                 ],
                 "action_items": [
                     os.path.join(results_dir, "summary.csv"),
@@ -188,7 +192,7 @@ class SummarizationService:
                 return False
             
             # Warning for missing files
-            for file_type in ["transcript", "action_items"]:
+            for file_type in ["transcript_csv", "transcript_json", "action_items"]:
                 if file_type not in found_files:
                     logger.warning(f"{file_type} file not found in {results_dir}")
             
@@ -198,8 +202,14 @@ class SummarizationService:
             
             # Parse transcript CSV if it exists
             transcript = []
-            if "transcript" in found_files:
-                transcript = SummarizationService._parse_transcript_csv(found_files["transcript"])
+            if "transcript_csv" in found_files:
+                transcript = SummarizationService._parse_transcript_csv(found_files["transcript_csv"])
+            
+            # Parse transcript JSON if it exists and insert into speaker_segments table
+            if "transcript_json" in found_files:
+                transcript_segments = SummarizationService._parse_transcript_json(found_files["transcript_json"])
+                if transcript_segments:
+                    SummarizationService._insert_speaker_segments(meeting_id, transcript_segments)
             
             # Parse action items CSV if it exists
             action_items = []
@@ -216,6 +226,77 @@ class SummarizationService:
             
         except Exception as e:
             logger.error(f"Error processing results: {str(e)}")
+            return False
+
+    @staticmethod
+    def _parse_transcript_json(file_path):
+        """Parse transcript JSON file into list of segments format"""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                transcript_data = json.load(f)
+                logger.info(f"Parsed transcript JSON with {len(transcript_data)} segments")
+                return transcript_data
+        except Exception as e:
+            logger.error(f"Error parsing transcript JSON: {str(e)}")
+            return []
+
+    @staticmethod
+    def _insert_speaker_segments(meeting_id, transcript_segments):
+        """
+        Insert transcript segments into speaker_segments table
+        
+        Args:
+            meeting_id (int): ID of the meeting
+            transcript_segments (list): List of transcript segments with speaker, start, end, text fields
+        """
+        try:
+            with transaction() as conn:
+                with conn.cursor() as cursor:
+                    # First check if any segments already exist for this meeting
+                    cursor.execute("""
+                        SELECT COUNT(*) FROM speaker_segments WHERE meeting_id = %s
+                    """, (meeting_id,))
+                    count = cursor.fetchone()[0]
+                    
+                    # If segments already exist, log and return
+                    if count > 0:
+                        logger.info(f"Speaker segments already exist for meeting {meeting_id}, skipping insert")
+                        return
+                    
+                    # Insert each segment
+                    for segment in transcript_segments:
+                        cursor.execute("""
+                            INSERT INTO speaker_segments (
+                                meeting_id, speaker_label, start_time, end_time, transcript
+                            ) VALUES (%s, %s, %s, %s, %s)
+                        """, (
+                            meeting_id,
+                            segment.get('speaker', 'unknown'),
+                            float(segment.get('start', 0)),
+                            float(segment.get('end', 0)),
+                            segment.get('text', '')
+                        ))
+                    
+                    # Also insert speaker entries for each unique speaker
+                    unique_speakers = set(segment.get('speaker', 'unknown') for segment in transcript_segments)
+                    for speaker in unique_speakers:
+                        # Check if speaker entry already exists
+                        cursor.execute("""
+                            SELECT COUNT(*) FROM speakers 
+                            WHERE meeting_id = %s AND speaker_label = %s
+                        """, (meeting_id, speaker))
+                        exists = cursor.fetchone()[0] > 0
+                        
+                        if not exists:
+                            cursor.execute("""
+                                INSERT INTO speakers (meeting_id, speaker_label, identified_name)
+                                VALUES (%s, %s, %s)
+                            """, (meeting_id, speaker, speaker))
+            
+            logger.info(f"Successfully inserted {len(transcript_segments)} speaker segments for meeting {meeting_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error inserting speaker segments: {str(e)}")
             return False
 
     @staticmethod

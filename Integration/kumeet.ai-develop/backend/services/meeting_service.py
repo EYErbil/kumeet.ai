@@ -263,8 +263,8 @@ class MeetingService:
                     for segment in segments:
                         meeting['transcript_segments'].append({
                             'speaker': segment['identified_name'] or segment['speaker_label'],
-                            'start_time': segment['start_time'],
-                            'end_time': segment['end_time'],
+                            'start_time': float(segment['start_time']),
+                            'end_time': float(segment['end_time']),
                             'text': segment['transcript']
                         })
 
