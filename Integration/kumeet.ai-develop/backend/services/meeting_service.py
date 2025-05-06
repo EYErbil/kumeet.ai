@@ -192,10 +192,13 @@ class MeetingService:
                         }
 
                         if stats:
-                            participant_obj['talkTime'] = f"{int(stats['total_speaking_time']) // 60}m"
+                            # Format talk time to show both minutes and seconds
+                            total_seconds = float(stats['total_speaking_time'])
+                            minutes = int(total_seconds // 60)
+                            seconds = int(total_seconds % 60)
+                            participant_obj['talkTime'] = f"{minutes}m {seconds}s"
                             participant_obj['talkPercentage'] = round(stats['speaking_percentage'])
                             participant_obj['participationScore'] = min(100, 100 - round(stats['speaking_percentage']))
-                            participant_obj['wpm'] = random.randint(150, 200)  # Mock WPM
 
                         participants_with_stats.append(participant_obj)
 

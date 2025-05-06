@@ -713,6 +713,28 @@ const MeetingDetail = () => {
           <div className="space-y-6">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
               <div className="p-6">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Meeting Overview</h3>
+                <div className="mb-6 p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                  <div className="flex items-center">
+                    <FaChartBar className="text-purple-600 mr-2" size={18} />
+                    <div className="text-gray-900 dark:text-white">
+                      <span className="font-medium">Total Meeting Duration: </span>
+                      {meeting.duration_seconds ? (
+                        <span className="text-gray-700 dark:text-gray-300">
+                          {Math.floor(meeting.duration_seconds / 3600) > 0 
+                            ? `${Math.floor(meeting.duration_seconds / 3600)}h ` 
+                            : ''}
+                          {Math.floor((meeting.duration_seconds % 3600) / 60) > 0 
+                            ? `${Math.floor((meeting.duration_seconds % 3600) / 60)}m ` 
+                            : ''}
+                          {Math.floor(meeting.duration_seconds % 60)}s
+                        </span>
+                      ) : (
+                        <span className="text-gray-700 dark:text-gray-300">Not available</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Participation Analysis</h3>
                 <div className="space-y-6">
                   {meeting.participants && meeting.participants.map((speaker, index) => (
@@ -729,18 +751,17 @@ const MeetingDetail = () => {
                             <p className="text-sm text-gray-500 dark:text-gray-400">{speaker.role}</p>
                           </div>
                           <div className="text-right">
-                            <div className="text-sm font-medium text-gray-900 dark:text-white">{speaker.wpm || '175'} WPM</div>
-                            <div className="text-sm text-gray-500 dark:text-gray-400">{speaker.talkTime || '10m'}</div>
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">{speaker.talkPercentage || 0}%</div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">{speaker.talkTime || '0m 0s'}</div>
                           </div>
                         </div>
                         <div className="flex items-center">
                           <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                             <div
                               className="bg-purple-600 h-2 rounded-full"
-                              style={{ width: `${speaker.talkPercentage || 50}%` }}
+                              style={{ width: `${speaker.talkPercentage || 0}%` }}
                             ></div>
                           </div>
-                          <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">{speaker.talkPercentage || 50}%</span>
                         </div>
                       </div>
                     </div>

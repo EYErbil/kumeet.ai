@@ -210,6 +210,8 @@ class SummarizationService:
                 transcript_segments = SummarizationService._parse_transcript_json(found_files["transcript_json"])
                 if transcript_segments:
                     SummarizationService._insert_speaker_segments(meeting_id, transcript_segments)
+                    # Calculate and insert speaker statistics
+                    SummarizationService._calculate_speaker_statistics(meeting_id)
             
             # Parse action items CSV if it exists
             action_items = []
@@ -312,6 +314,93 @@ class SummarizationService:
         except Exception as e:
             logger.error(f"Error parsing transcript CSV: {str(e)}")
             return []
+
+    @staticmethod
+    def _calculate_speaker_statistics(meeting_id):
+        """
+        Calculate speaking time statistics for each speaker and insert into speaker_statistics table
+        
+        Args:
+            meeting_id (int): ID of the meeting
+        """
+        try:
+            with transaction() as conn:
+                with conn.cursor() as cursor:
+                    # First check if statistics already exist
+                    cursor.execute("""
+                        SELECT COUNT(*) FROM speaker_statistics WHERE meeting_id = %s
+                    """, (meeting_id,))
+                    count = cursor.fetchone()[0]
+                    
+                    # If statistics already exist, log and return
+                    if count > 0:
+                        logger.info(f"Speaker statistics already exist for meeting {meeting_id}, skipping calculation")
+                        return
+                    
+                    # Get all distinct speakers for this meeting
+                    cursor.execute("""
+                        SELECT DISTINCT speaker_label 
+                        FROM speaker_segments
+                        WHERE meeting_id = %s
+                    """, (meeting_id,))
+                    
+                    speakers = [row[0] for row in cursor.fetchall()]
+                    if not speakers:
+                        logger.warning(f"No speakers found for meeting {meeting_id}, skipping statistics calculation")
+                        return
+                    
+                    logger.info(f"Calculating statistics for {len(speakers)} speakers in meeting {meeting_id}")
+                    
+                    # Calculate total speaking time for all speakers
+                    cursor.execute("""
+                        SELECT SUM(end_time - start_time) as total_time
+                        FROM speaker_segments
+                        WHERE meeting_id = %s
+                    """, (meeting_id,))
+                    
+                    result = cursor.fetchone()
+                    total_speaking_time = float(result[0]) if result and result[0] else 0
+                    
+                    if total_speaking_time <= 0:
+                        logger.warning(f"Total speaking time is zero for meeting {meeting_id}, skipping statistics calculation")
+                        return
+                    
+                    # For each speaker, calculate their speaking time and percentage
+                    for speaker_label in speakers:
+                        cursor.execute("""
+                            SELECT SUM(end_time - start_time) as speaker_time
+                            FROM speaker_segments
+                            WHERE meeting_id = %s AND speaker_label = %s
+                        """, (meeting_id, speaker_label))
+                        
+                        result = cursor.fetchone()
+                        speaker_time = float(result[0]) if result and result[0] else 0
+                        speaking_percentage = round((speaker_time / total_speaking_time) * 100, 2)
+                        
+                        # For now, set interruption_count to 0
+                        interruption_count = 0
+                        
+                        # Insert into speaker_statistics table
+                        cursor.execute("""
+                            INSERT INTO speaker_statistics (
+                                meeting_id, speaker_label, total_speaking_time, 
+                                speaking_percentage, interruption_count
+                            ) VALUES (%s, %s, %s, %s, %s)
+                        """, (
+                            meeting_id,
+                            speaker_label,
+                            speaker_time,
+                            speaking_percentage,
+                            interruption_count
+                        ))
+                    
+                    conn.commit()
+                    logger.info(f"Successfully calculated and inserted speaker statistics for meeting {meeting_id}")
+                    return True
+                    
+        except Exception as e:
+            logger.error(f"Error calculating speaker statistics: {str(e)}")
+            return False
 
     @staticmethod
     def _parse_action_items_csv(file_path):
