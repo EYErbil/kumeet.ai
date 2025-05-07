@@ -12,71 +12,22 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["action-items"])
 
-
-class AssigneeModel(BaseModel):
-    id: str
-    name: Optional[str] = None
-    email: Optional[str] = None
-
-
 class ActionItemCreate(BaseModel):
-    text: str
-    meetingId: Optional[str] = None
-    dueDate: Optional[str] = None
-    completed: Optional[bool] = False
-    assignee: Optional[AssigneeModel] = None
+    description: str
+    meeting_id: Optional[str] = None
+    due_date: Optional[str] = None
+    status: Optional[str] = 'pending'
 
 
 class ActionItemUpdate(BaseModel):
-    text: Optional[str] = None
-    meetingId: Optional[str] = None
-    dueDate: Optional[str] = None
-    completed: Optional[bool] = None
-    assignee: Optional[AssigneeModel] = None
+    description: Optional[str] = None
+    meeting_id: Optional[str] = None
+    due_date: Optional[str] = None
+    status: Optional[str] = None
+
 
 
 @router.get("/all")
-async def get_all_action_items(
-        request: Request,
-        limit: int = Query(50, description="Maximum number of items to return")
-):
-    """
-    Get all action items
-
-    This endpoint works with or without authentication
-    """
-    try:
-        logger.info("GET /action-items/all endpoint called")
-
-        # Try to get user from auth, but don't require it
-        user_id = None
-        try:
-            # Get the authorization header
-            auth_header = request.headers.get('Authorization')
-            logger.debug(f"Auth header: {auth_header}")
-
-            if auth_header and auth_header.startswith('Bearer '):
-                # Process the token and get the user
-                token = auth_header.replace('Bearer ', '')
-                user = await get_current_user(token)
-                user_id = user.get("uid")
-                logger.info(f"Authenticated user: {user_id}")
-        except Exception as auth_err:
-            logger.warning(f"Authentication error but continuing: {auth_err}")
-
-        # Get action items, with or without user filter
-        action_items = ActionItemsService.get_all_action_items(user_id, limit)
-        logger.info(f"Returning {len(action_items)} action items")
-
-        # Return in the expected format
-        return {"action_items": action_items}
-    except Exception as e:
-        logger.error(f"Error in get_all_action_items: {e}")
-        # Return empty array instead of error to avoid breaking frontend
-        return {"action_items": []}
-
-
-@router.get("/user")
 async def get_action_items_for_user(
         limit: int = Query(50, description="Maximum number of items to return"),
         current_user: Dict[str, Any] = Depends(get_current_user)
@@ -126,15 +77,11 @@ async def create_action_item(
         # Map frontend fields to backend fields
         item_data = {
             "firebase_uid": user_id,
-            "meeting_id": item.meetingId,
-            "text": item.text,
-            "due_date": item.dueDate,
-            "completed": item.completed
+            "meeting_id": item.meeting_id if hasattr(item, 'meeting_id') else None,
+            "description": item.description,
+            "due_date": item.due_date,
+            "status": item.status
         }
-
-        # If an assignee is specified and is not the current user
-        if item.assignee and item.assignee.id and item.assignee.id != user_id:
-            item_data["firebase_uid"] = item.assignee.id
 
         logger.info(f"Creating action item: {item_data}")
         created_item = ActionItemsService.create_action_item(item_data)
@@ -159,20 +106,17 @@ async def update_action_item(
         # Map frontend fields to backend fields
         item_data = {}
 
-        if item.text is not None:
-            item_data["text"] = item.text
+        if item.description is not None:
+            item_data["description"] = item.description
 
-        if item.meetingId is not None:
-            item_data["meeting_id"] = item.meetingId
+        if item.meeting_id is not None:
+            item_data["meeting_id"] = item.meeting_id
 
-        if item.dueDate is not None:
-            item_data["due_date"] = item.dueDate
+        if item.due_date is not None:
+            item_data["due_date"] = item.due_date
 
-        if item.completed is not None:
-            item_data["completed"] = item.completed
-
-        if item.assignee is not None and item.assignee.id:
-            item_data["assignee"] = item.assignee
+        if item.status is not None:
+            item_data["status"] = item.status
 
         logger.info(f"Updating action item {item_id}: {item_data}")
         updated_item = ActionItemsService.update_action_item(item_id, item_data)

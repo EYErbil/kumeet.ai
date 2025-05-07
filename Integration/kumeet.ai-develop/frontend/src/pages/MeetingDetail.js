@@ -676,13 +676,8 @@ const MeetingDetail = () => {
                 {meeting.action_items && meeting.action_items.length > 0 ? (
                   meeting.action_items.map((item, index) => (
                     <div key={index} className="flex items-start">
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-300">
-                        {item.assignee.charAt(0)}
-                      </div>
-                      <div className="ml-3">
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">{item.assignee}</div>
-                        <div className="text-sm text-gray-700 dark:text-gray-300">{item.text}</div>
-                      </div>
+                      <span className="w-2 h-2 mt-2 bg-purple-600 rounded-full mr-2"></span>
+                      <div className="text-sm text-gray-700 dark:text-gray-300">{item.description}</div>
                     </div>
                   ))
                 ) : (

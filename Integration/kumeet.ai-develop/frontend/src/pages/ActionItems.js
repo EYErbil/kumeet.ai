@@ -19,36 +19,33 @@ import * as api from '../utils/api';
 import useActionItems from '../hooks/useActionItems';
 
 // Modal component for adding/editing action items
-const ActionItemModal = ({ isOpen, onClose, onSave, initialData = {}, meetings = [], users = [], isEditing = false }) => {
+const ActionItemModal = ({ isOpen, onClose, onSave, initialData = {}, meetings = [], isEditing = false }) => {
   const { t } = useTranslation();
   const [formData, setFormData] = useState({
-    text: '',
-    meeting: '',
-    dueDate: new Date().toISOString().split('T')[0], // Today's date as default
-    assignee: '',
-    completed: false
+    description: '',
+    meeting_id: '',
+    due_date: new Date().toISOString().split('T')[0], // Today's date as default
+    status: 'pending'
   });
 
   // Initialize form with data if editing
   useEffect(() => {
     if (isEditing && initialData) {
       setFormData({
-        text: initialData.text || '',
-        meeting: initialData.meetingId || '',
-        dueDate: initialData.dueDate && initialData.dueDate !== 'No due date'
-          ? initialData.dueDate
+        description: initialData.description || '',
+        meeting_id: initialData.meeting_id || '',
+        due_date: initialData.due_date && initialData.due_date !== 'No due date'
+          ? initialData.due_date
           : new Date().toISOString().split('T')[0],
-        assignee: initialData.assignee?.id || '',
-        completed: initialData.completed || false
+        status: initialData.status || 'pending'
       });
     } else {
       // Reset form for new items
       setFormData({
-        text: '',
-        meeting: '',
-        dueDate: new Date().toISOString().split('T')[0],
-        assignee: '',
-        completed: false
+        description: '',
+        meeting_id: '',
+        due_date: new Date().toISOString().split('T')[0],
+        status: 'pending'
       });
     }
   }, [isEditing, initialData, isOpen]);
@@ -65,11 +62,10 @@ const ActionItemModal = ({ isOpen, onClose, onSave, initialData = {}, meetings =
     e.preventDefault();
 
     const actionItemData = {
-      text: formData.text,
-      meetingId: formData.meeting || null,
-      dueDate: formData.dueDate || null,
-      completed: formData.completed,
-      assignee: formData.assignee ? { id: formData.assignee } : null
+      description: formData.description,
+      meeting_id: formData.meeting_id || null,
+      due_date: formData.due_date || null,
+      status: formData.status
     };
 
     onSave(actionItemData);
@@ -100,8 +96,8 @@ const ActionItemModal = ({ isOpen, onClose, onSave, initialData = {}, meetings =
             </label>
             <input
               type="text"
-              name="text"
-              value={formData.text}
+              name="description"
+              value={formData.description}
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white"
               placeholder={t('actionItems.whatToBeDone')}
@@ -114,8 +110,8 @@ const ActionItemModal = ({ isOpen, onClose, onSave, initialData = {}, meetings =
               {t('actionItems.relatedMeeting')}
             </label>
             <select
-              name="meeting"
-              value={formData.meeting}
+              name="meeting_id"
+              value={formData.meeting_id}
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white"
             >
@@ -134,46 +130,28 @@ const ActionItemModal = ({ isOpen, onClose, onSave, initialData = {}, meetings =
             </label>
             <input
               type="date"
-              name="dueDate"
-              value={formData.dueDate}
+              name="due_date"
+              value={formData.due_date}
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white"
             />
-          </div>
-
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {t('actionItems.assignee')}
-            </label>
-            <select
-              name="assignee"
-              value={formData.assignee}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="">{t('actionItems.assignTo')}</option>
-              {users.length > 0 ? (
-                users.map(user => (
-                  <option key={user.id} value={user.id}>
-                    {user.name}
-                  </option>
-                ))
-              ) : (
-                <option value="current-user">{t('actionItems.currentUser')}</option>
-              )}
-            </select>
           </div>
 
           <div className="mb-4 flex items-center">
             <input
               type="checkbox"
-              name="completed"
-              id="completed"
-              checked={formData.completed}
-              onChange={handleChange}
+              name="status"
+              id="status"
+              checked={formData.status === 'completed'}
+              onChange={(e) => {
+                setFormData({
+                  ...formData,
+                  status: e.target.checked ? 'completed' : 'pending'
+                });
+              }}
               className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
             />
-            <label htmlFor="completed" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+            <label htmlFor="status" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
               {t('actionItems.markAsCompleted')}
             </label>
           </div>
@@ -219,22 +197,22 @@ const ActionItem = ({ item, onToggleComplete, onEdit, onDelete }) => {
   };
 
   const getDueStatusClass = () => {
-    if (!item.dueDate || item.dueDate === 'No due date') return '';
-    if (item.completed) return 'text-green-500 dark:text-green-400';
+    if (!item.due_date || item.due_date === 'No due date') return '';
+    if (item.status === 'completed') return 'text-green-500 dark:text-green-400';
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const dueDate = new Date(item.dueDate);
-    dueDate.setHours(0, 0, 0, 0);
+    const due_date = new Date(item.due_date);
+    due_date.setHours(0, 0, 0, 0);
 
-    if (dueDate < today) return 'text-red-500 dark:text-red-400';
+    if (due_date < today) return 'text-red-500 dark:text-red-400';
 
     // Due soon (within 3 days)
     const threeDaysFromNow = new Date(today);
     threeDaysFromNow.setDate(today.getDate() + 3);
 
-    if (dueDate <= threeDaysFromNow) return 'text-yellow-500 dark:text-yellow-400';
+    if (due_date <= threeDaysFromNow) return 'text-yellow-500 dark:text-yellow-400';
 
     return 'text-gray-500 dark:text-gray-400';
   };
@@ -251,41 +229,34 @@ const ActionItem = ({ item, onToggleComplete, onEdit, onDelete }) => {
         <button
           onClick={() => onToggleComplete(item.id)}
           className={`h-5 w-5 rounded border ${
-            item.completed 
+            item.status === 'completed' 
               ? 'bg-purple-600 border-purple-600 text-white' 
               : 'border-gray-300 dark:border-gray-500'
           } flex items-center justify-center focus:outline-none`}
-          aria-label={item.completed ? "Mark as incomplete" : "Mark as complete"}
+          aria-label={item.status === 'completed' ? "Mark as incomplete" : "Mark as complete"}
           disabled={item.isTemp}
         >
-          {item.completed && <FaCheck className="h-3 w-3" />}
+          {item.status === 'completed' && <FaCheck className="h-3 w-3" />}
         </button>
       </div>
 
       <div className="ml-3 flex-1">
-        <p className={`text-sm text-gray-700 dark:text-gray-300 ${item.completed ? 'line-through text-gray-400 dark:text-gray-500' : ''}`}>
-          {item.text}
+        <p className={`text-sm text-gray-700 dark:text-gray-300 ${item.status === 'completed' ? 'line-through text-gray-400 dark:text-gray-500' : ''}`}>
+          {item.description}
         </p>
 
         <div className="flex flex-wrap items-center mt-1 gap-2">
-          {item.meeting && (
+          {item.meeting_id && (
             <span className="inline-flex items-center text-xs text-gray-500 dark:text-gray-400">
               <FaBuilding className="mr-1 h-3 w-3" />
-              {item.meeting}
+              {item.meeting_title || 'Unknown Meeting'}
             </span>
           )}
 
           <span className={`inline-flex items-center text-xs ${getDueStatusClass()}`}>
             <FaCalendarAlt className="mr-1 h-3 w-3" />
-            {formatDate(item.dueDate)}
+            {formatDate(item.due_date)}
           </span>
-
-          {item.assignee && item.assignee.name && (
-            <span className="inline-flex items-center text-xs text-gray-500 dark:text-gray-400">
-              <FaUser className="mr-1 h-3 w-3" />
-              {item.assignee.name}
-            </span>
-          )}
         </div>
       </div>
 
@@ -312,7 +283,7 @@ const ActionItem = ({ item, onToggleComplete, onEdit, onDelete }) => {
 };
 
 // Main action items component
-const ActionItems = ({ meetingId = null }) => {
+const ActionItems = ({ meeting_id = null }) => {
   const { t } = useTranslation();
   const {
     actionItems,
@@ -323,12 +294,11 @@ const ActionItems = ({ meetingId = null }) => {
     toggleItemCompletion,
     deleteActionItem,
     refreshActionItems
-  } = useActionItems(meetingId);
+  } = useActionItems(meeting_id);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [meetings, setMeetings] = useState([]);
-  const [users, setUsers] = useState([]);
   const [filter, setFilter] = useState('all'); // 'all', 'pending', 'completed'
 
   // Fetch meetings and users for the dropdowns
@@ -348,57 +318,15 @@ const ActionItems = ({ meetingId = null }) => {
             title: meeting.title
           })));
         } else {
-          // Create some mock meetings as fallback
-          setMeetings([
-            { id: '1', title: 'Weekly Standup' },
-            { id: '2', title: 'Project Planning' },
-            { id: '3', title: 'Client Meeting' }
-          ]);
+          setMeetings([]);
         }
       } catch (err) {
         console.error('Error fetching meetings:', err);
-
-        // Fallback to mock data
-        setMeetings([
-          { id: '1', title: 'Weekly Standup' },
-          { id: '2', title: 'Project Planning' },
-          { id: '3', title: 'Client Meeting' }
-        ]);
-      }
-    };
-
-    const fetchUsers = async () => {
-      try {
-        const usersResponse = await api.get('/users');
-
-        if (usersResponse && usersResponse.users) {
-          setUsers(usersResponse.users.map(user => ({
-            id: user.id || user.firebase_uid,
-            name: user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email
-          })));
-        } else if (Array.isArray(usersResponse)) {
-          setUsers(usersResponse.map(user => ({
-            id: user.id || user.firebase_uid,
-            name: user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email
-          })));
-        } else {
-          // Fallback to placeholder user
-          setUsers([
-            { id: 'current-user', name: 'You (Current User)' }
-          ]);
-        }
-      } catch (err) {
-        console.error('Error fetching users:', err);
-
-        // Fallback to placeholder user
-        setUsers([
-          { id: 'current-user', name: 'You (Current User)' }
-        ]);
+        setMeetings([]);
       }
     };
 
     fetchMeetings();
-    fetchUsers();
   }, []);
 
   // Handle toggling item completion status
@@ -431,7 +359,20 @@ const ActionItems = ({ meetingId = null }) => {
   // Handle creating new item
   const handleAddItem = async (data) => {
     try {
-      await createActionItem(data);
+      // Find the meeting title if a meeting_id is provided
+      let meeting_title = '';
+      if (data.meeting_id) {
+        const meeting = meetings.find(m => m.id === data.meeting_id);
+        meeting_title = meeting ? meeting.title : '';
+      }
+
+      // Add meeting title to the data
+      const itemData = {
+        ...data,
+        meeting_title
+      };
+
+      await createActionItem(itemData);
     } catch (error) {
       console.error('Error creating action item:', error);
     }
@@ -450,8 +391,8 @@ const ActionItems = ({ meetingId = null }) => {
 
   // Filter action items based on current filter
   const filteredItems = actionItems.filter(item => {
-    if (filter === 'pending') return !item.completed;
-    if (filter === 'completed') return item.completed;
+    if (filter === 'pending') return item.status === 'pending';
+    if (filter === 'completed') return item.status === 'completed';
     return true;
   });
 
@@ -460,17 +401,19 @@ const ActionItems = ({ meetingId = null }) => {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-6">
-          {!meetingId && (
-            <div className="flex items-center">
-              <Link to={ROUTES.DASHBOARD} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 mr-4">
-                <FaChevronLeft />
-              </Link>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Action Items</h1>
-            </div>
-          )}
-          {meetingId && (
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Meeting Action Items</h1>
-          )}
+          <div className="flex items-center">
+            {!meeting_id && (
+              <div className="flex items-center">
+                <Link to={ROUTES.DASHBOARD} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 mr-4">
+                  <FaChevronLeft />
+                </Link>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Action Items</h1>
+              </div>
+            )}
+            {meeting_id && (
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">Meeting Action Items</h1>
+            )}
+          </div>
         </div>
         <div className="flex justify-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
@@ -480,11 +423,11 @@ const ActionItems = ({ meetingId = null }) => {
   }
 
   return (
-    <div className={`h-full ${meetingId ? 'pb-6' : 'p-6'}`}>
-      {meetingId && (
+    <div className={`h-full ${meeting_id ? 'pb-6' : 'p-6'}`}>
+      {meeting_id && (
         <div className="mb-4">
           <Link
-            to={ROUTES.MEETINGS.DETAIL(meetingId)}
+            to={ROUTES.MEETINGS.DETAIL(meeting_id)}
             className="inline-flex items-center text-purple-600 dark:text-purple-400 hover:underline"
           >
             <FaChevronLeft className="mr-1" size={12} />
@@ -495,7 +438,7 @@ const ActionItems = ({ meetingId = null }) => {
 
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-          {meetingId ? t('actionItems.meetingActionItems') : t('actionItems.title')}
+          {meeting_id ? t('actionItems.meetingActionItems') : t('actionItems.title')}
         </h1>
         <div className="flex space-x-2">
           {/* Refresh button for debugging */}
@@ -594,7 +537,6 @@ const ActionItems = ({ meetingId = null }) => {
         onSave={editingItem ? handleEditItem : handleAddItem}
         initialData={editingItem}
         meetings={meetings}
-        users={users}
         isEditing={!!editingItem}
       />
     </div>
