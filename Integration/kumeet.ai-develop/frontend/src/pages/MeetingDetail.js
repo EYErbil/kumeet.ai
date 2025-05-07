@@ -675,13 +675,23 @@ const MeetingDetail = () => {
               <div className="space-y-4">
                 {meeting.action_items && meeting.action_items.length > 0 ? (
                   meeting.action_items.map((item, index) => (
-                    <div key={index} className="flex items-start">
-                      <span className="w-2 h-2 mt-2 bg-purple-600 rounded-full mr-2"></span>
-                      <div className="text-sm text-gray-700 dark:text-gray-300">{item.description}</div>
+                    <div key={index} className="flex items-start space-x-3">
+                      <span className="w-2 h-2 mt-2 bg-purple-600 rounded-full"></span>
+                      <div className="flex-1">
+                        <div className="text-sm text-gray-700 dark:text-gray-300">
+                          {item.description || item.text}
+                        </div>
+                        <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 space-x-2">
+                          {item.due_date || item.dueDate ? (
+                            <span>Due: {item.due_date || item.dueDate}</span>
+                          ) : null}
+                          <span>Status: {item.status || (item.completed ? 'completed' : 'pending')}</span>
+                        </div>
+                      </div>
                     </div>
                   ))
                 ) : (
-                  <div className="text-sm text-gray-600 dark:text-gray-400">No action items assigned in this meeting.</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">No action items found for this meeting.</div>
                 )}
               </div>
             </CollapsibleSection>
