@@ -3,14 +3,14 @@ import sys
 import logging
 import json
 import subprocess
-import shutil
 from pathlib import Path
 from datetime import datetime
 import csv
 from db import get_db_connection, transaction
 from config.settings import settings
-import requests
-
+import time
+import textwrap
+import re
 # Set up logger
 logger = logging.getLogger(__name__)
 
@@ -32,125 +32,119 @@ class SummarizationService:
 
     @staticmethod
     def process_audio_file(audio_file_path, meeting_id, meeting_type="general", focus_question=None):
-        """Process an audio file using the containerized data-preprocess service"""
         try:
-            # Validate input parameters
             if not os.path.exists(audio_file_path):
                 logger.error(f"Audio file does not exist: {audio_file_path}")
-                return {"success": False, "error": f"Audio file not found: {audio_file_path}"}
-            
-            if not meeting_id:
-                logger.error("Meeting ID is required")
-                return {"success": False, "error": "Meeting ID is required"}
-            
-            # Generate a unique session ID
+                return {"success": False, "error": "Audio file not found"}
+
             session_id = f"meeting_{meeting_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
-            
-            # Get the shared volume path from settings
-            shared_volume = os.environ.get("SHARED_VOLUME_PATH", "/app/shared_data")
-            
-            # Prepare the shared file path
             filename = os.path.basename(audio_file_path)
-            shared_file_path = os.path.join(shared_volume, "uploads", filename)
-            
-            # Create directory if it doesn't exist
-            upload_dir = os.path.dirname(shared_file_path)
-            if not os.path.exists(upload_dir):
-                logger.info(f"Creating upload directory: {upload_dir}")
-                os.makedirs(upload_dir, exist_ok=True)
-            
-            # Check if the source and destination are the same file
-            if os.path.abspath(audio_file_path) == os.path.abspath(shared_file_path):
-                logger.info(f"Source and destination are the same file, skipping copy: {audio_file_path}")
-            else:
-                # Copy file to shared volume only if they're different paths
-                try:
-                    shutil.copy(audio_file_path, shared_file_path)
-                    logger.info(f"Successfully copied audio file to shared volume: {shared_file_path}")
-                except Exception as e:
-                    logger.error(f"Failed to copy audio file to shared volume: {str(e)}")
-                    return {"success": False, "error": f"Failed to copy audio file: {str(e)}"}
-            
-            # Verify the container is running before attempting to execute command
-            try:
-                # Skip Docker check when running inside Docker
-                # This command only works when running outside containers with Docker CLI installed
-                if os.environ.get("SKIP_DOCKER_CHECK", "true").lower() in ["true", "1", "yes"]:
-                    logger.info("Skipping Docker container check (running inside container)")
-                else:
-                    check_cmd = ["docker", "ps", "--filter", "name=kumeet-data-preprocess", "--format", "{{.Names}}"]
-                    result = subprocess.run(check_cmd, capture_output=True, text=True)
-                    
-                    if "kumeet-data-preprocess" not in result.stdout:
-                        logger.error("Data preprocessing container is not running")
-                        return {"success": False, "error": "Data preprocessing container is not running"}
-            except Exception as e:
-                logger.error(f"Failed to check container status: {str(e)}")
-                # Continue anyway since we're likely running in Docker
-                logger.info("Continuing despite container check failure (assuming running in Docker)")
-            
-            # Construct the docker command to run the data-preprocess container
-            cmd = [
-                "docker", "exec", "kumeet-data-preprocess",
-                "python", "summarizer/main.py", 
-                f"/app/shared_data/uploads/{filename}",
-                "--session-id", session_id,
-                "--meeting-type", meeting_type,
-                "--quality", "better"
-            ]
-            
-            # Add focus question if provided
-            if focus_question:
-                safe_focus_question = focus_question.replace('"', '\\"')  # Escape double quotes
-                cmd.extend(["--focus-question", f'"{safe_focus_question}"'])
-            
-            # Execute the command
-            logger.info(f"Running data-preprocess command: {' '.join(cmd)}")
-            try:
-                process = subprocess.run(
-                    cmd, 
-                    capture_output=True,
-                    text=True,
-                    timeout=1800  # 30 minute timeout for large files
-                )
-            except subprocess.TimeoutExpired:
-                logger.error("Data preprocessing timed out after 30 minutes")
-                return {"success": False, "error": "Data preprocessing timed out after 30 minutes"}
-            except Exception as e:
-                logger.error(f"Failed to execute data-preprocess command: {str(e)}")
-                return {"success": False, "error": f"Failed to execute data-preprocess command: {str(e)}"}
-            
-            # Check if the command was successful
-            if process.returncode != 0:
-                error_msg = process.stderr or "Unknown error"
-                logger.error(f"Data-preprocess container error: {error_msg}")
-                return {"success": False, "error": error_msg}
-            
-            # Log the output for debugging
-            logger.info(f"Data-preprocess stdout: {process.stdout[:500]}...")
-            
-            # The results will be in the results directory inside the shared volume
-            # with a subfolder named with the session_id
-            results_dir = os.path.join(shared_volume, "results", session_id)
-            
-            # Process and update our database with the results
-            processed = SummarizationService._process_results(meeting_id, session_id, results_dir)
-            
-            if not processed:
-                return {"success": False, "error": "Failed to process results"}
-            
-            # Success!
-            logger.info(f"Successfully processed audio file for meeting {meeting_id} with session {session_id}")
-            return {
-                "success": True,
-                "session_id": session_id,
-                "message": "Processing completed successfully"
-            }
-            
+            remote_path = f"{settings.CLUSTER_REMOTE_DIR}/{filename}"
+            run_script_name = f"run_job_{session_id}.sh"
+            remote_script_path = f"{settings.CLUSTER_REMOTE_DIR}/{run_script_name}"
+            remote_results_path = f"{settings.CLUSTER_REMOTE_DIR}/results/{session_id}"
+            local_results_path = f"./results/{session_id}"
+
+            subprocess.run([
+                "scp",
+                "-i", "/root/.ssh/id_ed25519",
+                "-o", "StrictHostKeyChecking=no",
+                "-o", "UserKnownHostsFile=/dev/null",
+                audio_file_path,
+                f"{settings.CLUSTER_USER}@{settings.CLUSTER_HOST}:{remote_path}"
+            ], check=True)
+
+            focus_arg = f"--focus-question \"{focus_question}\"" if focus_question else ""
+            job_script = textwrap.dedent(f"""#!/bin/bash
+#SBATCH --job-name={session_id}
+#SBATCH --output={settings.CLUSTER_REMOTE_DIR}/logs/summary_%j.log
+#SBATCH --partition=ai      
+#SBATCH --account=ai  
+#SBATCH --qos=ai         
+#SBATCH --gres=gpu:1 
+#SBATCH --time=00:30:00
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=16G
+
+mkdir -p {settings.CLUSTER_REMOTE_DIR}/results/{session_id}
+cd {settings.CLUSTER_REMOTE_DIR}
+module load python/3.10.6
+
+source /kuacc/users/eerbil20/kumeet_summarizer/summarizer/venv/bin/activate
+
+python --version
+
+python /kuacc/users/eerbil20/kumeet_summarizer/summarizer/main.py {remote_path} --meeting-type \"{meeting_type}\" --session-id {session_id} {focus_arg}
+""")
+
+            job_script = job_script.lstrip('\n')
+            with open(run_script_name, "w", newline="\n") as f:
+                f.write(job_script)
+
+            subprocess.run([
+                "scp",
+                "-i", "/root/.ssh/id_ed25519",
+                "-o", "StrictHostKeyChecking=no",
+                "-o", "UserKnownHostsFile=/dev/null",
+                run_script_name,
+                f"{settings.CLUSTER_USER}@{settings.CLUSTER_HOST}:{remote_script_path}"
+            ], check=True)
+
+            submit = subprocess.run([
+                "ssh",
+                "-i", "/root/.ssh/id_ed25519",
+                "-o", "StrictHostKeyChecking=no",
+                "-o", "UserKnownHostsFile=/dev/null",
+                f"{settings.CLUSTER_USER}@{settings.CLUSTER_HOST}",
+                f"sbatch {remote_script_path}"
+            ], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+            job_id_match = re.search(r"Submitted batch job\s+(\d+)", submit.stdout or "")
+            if not job_id_match:
+                raise RuntimeError("Job ID parse edilemedi:\n" + submit.stdout)
+            job_id = job_id_match.group(1)
+            logger.info(f"Job submitted with ID: {job_id}")
+
+            while True:
+                check = subprocess.run([
+                    "ssh", "-i", "/root/.ssh/id_ed25519", "-o", "StrictHostKeyChecking=no",
+                    f"{settings.CLUSTER_USER}@{settings.CLUSTER_HOST}",
+                    f"squeue -j {job_id}"
+                ], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+
+                lines = check.stdout.strip().splitlines()
+                if len(lines) <= 1:
+                    logger.info(f"Job {job_id} is completed.")
+                    break
+
+                logger.info(f"Job {job_id} still running.")
+                time.sleep(10)
+
+            os.makedirs(local_results_path, exist_ok=True)
+            subprocess.run([
+                "scp",
+                "-i", "/root/.ssh/id_ed25519",
+                "-o", "StrictHostKeyChecking=no",
+                "-o", "UserKnownHostsFile=/dev/null",
+                "-r",
+                f"{settings.CLUSTER_USER}@{settings.CLUSTER_HOST}:{remote_results_path}",
+                local_results_path
+            ], check=True)
+
+            # Process pulled results
+            local_results_final_path = os.path.join(local_results_path, session_id)
+            SummarizationService._process_results(meeting_id, session_id, local_results_final_path)
+
+            return {"success": True, "session_id": session_id,
+                    "message": "Summarization job submitted and results processed"}
+
+
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Subprocess error: {e}")
+            return {"success": False, "error": f"Subprocess error: {str(e)}"}
+
         except Exception as e:
-            logger.error(f"Error processing audio file: {str(e)}")
-            import traceback
-            logger.error(traceback.format_exc())
+            logger.error(f"Unexpected error: {e}")
             return {"success": False, "error": str(e)}
 
     @staticmethod

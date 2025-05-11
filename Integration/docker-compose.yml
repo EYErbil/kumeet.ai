@@ -2,14 +2,14 @@ version: '3.8'
 
 services:
   backend:
-    build: 
+    build:
       context: ./kumeet.ai-develop/backend
       dockerfile: Dockerfile
     container_name: kumeet-backend
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://kumeetuser:kumeetpass@db:5432/kumeet
+      - DATABASE_URL=postgresql://postgres:uzay11ilgin@db:5432/kumeet
       - SHARED_VOLUME_PATH=/app/shared_data
       - UPLOAD_DIR=/app/shared_data/uploads
       - DEBUG=true
@@ -17,42 +17,14 @@ services:
     volumes:
       - shared_data:/app/shared_data
       - /var/run/docker.sock:/var/run/docker.sock
+
     depends_on:
-      data-preprocess:
-        condition: service_healthy
       db:
-        condition: service_started
-    restart: unless-stopped
-    
-  data-preprocess:
-    build: 
-      context: ./kumeet.ai-data-preprocess-feature-summarization
-      dockerfile: Dockerfile
-    container_name: kumeet-data-preprocess
-    volumes:
-      - shared_data:/app/shared_data
-      - model_cache:/root/.cache
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia     # optional; add it if you have more than one runtime
-              count: 1           # or "all"
-              capabilities: [ gpu ]
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-      - CUDA_VISIBLE_DEVICES=0
+        condition: service_healthy
     restart: unless-stopped
 
-    healthcheck:
-      test: ["CMD", "python", "-c", "import os; os.path.exists('/app/summarizer/config.py') and os.path.exists('/app/run-summarizer.sh') and exit(0) or exit(1)"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-    
   frontend:
-    build: 
+    build:
       context: ./kumeet.ai-develop/frontend
       dockerfile: Dockerfile
     container_name: kumeet-frontend
@@ -63,13 +35,13 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
-    
+
   db:
     image: postgres:14
     container_name: kumeet-db
     environment:
-      - POSTGRES_USER=kumeetuser
-      - POSTGRES_PASSWORD=kumeetpass
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=uzay11ilgin
       - POSTGRES_DB=kumeet
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -77,7 +49,7 @@ services:
       - "5432:5432"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kumeetuser -d kumeet"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d kumeet"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -87,5 +59,3 @@ volumes:
     name: kumeet_shared_data
   postgres_data:
     name: kumeet_postgres_data
-  model_cache: # <‑‑ new
-    name: kumeet_model_cache
