@@ -34,8 +34,8 @@ class Settings(BaseSettings):
     DB_HOST: str = os.environ.get("DB_HOST", "localhost")
     DB_PORT: str = os.environ.get("DB_PORT", "5432")
     DB_NAME: str = os.environ.get("DB_NAME", "kumeet")
-    DB_USER: str = os.environ.get("DB_USER", "kumeetuser")
-    DB_PASSWORD: str = os.environ.get("DB_PASSWORD", "kumeetpass")
+    DB_USER: str = os.environ.get("DB_USER", "postgres")
+    DB_PASSWORD: str = os.environ.get("DB_PASSWORD", "uzay11ilgin")
     DATABASE_URL: Optional[str] = os.environ.get("DATABASE_URL")
     DB_POOL_MIN_SIZE: int = 1
     DB_POOL_MAX_SIZE: int = 10
@@ -48,7 +48,26 @@ class Settings(BaseSettings):
     
     # File storage settings
     UPLOAD_DIR: str = "./uploads"
-    
+    FIREBASE_PROJECT_ID: str
+    FIREBASE_PRIVATE_KEY: str
+    FIREBASE_CLIENT_EMAIL: str
+
+    GOOGLE_CLIENT_ID: str
+    GOOGLE_CLIENT_SECRET: str
+    GOOGLE_REDIRECT_URI: str
+
+    OUTLOOK_CLIENT_ID: str
+    OUTLOOK_TENANT_ID: str
+    OUTLOOK_CLIENT_SECRET: str
+    OUTLOOK_REDIRECT_URI: str
+
+    CLUSTER_HOST: str
+    CLUSTER_USER: str
+    CLUSTER_REMOTE_DIR: str
+
+    LOG_LEVEL: str = "INFO"
+    UPLOAD_DIR: str = "./uploads"
+
     class Config:
         env_prefix = ""  # Use environment variables without prefix
         env_file = ".env"  # Load settings from .env file if available
