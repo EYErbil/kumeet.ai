@@ -69,7 +69,7 @@ class SummarizationService:
 mkdir -p {settings.CLUSTER_REMOTE_DIR}/results/{session_id}
 cd {settings.CLUSTER_REMOTE_DIR}
 module load python/3.10.6
-
+module load ffmpeg/6.1 
 source /kuacc/users/eerbil20/kumeet_summarizer/summarizer/venv/bin/activate
 
 python --version
