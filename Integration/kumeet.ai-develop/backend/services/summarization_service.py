@@ -58,10 +58,10 @@ class SummarizationService:
             job_script = textwrap.dedent(f"""#!/bin/bash
 #SBATCH --job-name={session_id}
 #SBATCH --output={settings.CLUSTER_REMOTE_DIR}/logs/summary_%j.log
-#SBATCH --partition=ai      
-#SBATCH --account=ai  
-#SBATCH --qos=ai         
-#SBATCH --gres=gpu:1 
+#SBATCH --partition=ai
+#SBATCH --account=ai
+#SBATCH --qos=ai
+#SBATCH --gres=gpu:1
 #SBATCH --time=00:30:00
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
@@ -101,7 +101,7 @@ python /kuacc/users/eerbil20/kumeet_summarizer/summarizer/main.py {remote_path} 
 
             job_id_match = re.search(r"Submitted batch job\s+(\d+)", submit.stdout or "")
             if not job_id_match:
-                raise RuntimeError("Job ID parse edilemedi:\n" + submit.stdout)
+                raise RuntimeError("Job ID could not parsed:\n" + submit.stdout)
             job_id = job_id_match.group(1)
             logger.info(f"Job submitted with ID: {job_id}")
 
