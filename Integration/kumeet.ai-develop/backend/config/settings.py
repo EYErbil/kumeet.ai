@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     DB_PORT: str = os.environ.get("DB_PORT", "5432")
     DB_NAME: str = os.environ.get("DB_NAME", "kumeet")
     DB_USER: str = os.environ.get("DB_USER", "postgres")
-    DB_PASSWORD: str = os.environ.get("DB_PASSWORD", "uzay11ilgin")
+    DB_PASSWORD: str = os.environ.get("DB_PASSWORD", "PASSWORD")
     DATABASE_URL: Optional[str] = os.environ.get("DATABASE_URL")
     DB_POOL_MIN_SIZE: int = 1
     DB_POOL_MAX_SIZE: int = 10

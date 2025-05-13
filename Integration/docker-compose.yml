@@ -9,7 +9,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://postgres:uzay11ilgin@db:5432/kumeet
+      - DATABASE_URL=postgresql://postgres:PASSWORD@db:5432/kumeet
       - SHARED_VOLUME_PATH=/app/shared_data
       - UPLOAD_DIR=/app/shared_data/uploads
       - DEBUG=true
@@ -41,7 +41,7 @@ services:
     container_name: kumeet-db
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=uzay11ilgin
+      - POSTGRES_PASSWORD=PASSWORD
       - POSTGRES_DB=kumeet
     volumes:
       - postgres_data:/var/lib/postgresql/data
