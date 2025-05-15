@@ -43,7 +43,9 @@ class SummarizationService:
             run_script_name = f"run_job_{session_id}.sh"
             remote_script_path = f"{settings.CLUSTER_REMOTE_DIR}/{run_script_name}"
             remote_results_path = f"{settings.CLUSTER_REMOTE_DIR}/results/{session_id}"
-            local_results_path = f"./results/{session_id}"
+            shared_base = os.environ.get("SHARED_VOLUME_PATH", "/app/shared_data")
+            results_folder = os.path.join(shared_base, "results")
+            local_results_path = os.path.join(results_folder, session_id)
 
             subprocess.run([
                 "scp",
@@ -127,12 +129,12 @@ python /kuacc/users/eerbil20/kumeet_summarizer/summarizer/main.py {remote_path} 
                 "-o", "StrictHostKeyChecking=no",
                 "-o", "UserKnownHostsFile=/dev/null",
                 "-r",
-                f"{settings.CLUSTER_USER}@{settings.CLUSTER_HOST}:{remote_results_path}",
+                f"{settings.CLUSTER_USER}@{settings.CLUSTER_HOST}:{remote_results_path}/*",
                 local_results_path
             ], check=True)
 
             # Process pulled results
-            local_results_final_path = os.path.join(local_results_path, session_id)
+            local_results_final_path = local_results_path
             SummarizationService._process_results(meeting_id, session_id, local_results_final_path)
 
             return {"success": True, "session_id": session_id,
