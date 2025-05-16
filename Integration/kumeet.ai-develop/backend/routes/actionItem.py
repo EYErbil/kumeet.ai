@@ -178,3 +178,23 @@ async def debug_action_items():
     except Exception as e:
         logger.error(f"Error in debug_action_items: {e}")
         return {"error": str(e)}
+
+
+@router.get("/count/pending")
+async def get_pending_action_items_count(
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Get count of pending action items for the current authenticated user"""
+    try:
+        user_id = current_user.get("uid")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Authentication required")
+
+        logger.info(f"Getting pending action items count for user ID: {user_id}")
+        count = ActionItemsService.count_pending_action_items(user_id)
+        return {"count": count}
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error in get_pending_action_items_count: {e}")
+        return {"count": 0}

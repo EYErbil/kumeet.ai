@@ -86,6 +86,30 @@ class ActionItemsService:
             return 0
 
     @staticmethod
+    def count_pending_action_items(user_id):
+        """
+        Count pending action items for a specific user
+        
+        Args:
+            user_id (str): Firebase UID of the user to count pending action items for
+            
+        Returns:
+            int: Number of pending action items, or 0 on error
+        """
+        try:
+            if not user_id:
+                logger.error("Cannot count pending action items: user_id is required")
+                return 0
+                
+            query = "SELECT COUNT(*) FROM action_items WHERE firebase_uid = %s AND status = 'pending'"
+            results = execute_query(query, (user_id,))
+                
+            return results[0][0] if results else 0
+        except Exception as e:
+            logger.error(f"Error counting pending action items: {e}")
+            return 0
+
+    @staticmethod
     def get_all_action_items(user_id, limit=50):
         """
         Get action items for a specific user

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FaPlus, FaChevronRight, FaGoogle, FaMicrosoft, FaVideo, FaListAlt, FaClock, FaUsers } from 'react-icons/fa';
+import { FaPlus, FaChevronRight, FaVideo, FaListAlt, FaClock } from 'react-icons/fa';
 import ROUTES from '../constants/routes';
 import { useTranslation } from 'react-i18next';
 import * as api from '../utils/api';
+import useActionItems from '../hooks/useActionItems';
 
 // Meeting card component (unchanged)
 const MeetingCard = ({ meeting }) => {
@@ -12,18 +13,6 @@ const MeetingCard = ({ meeting }) => {
   
   // Use meeting_id if available, fallback to id, ensure it's a string
   const meetingId = String(meeting_id || id);
-
-  // Platform icon based on meeting platform
-  const getPlatformIcon = () => {
-    switch(platform) {
-      case 'google':
-        return <div className="w-5 h-5 flex items-center justify-center"><FaGoogle className="text-blue-500" /></div>;
-      case 'teams':
-        return <div className="w-5 h-5 flex items-center justify-center"><FaMicrosoft className="text-blue-600" /></div>;
-      default:
-        return <div className="w-5 h-5 flex items-center justify-center"><FaVideo className="text-purple-500" /></div>;
-    }
-  };
 
   // Debug information - log the meetingId to help diagnose issues
   console.log('MeetingCard rendering with ID:', id, 'meeting_id:', meeting_id, 'using meetingId:', meetingId);
@@ -53,7 +42,6 @@ const MeetingCard = ({ meeting }) => {
             </svg>
             <span>{duration}</span>
           </div>
-          <div className="ml-3">{getPlatformIcon()}</div>
         </div>
 
         <p className="text-sm text-gray-600 dark:text-gray-300 mb-3 line-clamp-2">{description}</p>
@@ -61,7 +49,7 @@ const MeetingCard = ({ meeting }) => {
         <div className="flex justify-between items-center">
           <div>
             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
-              {category}
+              {t(`meetings.categories.${category.toLowerCase()}`)}
             </span>
           </div>
 
@@ -100,12 +88,6 @@ const StatCard = ({ title, value, icon, description, trend, trendValue }) => {
       </div>
       <div className="flex items-baseline mb-1">
         <span className="text-2xl font-semibold text-gray-800 dark:text-white">{value}</span>
-        {trend && (
-          <span className={`ml-2 text-xs font-medium ${trend === 'up' ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
-            {trendValue}
-            {trend === 'up' ? ' ↑' : ' ↓'}
-          </span>
-        )}
       </div>
       <p className="text-xs text-gray-500 dark:text-gray-400">{t(description)}</p>
     </div>
@@ -139,6 +121,7 @@ const ActionItem = ({ item, onToggleComplete }) => {
 
 const Dashboard = () => {
   const { t, i18n } = useTranslation();
+  const { actionItems, pendingCount, loading: loadingActions, error: actionsError, toggleItemCompletion: handleToggleComplete } = useActionItems();
   
   // Add console log to debug language
   // Sample recent meetings data (for fallback if API fails)
@@ -188,15 +171,33 @@ const Dashboard = () => {
   const [loadingToday, setLoadingToday] = useState(true);
   const [todayError, setTodayError] = useState(null);
 
-  // State for action items
-  const [actionItems, setActionItems] = useState([]);
-  const [loadingActions, setLoadingActions] = useState(true);
-  const [actionsError, setActionsError] = useState(null);
-
   // State for total meeting time
   const [totalMeetingTime, setTotalMeetingTime] = useState("0h 0m");
+  const [loadingMeetingTime, setLoadingMeetingTime] = useState(true);
+  const [meetingTimeError, setMeetingTimeError] = useState(null);
+  
+  // State for total meetings count
+  const [totalMeetingsCount, setTotalMeetingsCount] = useState(0);
+  const [loadingCount, setLoadingCount] = useState(true);
+  const [countError, setCountError] = useState(null);
 
-  // Calculate total meeting time from meetings data
+  // Format seconds into a readable duration string
+  const formatDuration = (totalSeconds) => {
+    if (!totalSeconds || totalSeconds === 0) {
+      return "0h 0m";
+    }
+    
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    } else {
+      return `${minutes}m`;
+    }
+  };
+
+  // Calculate total meeting time from meetings data (used as a fallback)
   const calculateTotalMeetingTime = (meetings) => {
     if (!meetings || meetings.length === 0) {
       return "0h 0m";
@@ -207,17 +208,7 @@ const Dashboard = () => {
       return total + (meeting.duration_seconds || 0);
     }, 0);
     
-    // Convert to hours, minutes format
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    } else if (minutes > 0) {
-      return `${minutes}m`;
-    } else {
-      return "0h 0m";
-    }
+    return formatDuration(totalSeconds);
   };
 
   // Fetch recent meetings
@@ -341,61 +332,67 @@ const Dashboard = () => {
 
     fetchTodayMeetings();
   }, []);
-
-  // Fetch action items
+  
+  // Fetch total meetings count for the last 30 days
   useEffect(() => {
-    const fetchActionItems = async () => {
+    const fetchMeetingsCount = async () => {
       try {
-        setLoadingActions(true);
-        const response = await api.get('/meetings/action-items/all');
-        setActionItems(response.action_items);
-        setLoadingActions(false);
+        setLoadingCount(true);
+        const response = await api.get('/meetings/count/last-30-days');
+        
+        console.log('Meetings count API response:', response);
+        
+        if (response && typeof response.count === 'number') {
+          setTotalMeetingsCount(response.count);
+        } else {
+          console.warn('Meetings count API returned unexpected format:', response);
+          // Fallback to recentMeetings.length as before
+          setTotalMeetingsCount(recentMeetings.length || 0);
+        }
+        
+        setLoadingCount(false);
       } catch (error) {
-        console.error('Error fetching action items:', error);
-        setActionsError(error.message || 'Failed to fetch action items');
-        // Fallback to sample data
-        setActionItems([
-          {
-            id: 1,
-            text: 'Review sprint backlog',
-            meeting: 'Sprint Planning',
-            completed: false,
-            dueDate: 'today'
-          },
-          {
-            id: 2,
-            text: 'Update API documentation',
-            meeting: 'Team Sync',
-            completed: false,
-            dueDate: 'today'
-          }
-        ]);
-        setLoadingActions(false);
+        console.error('Error fetching meetings count:', error);
+        setCountError(error.message || 'Failed to fetch meetings count');
+        // Fallback to recentMeetings.length as before
+        setTotalMeetingsCount(recentMeetings.length || 0);
+        setLoadingCount(false);
       }
     };
 
-    fetchActionItems();
+    fetchMeetingsCount();
   }, []);
+  
+  // Fetch total meeting time for the last 30 days
+  useEffect(() => {
+    const fetchMeetingTime = async () => {
+      try {
+        setLoadingMeetingTime(true);
+        const response = await api.get('/meetings/time/last-30-days');
+        
+        console.log('Meeting time API response:', response);
+        
+        if (response && typeof response.total_seconds === 'number') {
+          // Format the seconds into a readable string
+          setTotalMeetingTime(formatDuration(response.total_seconds));
+        } else {
+          console.warn('Meeting time API returned unexpected format:', response);
+          // We don't need to use recentMeetings as a fallback here since we'll get proper data from the API
+          setTotalMeetingTime("0h 0m");
+        }
+        
+        setLoadingMeetingTime(false);
+      } catch (error) {
+        console.error('Error fetching meeting time:', error);
+        setMeetingTimeError(error.message || 'Failed to fetch meeting time');
+        // We don't need to use recentMeetings as a fallback here
+        setTotalMeetingTime("0h 0m");
+        setLoadingMeetingTime(false);
+      }
+    };
 
-  // Handle toggling action item completion
-  const handleToggleComplete = async (id) => {
-    // In a real app, this would update the action item status via API
-    setActionItems(actionItems.map(item =>
-      item.id === id ? { ...item, completed: !item.completed } : item
-    ));
-  };
-
-  // Platform icon helper function
-  const getPlatformIcon = (platform) => {
-    switch(platform) {
-      case 'google':
-        return <FaGoogle className="text-blue-500" />;
-      case 'teams':
-        return <FaMicrosoft className="text-blue-600" />;
-      default:
-        return <FaVideo className="text-purple-500" />;
-    }
-  };
+    fetchMeetingTime();
+  }, []);
 
   // Loading indicators
   const renderLoading = () => (
@@ -424,38 +421,24 @@ const Dashboard = () => {
       </div>
 
       {/* Stats overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <StatCard 
           title="dashboard.stats.totalMeetings" 
-          value={recentMeetings.length || "0"} 
+          value={loadingCount ? "..." : totalMeetingsCount} 
           icon={<FaVideo size={16} />}
           description="dashboard.stats.last30Days" 
-          trend="up" 
-          trendValue="12%"
         />
         <StatCard 
           title="dashboard.stats.meetingTime" 
-          value={totalMeetingTime} 
+          value={loadingMeetingTime ? "..." : totalMeetingTime} 
           icon={<FaClock size={16} />}
           description="dashboard.stats.last30Days" 
-          trend="up" 
-          trendValue="8%"
         />
         <StatCard 
           title="dashboard.stats.actionItems" 
-          value={actionItems.length || "0"} 
+          value={pendingCount} 
           icon={<FaListAlt size={16} />}
-          description="dashboard.stats.completed" 
-          trend="down" 
-          trendValue="5%"
-        />
-        <StatCard 
-          title="dashboard.stats.participants" 
-          value="18" 
-          icon={<FaUsers size={16} />}
-          description="dashboard.stats.activeContributors" 
-          trend="up" 
-          trendValue="2"
+          description="dashboard.stats.pendingItems" 
         />
       </div>
 
@@ -520,9 +503,6 @@ const Dashboard = () => {
                     return (
                       <Link to={`/meetings/${meetingId}`} key={index} className="flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 p-2 rounded-lg transition-colors duration-200">
                         <div className="flex items-center space-x-3">
-                          <div className="flex-shrink-0">
-                            {getPlatformIcon(meeting.platform)}
-                          </div>
                           <div>
                             <div className="text-sm font-medium text-gray-900 dark:text-white">{meeting.title}</div>
                             <div className="text-xs text-gray-500 dark:text-gray-400">{meeting.time}</div>
@@ -545,21 +525,21 @@ const Dashboard = () => {
               
               {loadingActions ? (
                 renderLoading()
-              ) : actionItems.filter(item => item.dueDate === 'today').length > 0 ? (
+              ) : actionItems.filter(item => item.due_date === 'today' || item.due_date.includes(new Date().toISOString().split('T')[0])).length > 0 ? (
                 <div className="space-y-3">
-                  {actionItems.filter(item => item.dueDate === 'today').map((item, index) => (
+                  {actionItems.filter(item => item.due_date === 'today' || item.due_date.includes(new Date().toISOString().split('T')[0])).map((item, index) => (
                     <div key={index} className="flex items-start space-x-3">
                       <input
                         type="checkbox"
-                        checked={item.completed}
+                        checked={item.status === 'completed'}
                         onChange={() => handleToggleComplete(item.id)}
                         className="mt-1 h-4 w-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
                       />
                       <div>
-                        <div className={`text-sm ${item.completed ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
-                          {item.text}
+                        <div className={`text-sm ${item.status === 'completed' ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
+                          {item.description}
                         </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{item.meeting}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{item.meeting_title}</div>
                       </div>
                     </div>
                   ))}
@@ -595,16 +575,16 @@ const Dashboard = () => {
                 <div className="flex items-start space-x-3">
                   <input
                     type="checkbox"
-                    checked={item.completed}
+                    checked={item.status === 'completed'}
                     onChange={() => handleToggleComplete(item.id)}
                     className="mt-1 h-4 w-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
                   />
                   <div>
-                    <div className={`text-sm ${item.completed ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
-                      {item.text}
+                    <div className={`text-sm ${item.status === 'completed' ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
+                      {item.description}
                     </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{item.meeting}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Due: {item.dueDate}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{item.meeting_title}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Due: {item.due_date}</div>
                   </div>
                 </div>
               </div>
@@ -615,36 +595,6 @@ const Dashboard = () => {
             )}
           </div>
         )}
-      </div>
-
-      {/* Upcoming meetings section */}
-      <div className="mt-8">
-        <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">{t('dashboard.upcomingMeetings.title')}</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {/* Tomorrow's meetings */}
-          <Link to={ROUTES.MEETINGS.LIST} className="bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900 dark:to-blue-900 rounded-lg p-4 hover:shadow-md transition-shadow duration-200">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200">{t('dashboard.upcomingMeetings.tomorrow')}</h3>
-              <div className="text-xs text-gray-500 dark:text-gray-400">May 2, 2024</div>
-            </div>
-            <div className="text-sm font-medium dark:text-white">Team standup</div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">10:00 AM - 10:30 AM</div>
-            <div className="mt-3 flex -space-x-2">
-              <div className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 border border-white dark:border-gray-800"></div>
-              <div className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 border border-white dark:border-gray-800"></div>
-              <div className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 border border-white dark:border-gray-800"></div>
-              <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 border border-white dark:border-gray-800 flex items-center justify-center text-xs text-gray-600 dark:text-gray-300">+2</div>
-            </div>
-          </Link>
-          
-          {/* Add meeting quick access */}
-          <Link to={ROUTES.MEETINGS.NEW} className="flex flex-col items-center justify-center bg-white dark:bg-gray-800 rounded-lg p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-purple-300 dark:hover:border-purple-500 transition-colors">
-            <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center mb-2">
-              <FaPlus className="text-purple-600 dark:text-purple-400" size={12} />
-            </div>
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('dashboard.upcomingMeetings.scheduleNew')}</span>
-          </Link>
-        </div>
       </div>
     </div>
   );

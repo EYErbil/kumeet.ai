@@ -624,3 +624,71 @@ class MeetingService:
         except Exception as e:
             logger.error(f"Error in delete_meeting: {e}")
             return False
+
+    @staticmethod
+    def count_meetings_last_30_days(user_id):
+        """
+        Count meetings in the last 30 days for a specific user
+        
+        Args:
+            user_id (str): Firebase UID of the user
+            
+        Returns:
+            int: Count of meetings in the last 30 days, or 0 if error
+        """
+        try:
+            if not user_id:
+                return 0
+                
+            with get_db_connection() as conn:
+                with conn.cursor() as cur:
+                    query = """
+                    SELECT COUNT(*) 
+                    FROM meetings 
+                    WHERE firebase_uid = %s 
+                    AND meeting_date >= CURRENT_DATE - INTERVAL '30 days'
+                    """
+                    cur.execute(query, (user_id,))
+                    result = cur.fetchone()
+                    return result[0] if result else 0
+                    
+        except psycopg2.Error as e:
+            logger.error(f"Database error in count_meetings_last_30_days: {e}")
+            return 0
+        except Exception as e:
+            logger.error(f"Error in count_meetings_last_30_days: {e}")
+            return 0
+
+    @staticmethod
+    def get_total_meeting_time_last_30_days(user_id):
+        """
+        Get the total meeting time in seconds for a user's meetings in the last 30 days
+        
+        Args:
+            user_id (str): Firebase UID of the user
+            
+        Returns:
+            int: Total duration in seconds of all meetings in the last 30 days, or 0 if error
+        """
+        try:
+            if not user_id:
+                return 0
+                
+            with get_db_connection() as conn:
+                with conn.cursor() as cur:
+                    query = """
+                    SELECT COALESCE(SUM(duration_seconds), 0) 
+                    FROM meetings 
+                    WHERE firebase_uid = %s 
+                    AND meeting_date >= CURRENT_DATE - INTERVAL '30 days'
+                    """
+                    cur.execute(query, (user_id,))
+                    result = cur.fetchone()
+                    return int(result[0]) if result and result[0] else 0
+                    
+        except psycopg2.Error as e:
+            logger.error(f"Database error in get_total_meeting_time_last_30_days: {e}")
+            return 0
+        except Exception as e:
+            logger.error(f"Error in get_total_meeting_time_last_30_days: {e}")
+            return 0

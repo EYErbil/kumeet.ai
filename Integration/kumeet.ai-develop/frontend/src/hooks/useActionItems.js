@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import * as api from '../utils/api';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Custom hook for fetching and managing action items with persistence
@@ -7,9 +8,11 @@ import * as api from '../utils/api';
  * @returns {Object} Action items data and state
  */
 const useActionItems = (meeting_id = null) => {
+  const { i18n } = useTranslation();
   const [actionItems, setActionItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [pendingCount, setPendingCount] = useState(0);
 
   // Generate a temporary ID for optimistic updates
   const generateTempId = () => `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
@@ -50,10 +53,36 @@ const useActionItems = (meeting_id = null) => {
     }
   };
 
-  // Initialize by fetching from server
+  // Function to fetch pending action items count
+  const fetchPendingCount = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/action-items/count/pending');
+      if (response && typeof response.count === 'number') {
+        setPendingCount(response.count);
+      }
+    } catch (err) {
+      console.error('Error fetching pending action items count:', err);
+      // Don't set error state here to avoid disrupting the UI
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initial fetch
   useEffect(() => {
     fetchActionItems();
+    fetchPendingCount();
   }, [meeting_id]);
+
+  // Refetch on language change
+  useEffect(() => {
+    const fetchData = async () => {
+      await fetchActionItems();
+      await fetchPendingCount();
+    };
+    fetchData();
+  }, [i18n.language]);
 
   // Create a new action item
   const createActionItem = async (itemData) => {
@@ -178,11 +207,15 @@ const useActionItems = (meeting_id = null) => {
     actionItems,
     loading,
     error,
+    pendingCount,
     createActionItem,
     updateActionItem,
     toggleItemCompletion,
     deleteActionItem,
-    refreshActionItems: fetchActionItems
+    refreshActionItems: async () => {
+      await fetchActionItems();
+      await fetchPendingCount();
+    }
   };
 };
 
