@@ -9,9 +9,7 @@ import {
   FaTrash,
   FaPlus,
   FaFileAlt,
-  FaVideo,
-  FaMicrosoft,
-  FaGoogle
+  FaVideo
 } from 'react-icons/fa';
 import { useTranslation } from 'react-i18next';
 import ROUTES from '../constants/routes';
@@ -21,26 +19,6 @@ import * as api from '../utils/api';
 const NoteCard = ({ note, onSelect, isSelected }) => {
   const { t } = useTranslation();
   const { meetingTitle, meetingDate, content, updatedAt, meetingId } = note;
-
-  // Determine meeting platform icon (if applicable)
-  const getMeetingIcon = () => {
-    if (!meetingId) {
-      return <FaFileAlt className="text-gray-500" />;
-    }
-
-    // This is where you'd determine the platform based on the meeting
-    // For now we'll just randomly assign one
-    const platformType = meetingId % 3; // Simple way to get varied icons
-
-    switch(platformType) {
-      case 0:
-        return <FaGoogle className="text-blue-500" />;
-      case 1:
-        return <FaMicrosoft className="text-blue-600" />;
-      default:
-        return <FaVideo className="text-purple-500" />;
-    }
-  };
 
   const formatDate = (dateString) => {
     try {
@@ -77,8 +55,7 @@ const NoteCard = ({ note, onSelect, isSelected }) => {
       onClick={() => onSelect(note)}
     >
       <div className="flex justify-between items-start mb-2">
-        <div className="flex items-center">
-          <span className="mr-2">{getMeetingIcon()}</span>
+        <div>
           <h3 className="font-medium text-gray-900 dark:text-white">
             {meetingTitle || t('notes.untitled')}
           </h3>

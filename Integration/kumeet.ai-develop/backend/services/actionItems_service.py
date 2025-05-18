@@ -26,19 +26,16 @@ class ActionItemsService:
             
             return {
                 'id': str(item['item_id']),
-                'text': item['description'] or '',
+                'description': item['description'] or '',
                 'meeting': meeting_name,
-                'meetingId': str(item['meeting_id']) if item['meeting_id'] else '',
-                'completed': item['status'] == 'completed',
-                'dueDate': item['due_date'].strftime('%Y-%m-%d') if item['due_date'] else 'No due date',
-                'assignee': {
-                    'id': item['firebase_uid'] or '',
-                    'name': f"{item['first_name'] or ''} {item['last_name'] or ''}".strip() or 'Unassigned',
-                    'email': item['email'] or ''
-                }
+                'meeting_id': str(item['meeting_id']) if item['meeting_id'] else '',
+                'meeting_title': meeting_name,
+                'status': item['status'] or 'pending',
+                'due_date': item['due_date'].strftime('%Y-%m-%d') if item['due_date'] else 'No due date'
             }
         except Exception as e:
             logger.error(f"Error formatting action item {item.get('item_id')}: {e}")
+            logger.error(f"Item data: {item}")
             return None
     
     @staticmethod
@@ -89,87 +86,69 @@ class ActionItemsService:
             return 0
 
     @staticmethod
-    def get_all_action_items(user_id=None, limit=50):
+    def count_pending_action_items(user_id):
         """
-        Get action items with optional filters
+        Count pending action items for a specific user
+        
+        Args:
+            user_id (str): Firebase UID of the user to count pending action items for
+            
+        Returns:
+            int: Number of pending action items, or 0 on error
+        """
+        try:
+            if not user_id:
+                logger.error("Cannot count pending action items: user_id is required")
+                return 0
+                
+            query = "SELECT COUNT(*) FROM action_items WHERE firebase_uid = %s AND status = 'pending'"
+            results = execute_query(query, (user_id,))
+                
+            return results[0][0] if results else 0
+        except Exception as e:
+            logger.error(f"Error counting pending action items: {e}")
+            return 0
+
+    @staticmethod
+    def get_all_action_items(user_id, limit=50):
+        """
+        Get action items for a specific user
 
         Args:
-            user_id (str): Optional firebase UID to filter action items by user
+            user_id (str): Firebase UID of the user to get action items for
             limit (int): Maximum number of action items to return
 
         Returns:
-            list: List of action item objects
+            list: List of action item objects for the user
         """
         try:
             # Log the request
-            logger.info(f"Fetching all action items. User ID filter: {user_id}, limit: {limit}")
+            logger.info(f"Fetching action items for user: {user_id}, limit: {limit}")
             
-            # Check total count of action items
-            total_items = ActionItemsService._count_action_items()
-            logger.info(f"Total action items in database: {total_items}")
+            if not user_id:
+                logger.error("Cannot fetch action items: user_id is required")
+                return []
             
             # Base query with joins
             query = """
             SELECT 
-                ai.item_id, ai.description, ai.due_date, ai.status, ai.firebase_uid,
+                ai.item_id, ai.description, ai.due_date, ai.status,
                 ai.meeting_id, ai.segment_id,
-                u.first_name, u.last_name, u.email,
                 m.title as meeting_title
             FROM action_items ai
-            LEFT JOIN users u ON ai.firebase_uid = u.firebase_uid
             LEFT JOIN meetings m ON ai.meeting_id = m.meeting_id
+            WHERE ai.firebase_uid = %s
+            ORDER BY ai.due_date ASC NULLS LAST
+            LIMIT %s
             """
             
-            params = []
-            
-            # Add user filter if provided
-            if user_id:
-                query += " WHERE ai.firebase_uid = %s"
-                params.append(user_id)
-                
-                # Count user's items
-                user_items = ActionItemsService._count_action_items(user_id)
-                logger.info(f"Action items found for user {user_id}: {user_items}")
-            
-            # Add ordering and limit
-            query += " ORDER BY ai.due_date ASC NULLS LAST LIMIT %s"
-            params.append(limit)
-            
             # Execute the query
-            logger.info(f"Executing query with params: {params}")
-            
             with get_db_connection() as conn:
                 with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                    cur.execute(query, params)
+                    cur.execute(query, (user_id, limit))
                     items_data = cur.fetchall()
             
-            logger.info(f"Found {len(items_data)} action items")
-            
-            # If no items found with user filter but there are items in the DB,
-            # it might be an authentication issue. Return all items as fallback.
-            if len(items_data) == 0 and total_items > 0 and user_id:
-                logger.warning(
-                    f"No action items found for user {user_id}, but DB has {total_items} items. Returning all items.")
-                    
-                fallback_query = """
-                SELECT 
-                    ai.item_id, ai.description, ai.due_date, ai.status, ai.firebase_uid,
-                    ai.meeting_id, ai.segment_id,
-                    u.first_name, u.last_name, u.email,
-                    m.title as meeting_title
-                FROM action_items ai
-                LEFT JOIN users u ON ai.firebase_uid = u.firebase_uid
-                LEFT JOIN meetings m ON ai.meeting_id = m.meeting_id
-                ORDER BY ai.due_date ASC NULLS LAST
-                LIMIT %s
-                """
-                
-                with get_db_connection() as conn:
-                    with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                        cur.execute(fallback_query, (limit,))
-                        items_data = cur.fetchall()
-                
-                logger.info(f"Found {len(items_data)} action items after removing user filter")
+            logger.info(f"Found {len(items_data)} action items for user {user_id}")
             
             # Transform to frontend format
             action_items = []
@@ -208,11 +187,9 @@ class ActionItemsService:
             # Get action items for this meeting
             query = """
             SELECT 
-                ai.item_id, ai.description, ai.due_date, ai.status, ai.firebase_uid,
-                ai.meeting_id, ai.segment_id,
-                u.first_name, u.last_name, u.email
+                ai.item_id, ai.description, ai.due_date, ai.status,
+                ai.meeting_id, ai.segment_id
             FROM action_items ai
-            LEFT JOIN users u ON ai.firebase_uid = u.firebase_uid
             WHERE ai.meeting_id = %s
             ORDER BY ai.due_date ASC NULLS LAST
             LIMIT %s
@@ -251,12 +228,10 @@ class ActionItemsService:
         try:
             query = """
             SELECT 
-                ai.item_id, ai.description, ai.due_date, ai.status, ai.firebase_uid,
+                ai.item_id, ai.description, ai.due_date, ai.status,
                 ai.meeting_id, ai.segment_id,
-                u.first_name, u.last_name, u.email,
                 m.title as meeting_title
             FROM action_items ai
-            LEFT JOIN users u ON ai.firebase_uid = u.firebase_uid
             LEFT JOIN meetings m ON ai.meeting_id = m.meeting_id
             WHERE ai.item_id = %s
             """
@@ -280,7 +255,13 @@ class ActionItemsService:
         Create a new action item
         
         Args:
-            item_data (dict): Action item data
+            item_data (dict): Action item data containing:
+                - firebase_uid (str): UID of the user creating the action item
+                - meeting_id (int, optional): ID of the related meeting
+                - description (str): Description of the action item
+                - due_date (str): Due date in YYYY-MM-DD format
+                - status (str): 'completed' or 'pending'
+                - segment_id (int, optional): ID of the related segment
             
         Returns:
             dict: Created action item details or None
@@ -294,7 +275,15 @@ class ActionItemsService:
             
             # Extract action item data
             firebase_uid = item_data.get('firebase_uid')
+            if not firebase_uid:
+                logger.error("Cannot create action item: firebase_uid is required")
+                return None
+
             description = item_data.get('description')
+            if not description:
+                logger.error("Cannot create action item: description is required")
+                return None
+
             due_date = item_data.get('due_date')
             status = item_data.get('status', 'pending')
             segment_id = item_data.get('segment_id')
@@ -348,7 +337,7 @@ class ActionItemsService:
             update_fields = []
             params = []
             
-            for field in ['firebase_uid', 'meeting_id', 'description', 'due_date', 'status', 'segment_id']:
+            for field in ['meeting_id', 'description', 'due_date', 'status', 'segment_id']:
                 if field in item_data:
                     update_fields.append(f"{field} = %s")
                     params.append(item_data.get(field))

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FaGoogle, FaMicrosoft, FaVideo, FaPlus, FaEllipsisH } from 'react-icons/fa';
+import { FaPlus, FaEllipsisH, FaVideo } from 'react-icons/fa';
 import { useTranslation } from 'react-i18next';
 import ROUTES from '../constants/routes';
 import * as api from '../utils/api';
@@ -9,18 +9,6 @@ import * as api from '../utils/api';
 const MeetingCard = ({ meeting }) => {
   const { t } = useTranslation();
   const { id, title, date, time, duration, description, category, attendees, platform } = meeting;
-
-  // Platform icon based on meeting platform
-  const getPlatformIcon = () => {
-    switch(platform) {
-      case 'google':
-        return <div className="w-5 h-5 flex items-center justify-center"><FaGoogle className="text-blue-500" /></div>;
-      case 'teams':
-        return <div className="w-5 h-5 flex items-center justify-center"><FaMicrosoft className="text-blue-600" /></div>;
-      default:
-        return <div className="w-5 h-5 flex items-center justify-center"><FaVideo className="text-purple-500" /></div>;
-    }
-  };
 
   return (
     <Link to={ROUTES.MEETINGS.DETAIL(id)} className="block">
@@ -45,7 +33,6 @@ const MeetingCard = ({ meeting }) => {
             </svg>
             <span>{time} ({duration})</span>
           </div>
-          <div className="ml-3">{getPlatformIcon()}</div>
         </div>
 
         <p className="text-sm text-gray-600 dark:text-gray-300 mb-3 line-clamp-2">{description}</p>

@@ -375,7 +375,7 @@
       "participants": "Participants",
       "last30Days": "Last 30 days",
       "activeContributors": "Active contributors",
-      "completed": "{{count}} completed"
+      "pendingItems": "Pending items"
     },
     "recentMeetings": {
       "title": "Recent Meetings",

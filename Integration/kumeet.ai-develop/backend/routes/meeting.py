@@ -523,3 +523,41 @@ async def create_test_user():
     except Exception as e:
         logger.error(f"Error creating test user: {str(e)}")
         return error_response(str(e))
+
+@router.get("/count/last-30-days")
+async def count_meetings_last_30_days(
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Get count of meetings in the last 30 days for the current user"""
+    try:
+        user_id = current_user.get("uid")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Authentication required")
+            
+        logger.info(f"Getting meeting count for user ID: {user_id}")
+        count = MeetingService.count_meetings_last_30_days(user_id)
+        return success_response({"count": count})
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error in count_meetings_last_30_days: {e}")
+        return error_response(str(e))
+
+@router.get("/time/last-30-days")
+async def get_total_meeting_time_last_30_days(
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Get total meeting time in seconds for the last 30 days for the current user"""
+    try:
+        user_id = current_user.get("uid")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Authentication required")
+            
+        logger.info(f"Getting total meeting time for user ID: {user_id}")
+        total_seconds = MeetingService.get_total_meeting_time_last_30_days(user_id)
+        return success_response({"total_seconds": total_seconds})
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error in get_total_meeting_time_last_30_days: {e}")
+        return error_response(str(e))

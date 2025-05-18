@@ -1,7 +1,7 @@
 from db import get_db_connection, transaction
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 import random
 import json
@@ -86,6 +86,9 @@ class MeetingService:
                             date_obj = meeting['meeting_date']
                             meeting['date'] = date_obj.strftime('%a, %B %d, %Y')
 
+                        if meeting['meeting_date']:
+                            meeting['time'] = meeting['meeting_date'].strftime('%I:%M %p')
+
                         # Format duration
                         if meeting['duration_seconds']:
                             meeting['duration'] = f"{meeting['duration_seconds'] // 60}m"
@@ -149,6 +152,14 @@ class MeetingService:
                         date_obj = meeting['meeting_date']
                         meeting['date'] = date_obj.strftime('%a, %B %d, %Y')
 
+                    if meeting['meeting_date'] and meeting['duration_seconds'] is not None:
+                        start_datetime = meeting['meeting_date']
+                        end_datetime = start_datetime + timedelta(seconds=meeting['duration_seconds'])
+                        meeting['time'] = (
+                            f"{start_datetime.strftime('%I:%M %p')} - "
+                            f"{end_datetime.strftime('%I:%M %p')}"
+                        )
+
                     # Format duration
                     if meeting['duration_seconds']:
                         meeting['duration'] = f"{meeting['duration_seconds'] // 60}m"
@@ -183,10 +194,13 @@ class MeetingService:
                         }
 
                         if stats:
-                            participant_obj['talkTime'] = f"{int(stats['total_speaking_time']) // 60}m"
+                            # Format talk time to show both minutes and seconds
+                            total_seconds = float(stats['total_speaking_time'])
+                            minutes = int(total_seconds // 60)
+                            seconds = int(total_seconds % 60)
+                            participant_obj['talkTime'] = f"{minutes}m {seconds}s"
                             participant_obj['talkPercentage'] = round(stats['speaking_percentage'])
                             participant_obj['participationScore'] = min(100, 100 - round(stats['speaking_percentage']))
-                            participant_obj['wpm'] = random.randint(150, 200)  # Mock WPM
 
                         participants_with_stats.append(participant_obj)
 
@@ -194,7 +208,7 @@ class MeetingService:
 
                     # Get summaries
                     cur.execute("""
-                        SELECT summary_type, content
+                        SELECT summary_type, content, created_at
                         FROM meeting_summaries
                         WHERE meeting_id = %s
                     """, (meeting_id,))
@@ -203,7 +217,10 @@ class MeetingService:
                     meeting['summaries'] = {}
 
                     for summary in summaries:
-                        meeting['summaries'][summary['summary_type']] = summary['content']
+                        meeting['summaries'][summary['summary_type']] = {
+                            'content': summary['content'],
+                            'created_at': summary['created_at']
+                        }
 
                     # Get action items
                     cur.execute("""
@@ -254,8 +271,8 @@ class MeetingService:
                     for segment in segments:
                         meeting['transcript_segments'].append({
                             'speaker': segment['identified_name'] or segment['speaker_label'],
-                            'start_time': segment['start_time'],
-                            'end_time': segment['end_time'],
+                            'start_time': float(segment['start_time']),
+                            'end_time': float(segment['end_time']),
                             'text': segment['transcript']
                         })
 
@@ -609,3 +626,71 @@ class MeetingService:
         except Exception as e:
             logger.error(f"Error in delete_meeting: {e}")
             return False
+
+    @staticmethod
+    def count_meetings_last_30_days(user_id):
+        """
+        Count meetings in the last 30 days for a specific user
+        
+        Args:
+            user_id (str): Firebase UID of the user
+            
+        Returns:
+            int: Count of meetings in the last 30 days, or 0 if error
+        """
+        try:
+            if not user_id:
+                return 0
+                
+            with get_db_connection() as conn:
+                with conn.cursor() as cur:
+                    query = """
+                    SELECT COUNT(*) 
+                    FROM meetings 
+                    WHERE firebase_uid = %s 
+                    AND meeting_date >= CURRENT_DATE - INTERVAL '30 days'
+                    """
+                    cur.execute(query, (user_id,))
+                    result = cur.fetchone()
+                    return result[0] if result else 0
+                    
+        except psycopg2.Error as e:
+            logger.error(f"Database error in count_meetings_last_30_days: {e}")
+            return 0
+        except Exception as e:
+            logger.error(f"Error in count_meetings_last_30_days: {e}")
+            return 0
+
+    @staticmethod
+    def get_total_meeting_time_last_30_days(user_id):
+        """
+        Get the total meeting time in seconds for a user's meetings in the last 30 days
+        
+        Args:
+            user_id (str): Firebase UID of the user
+            
+        Returns:
+            int: Total duration in seconds of all meetings in the last 30 days, or 0 if error
+        """
+        try:
+            if not user_id:
+                return 0
+                
+            with get_db_connection() as conn:
+                with conn.cursor() as cur:
+                    query = """
+                    SELECT COALESCE(SUM(duration_seconds), 0) 
+                    FROM meetings 
+                    WHERE firebase_uid = %s 
+                    AND meeting_date >= CURRENT_DATE - INTERVAL '30 days'
+                    """
+                    cur.execute(query, (user_id,))
+                    result = cur.fetchone()
+                    return int(result[0]) if result and result[0] else 0
+                    
+        except psycopg2.Error as e:
+            logger.error(f"Database error in get_total_meeting_time_last_30_days: {e}")
+            return 0
+        except Exception as e:
+            logger.error(f"Error in get_total_meeting_time_last_30_days: {e}")
+            return 0

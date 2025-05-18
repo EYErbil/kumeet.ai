@@ -359,35 +359,6 @@ const NewMeeting = () => {
             )}
           </div>
         </div>
-
-        {/* Recent Meetings Section */}
-        <div className="mt-8">
-          <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">{t('meetings.recentMeetings')}</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Sample meeting cards - you can map through actual data here */}
-            {[1, 2].map((index) => (
-              <Link 
-                to={`/meetings/${index}`} 
-                key={index} 
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow cursor-pointer"
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="text-base font-medium text-gray-900 dark:text-white">Team Sync Meeting</h3>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">2 hours ago</span>
-                </div>
-                <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">Weekly team sync to discuss project progress and upcoming milestones.</p>
-                <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
-                  <span className="flex items-center">
-                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    45 minutes
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );
