@@ -47,7 +47,7 @@ class MeetingService:
                     SELECT 
                         m.meeting_id, m.firebase_uid, m.title, m.description, 
                         m.meeting_type, m.meeting_date, m.duration_seconds,
-                        m.start_time, m.end_time, m.created_at,
+                        m.created_at,
                         u.first_name, u.last_name, u.email
                     FROM meetings m
                     JOIN users u ON m.firebase_uid = u.firebase_uid
@@ -85,9 +85,6 @@ class MeetingService:
                         if meeting['meeting_date']:
                             date_obj = meeting['meeting_date']
                             meeting['date'] = date_obj.strftime('%a, %B %d, %Y')
-
-                        if meeting['start_time']:
-                            meeting['time'] = meeting['start_time'].strftime('%I:%M %p')
 
                         # Format duration
                         if meeting['duration_seconds']:
@@ -134,7 +131,7 @@ class MeetingService:
                     SELECT 
                         m.meeting_id, m.firebase_uid, m.title, m.description, 
                         m.meeting_type, m.meeting_date, m.duration_seconds,
-                        m.start_time, m.end_time, m.created_at,
+                        m.created_at,
                         u.first_name, u.last_name, u.email
                     FROM meetings m
                     JOIN users u ON m.firebase_uid = u.firebase_uid
@@ -151,12 +148,6 @@ class MeetingService:
                     if meeting['meeting_date']:
                         date_obj = meeting['meeting_date']
                         meeting['date'] = date_obj.strftime('%a, %B %d, %Y')
-
-                    if meeting['start_time'] and meeting['end_time']:
-                        meeting['time'] = (
-                            f"{meeting['start_time'].strftime('%I:%M %p')} - "
-                            f"{meeting['end_time'].strftime('%I:%M %p')}"
-                        )
 
                     # Format duration
                     if meeting['duration_seconds']:
@@ -310,7 +301,7 @@ class MeetingService:
                     query = """
                     SELECT 
                         m.meeting_id, m.firebase_uid, m.title,
-                        m.meeting_type, m.start_time, m.duration_seconds
+                        m.meeting_type, m.meeting_date, m.duration_seconds
                     FROM meetings m
                     WHERE DATE(m.meeting_date) = CURRENT_DATE
                     """
@@ -323,7 +314,7 @@ class MeetingService:
                         params.append(user_id)
 
                     # Add ordering
-                    query += " ORDER BY m.start_time ASC"
+                    query += " ORDER BY m.meeting_date ASC"
 
                     cur.execute(query, params)
                     meetings = cur.fetchall()
@@ -334,7 +325,7 @@ class MeetingService:
                         meeting_obj = {
                             'id': meeting['meeting_id'],
                             'title': meeting['title'],
-                            'time': meeting['start_time'].strftime('%I:%M %p') if meeting['start_time'] else 'N/A',
+                            'time': meeting['meeting_date'].strftime('%I:%M %p') if meeting['meeting_date'] else 'N/A',
                             'platform': 'google' if meeting['meeting_id'] % 2 == 0 else 'teams'
                         }
                         today_meetings.append(meeting_obj)
