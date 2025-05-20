@@ -81,7 +81,7 @@ const MeetingNotes = ({ notes: initialNotes, meetingId, meetingTitle, meetingDat
         setLoading(true);
         console.log(`Fetching notes for meeting ${meetingId}`);
         const response = await api.get(`/notes/meeting/${meetingId}`);
-        
+
         if (response && response.notes && Array.isArray(response.notes)) {
           console.log(`Found ${response.notes.length} notes for meeting ${meetingId}`);
           setNotes(response.notes);
@@ -96,7 +96,7 @@ const MeetingNotes = ({ notes: initialNotes, meetingId, meetingTitle, meetingDat
         setLoading(false);
       }
     };
-    
+
     fetchMeetingNotes();
   }, [meetingId]);
 
@@ -118,13 +118,13 @@ const MeetingNotes = ({ notes: initialNotes, meetingId, meetingTitle, meetingDat
 
       if (response && response.id) {
         // Update the note in local state
-        const updatedNotes = notes.map(note => 
+        const updatedNotes = notes.map(note =>
           note.id === selectedNote.id ? {...response, updatedAt: new Date().toISOString()} : note
         );
         setNotes(updatedNotes);
         setSelectedNote({...response, updatedAt: new Date().toISOString()});
       }
-      
+
       setEditMode(false);
     } catch (error) {
       console.error('Failed to update note:', error);
@@ -213,7 +213,7 @@ const MeetingNotes = ({ notes: initialNotes, meetingId, meetingTitle, meetingDat
       // Call API to delete the note
       await api.del(`/notes/${selectedNote.id}`);
       console.log(`Note ${selectedNote.id} deleted successfully`);
-      
+
       // Remove from local state
       const updatedNotes = notes.filter(note => note.id !== selectedNote.id);
       setNotes(updatedNotes);
@@ -257,71 +257,60 @@ const MeetingNotes = ({ notes: initialNotes, meetingId, meetingTitle, meetingDat
     );
   }
 
-  // If no notes exist yet, show a message and create button
-  if (!notes || notes.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-8">
-        <div className="text-gray-400 dark:text-gray-500 mb-4">
-          <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-          </svg>
-        </div>
-        <h3 className="text-xl font-medium text-gray-900 dark:text-white mb-2">No notes for this meeting</h3>
-        <p className="text-gray-600 dark:text-gray-400 mb-6">Create a note to keep track of important points</p>
-        <button
-          onClick={handleCreateNote}
-          className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
-        >
-          Create Meeting Note
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col h-full">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-medium text-gray-900 dark:text-white">Meeting Notes</h3>
-        {!selectedNote && (
-          <button
-            onClick={handleCreateNote}
-            className="flex items-center px-3 py-1 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
-          >
-            <FaPlus className="mr-1" size={12} />
-            <span>New Note</span>
-          </button>
-        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1">
         {/* Notes list */}
-        <div className="md:col-span-1 border-r border-gray-200 dark:border-gray-700 pr-4 overflow-y-auto flex flex-col" style={{ maxHeight: '400px' }}>
-          {notes.map(note => (
-            <div
-              key={note.id}
-              className={`p-3 mb-2 rounded-md cursor-pointer ${
-                selectedNote && selectedNote.id === note.id
-                  ? 'bg-purple-50 dark:bg-gray-700 border-l-4 border-purple-500'
-                  : 'hover:bg-gray-50 dark:hover:bg-gray-700'
-              }`}
-              onClick={() => {
-                setSelectedNote(note);
-                setEditContent(note.content);
-                setEditTitle(note.meetingTitle);
-                setEditDate(note.meetingDate);
-                setEditMode(false);
-                setIsNewNote(false);
-              }}
+        <div className="md:col-span-1 border-r border-gray-200 dark:border-gray-700 pr-4 flex flex-col" style={{ maxHeight: '400px' }}>
+          <div className="overflow-y-auto flex-grow">
+            {notes && notes.length > 0 ? (
+              notes.map(note => (
+                <div
+                  key={note.id}
+                  className={`p-3 mb-2 rounded-md cursor-pointer ${
+                    selectedNote && selectedNote.id === note.id
+                      ? 'bg-purple-50 dark:bg-gray-700 border-l-4 border-purple-500'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }`}
+                  onClick={() => {
+                    setSelectedNote(note);
+                    setEditContent(note.content);
+                    setEditTitle(note.meetingTitle);
+                    setEditDate(note.meetingDate);
+                    setEditMode(false);
+                    setIsNewNote(false);
+                  }}
+                >
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                    {formatDate(note.updatedAt)}
+                  </div>
+                  <div className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2">
+                    {note.content.substring(0, 100)}
+                    {note.content.length > 100 && '...'}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-4 text-gray-500 dark:text-gray-400">
+                No notes available
+              </div>
+            )}
+          </div>
+
+          {/* New Note button at bottom of left column */}
+          <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+            <button
+              onClick={handleCreateNote}
+              className="w-full flex items-center justify-center px-3 py-2 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
             >
-              <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                {formatDate(note.updatedAt)}
-              </div>
-              <div className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2">
-                {note.content.substring(0, 100)}
-                {note.content.length > 100 && '...'}
-              </div>
-            </div>
-          ))}
+              <FaPlus className="mr-1" size={12} />
+              <span>New Note</span>
+            </button>
+          </div>
         </div>
 
         {/* Note detail */}
@@ -432,9 +421,29 @@ const MeetingNotes = ({ notes: initialNotes, meetingId, meetingTitle, meetingDat
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full">
-              <p className="text-gray-500 dark:text-gray-400 mb-4">
-                Select a note from the list or create a new one
-              </p>
+              {notes && notes.length > 0 ? (
+                // Show this when there are notes but none is selected
+                <>
+                  <div className="text-gray-400 dark:text-gray-500 mb-4">
+                    <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path>
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-medium text-gray-900 dark:text-white mb-2">Select a note</h3>
+                  <p className="text-gray-600 dark:text-gray-400">Click on a note from the list to view its details</p>
+                </>
+              ) : (
+                // Show this when there are no notes for the meeting
+                <>
+                  <div className="text-gray-400 dark:text-gray-500 mb-4">
+                    <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-medium text-gray-900 dark:text-white mb-2">No notes for this meeting</h3>
+                  <p className="text-gray-600 dark:text-gray-400 mb-6">Create a note to keep track of important points</p>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -458,7 +467,7 @@ const MeetingDetail = () => {
         setLoading(true);
         const data = await api.get(`/meetings/${id}`);
         setMeeting(data);
-        
+
         // Try to fetch notes for this meeting
         try {
           const notesResponse = await api.get(`/notes/meeting/${id}`);
@@ -469,7 +478,7 @@ const MeetingDetail = () => {
           console.error('Error fetching meeting notes:', notesError);
           // Continue even if notes fetching fails
         }
-        
+
         setLoading(false);
       } catch (err) {
         setError(err.message || 'Failed to fetch meeting details');
@@ -479,7 +488,7 @@ const MeetingDetail = () => {
 
     fetchMeeting();
   }, [id]);
-  
+
   // Function to refresh notes after adding new ones
   const refreshNotes = async () => {
     try {
@@ -599,29 +608,45 @@ const MeetingDetail = () => {
           <div className="space-y-6">
             <CollapsibleSection icon={<FaFileAlt size={16} className="text-gray-600 dark:text-gray-400" />} title="Overview">
               <p className="text-gray-700 dark:text-gray-300">
-                {meeting.summaries?.general ||
+                {meeting.summaries?.general?.content ||
                   "The team discussed project progress, highlighting near-completion of backend and frontend development. " +
                   "Overall, the meeting was productive with clear action items and next steps defined."}
               </p>
             </CollapsibleSection>
 
             <CollapsibleSection icon={<FaList size={16} className="text-gray-600 dark:text-gray-400" />} title="Key points">
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="space-y-6">
                 <div>
-                  <h4 className="font-medium text-gray-900 dark:text-white mb-3">Project progress</h4>
+                  <h4 className="font-medium text-gray-900 dark:text-white mb-3">Summary</h4>
                   <ul className="space-y-2">
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 mt-2 bg-purple-600 rounded-full mr-2"></span>
-                      <span className="text-gray-700 dark:text-gray-300">Backend development progressing well, with significant contributions from Jane Smith.</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 mt-2 bg-purple-600 rounded-full mr-2"></span>
-                      <span className="text-gray-700 dark:text-gray-300">Frontend dashboard redesign nearing completion, ready for testing.</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 mt-2 bg-purple-600 rounded-full mr-2"></span>
-                      <span className="text-gray-700 dark:text-gray-300">Positive feedback received on UI designs.</span>
-                    </li>
+                    {meeting.summaries?.detailed ? (
+                      // Parse and display the detailed summary content
+                      meeting.summaries.detailed.content
+                        .split('\n\n')
+                        .filter(item => item.trim().match(/^\d+\./)) // Filter for numbered items
+                        .map((item, index) => (
+                          <li key={index} className="flex items-start">
+                            <span className="w-2 h-2 mt-2 bg-purple-600 rounded-full mr-2"></span>
+                            <span className="text-gray-700 dark:text-gray-300">{item}</span>
+                          </li>
+                        ))
+                    ) : (
+                      // Fallback content
+                      <>
+                        <li className="flex items-start">
+                          <span className="w-2 h-2 mt-2 bg-purple-600 rounded-full mr-2"></span>
+                          <span className="text-gray-700 dark:text-gray-300">Backend development progressing well, with significant contributions from Jane Smith.</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="w-2 h-2 mt-2 bg-purple-600 rounded-full mr-2"></span>
+                          <span className="text-gray-700 dark:text-gray-300">Frontend dashboard redesign nearing completion, ready for testing.</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="w-2 h-2 mt-2 bg-purple-600 rounded-full mr-2"></span>
+                          <span className="text-gray-700 dark:text-gray-300">Positive feedback received on UI designs.</span>
+                        </li>
+                      </>
+                    )}
                   </ul>
                 </div>
 
@@ -650,18 +675,23 @@ const MeetingDetail = () => {
               <div className="space-y-4">
                 {meeting.action_items && meeting.action_items.length > 0 ? (
                   meeting.action_items.map((item, index) => (
-                    <div key={index} className="flex items-start">
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-300">
-                        {item.assignee.charAt(0)}
-                      </div>
-                      <div className="ml-3">
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">{item.assignee}</div>
-                        <div className="text-sm text-gray-700 dark:text-gray-300">{item.text}</div>
+                    <div key={index} className="flex items-start space-x-3">
+                      <span className="w-2 h-2 mt-2 bg-purple-600 rounded-full"></span>
+                      <div className="flex-1">
+                        <div className="text-sm text-gray-700 dark:text-gray-300">
+                          {item.description || item.text}
+                        </div>
+                        <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 space-x-2">
+                          {item.due_date || item.dueDate ? (
+                            <span>Due: {item.due_date || item.dueDate}</span>
+                          ) : null}
+                          <span>Status: {item.status || (item.completed ? 'completed' : 'pending')}</span>
+                        </div>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="text-sm text-gray-600 dark:text-gray-400">No action items assigned in this meeting.</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">No action items found for this meeting.</div>
                 )}
               </div>
             </CollapsibleSection>
@@ -713,6 +743,28 @@ const MeetingDetail = () => {
           <div className="space-y-6">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
               <div className="p-6">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Meeting Overview</h3>
+                <div className="mb-6 p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                  <div className="flex items-center">
+                    <FaChartBar className="text-purple-600 mr-2" size={18} />
+                    <div className="text-gray-900 dark:text-white">
+                      <span className="font-medium">Total Meeting Duration: </span>
+                      {meeting.duration_seconds ? (
+                        <span className="text-gray-700 dark:text-gray-300">
+                          {Math.floor(meeting.duration_seconds / 3600) > 0
+                            ? `${Math.floor(meeting.duration_seconds / 3600)}h `
+                            : ''}
+                          {Math.floor((meeting.duration_seconds % 3600) / 60) > 0
+                            ? `${Math.floor((meeting.duration_seconds % 3600) / 60)}m `
+                            : ''}
+                          {Math.floor(meeting.duration_seconds % 60)}s
+                        </span>
+                      ) : (
+                        <span className="text-gray-700 dark:text-gray-300">Not available</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Participation Analysis</h3>
                 <div className="space-y-6">
                   {meeting.participants && meeting.participants.map((speaker, index) => (
@@ -729,18 +781,17 @@ const MeetingDetail = () => {
                             <p className="text-sm text-gray-500 dark:text-gray-400">{speaker.role}</p>
                           </div>
                           <div className="text-right">
-                            <div className="text-sm font-medium text-gray-900 dark:text-white">{speaker.wpm || '175'} WPM</div>
-                            <div className="text-sm text-gray-500 dark:text-gray-400">{speaker.talkTime || '10m'}</div>
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">{speaker.talkPercentage || 0}%</div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">{speaker.talkTime || '0m 0s'}</div>
                           </div>
                         </div>
                         <div className="flex items-center">
                           <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                             <div
                               className="bg-purple-600 h-2 rounded-full"
-                              style={{ width: `${speaker.talkPercentage || 50}%` }}
+                              style={{ width: `${speaker.talkPercentage || 0}%` }}
                             ></div>
                           </div>
-                          <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">{speaker.talkPercentage || 50}%</span>
                         </div>
                       </div>
                     </div>
