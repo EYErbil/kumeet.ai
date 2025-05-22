@@ -5,6 +5,7 @@ import ROUTES from '../constants/routes';
 import { useTranslation } from 'react-i18next';
 import * as api from '../utils/api';
 import useActionItems from '../hooks/useActionItems';
+import {getCurrentUser} from "../services/api/auth";
 
 // Meeting card component (unchanged)
 const MeetingCard = ({ meeting }) => {
@@ -262,17 +263,16 @@ const Dashboard = () => {
     fetchRecentMeetings();
   }, []);
 
-  // Fetch today's meetings
   useEffect(() => {
     const fetchTodayMeetings = async () => {
       try {
         setLoadingToday(true);
         const response = await api.get('/meetings/today');
-        
+
         console.log('Today\'s meetings API response:', response);
-        
+
         if (response && response.meetings && Array.isArray(response.meetings)) {
-          // Ensure consistent meeting ID property for each meeting
+          // Ensure consistent meeting ID property for each meeting - same as recent meetings
           const formattedMeetings = response.meetings.map(meeting => {
             const meetingObj = {
               ...meeting,
@@ -285,54 +285,22 @@ const Dashboard = () => {
           setTodayMeetings(formattedMeetings);
         } else {
           console.warn('Today\'s meetings API returned unexpected format:', response);
-          // Fallback to sample data
-          setTodayMeetings([
-            {
-              id: 1,
-              meeting_id: 1,
-              title: 'Daily Standup',
-              time: '10:00 AM',
-              platform: 'google',
-            },
-            {
-              id: 2,
-              meeting_id: 2,
-              title: 'Product Review',
-              time: '2:00 PM',
-              platform: 'teams',
-            }
-          ]);
+          setTodayMeetings([]);
         }
-        
+
         setLoadingToday(false);
       } catch (error) {
         console.error('Error fetching today\'s meetings:', error);
         console.error('Error details:', error.message, error.status, error.response);
         setTodayError(error.message || 'Failed to fetch today\'s meetings');
-        // Fallback to sample data
-        setTodayMeetings([
-          {
-            id: 1,
-            meeting_id: 1,
-            title: 'Daily Standup',
-            time: '10:00 AM',
-            platform: 'google',
-          },
-          {
-            id: 2,
-            meeting_id: 2,
-            title: 'Product Review',
-            time: '2:00 PM',
-            platform: 'teams',
-          }
-        ]);
+        setTodayMeetings([]);
         setLoadingToday(false);
       }
     };
 
     fetchTodayMeetings();
   }, []);
-  
+
   // Fetch total meetings count for the last 30 days
   useEffect(() => {
     const fetchMeetingsCount = async () => {

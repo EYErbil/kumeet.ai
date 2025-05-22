@@ -37,35 +37,17 @@ async def get_notes(
     Get notes with optional filtering by meeting_id
     """
     try:
-        logger.info("GET /notes endpoint called")
+        user_id = current_user.get("uid")  # ✅ Bunu ekle
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Authentication required")
 
-        # Try to get user from auth, but don't require it
-        user_id = None
-        try:
-            # Get the authorization header
-            auth_header = request.headers.get('Authorization')
-            logger.debug(f"Auth header: {auth_header}")
-
-            if auth_header and auth_header.startswith('Bearer '):
-                # Process the token and get the user
-                token = auth_header.replace('Bearer ', '')
-                user = await get_current_user(token)
-                user_id = user.get("uid")
-                logger.info(f"Authenticated user: {user_id}")
-        except Exception as auth_err:
-            logger.warning(f"Authentication error but continuing: {auth_err}")
-
-        # Get notes, with or without user filter
-        notes = NotesService.get_all_notes(user_id)
-        logger.info(f"Returning {len(notes)} notes")
-
-        # Return notes in the expected format
+        notes = NotesService.get_all_notes(user_id)  # ✅ user_id kullan
         return {"notes": notes}
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error in get_all_notes: {e}")
-        # Return empty array instead of error to avoid breaking frontend
-        return {"notes": []}
-
+        logger.error(f"Error in get_notes: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/all")
 async def get_all_notes_all_meetings(current_user: dict = Depends(get_current_user)):
@@ -164,47 +146,11 @@ async def delete_note(note_id: int, current_user: dict = Depends(get_current_use
 
 
 @router.get("/debug")
-async def debug_notes():
-    """
-    Get all notes for debugging purposes (development only)
-    """
+async def debug_notes(current_user: dict = Depends(get_current_user)):  # ✅ Auth ekle
+    """Get all notes for debugging purposes (development only)"""
     if not settings.DEBUG:
         return {"error": "Debug endpoints only available in development mode"}
-    
-    try:
-        # Get all notes from database
-        with get_db_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    SELECT 
-                        n.note_id, n.firebase_uid, n.meeting_id, 
-                        n.content, n.created_at, n.updated_at,
-                        u.first_name, u.last_name, u.email,
-                        m.title AS meeting_title
-                    FROM notes n
-                    LEFT JOIN users u ON n.firebase_uid = u.firebase_uid
-                    LEFT JOIN meetings m ON n.meeting_id = m.meeting_id
-                    ORDER BY n.created_at DESC
-                """)
-                notes = []
-                rows = cur.fetchall()
-                
-                for row in cur.fetchall():
-                    note = {
-                        "id": row[0],
-                        "user_id": row[1],
-                        "meeting_id": row[2],
-                        "content": row[3],
-                        "created_at": row[4].isoformat() if row[4] else None,
-                        "updated_at": row[5].isoformat() if row[5] else None,
-                        "user_name": f"{row[6]} {row[7]}",
-                        "user_email": row[8],
-                        "meeting_title": row[9]
-                    }
-                    notes.append(note)
-                
-                return {"notes": notes}
-                
-    except Exception as e:
-        logger.error(f"Error in debug_notes: {str(e)}")
-        return {"error": str(e)}
+
+    user_id = current_user.get("uid")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Authentication required")

@@ -103,20 +103,8 @@ const Notes = () => {
 
   // Load notes from localStorage on component mount
   useEffect(() => {
-    // Load notes from localStorage on component mount
-    const storedNotes = localStorage.getItem('kumeet_notes');
-    if (storedNotes) {
-      try {
-        const parsedNotes = JSON.parse(storedNotes);
-        if (Array.isArray(parsedNotes) && parsedNotes.length > 0) {
-          console.log(`Loaded ${parsedNotes.length} notes from localStorage`);
-          setNotes(parsedNotes);
-          setLoading(false);
-        }
-      } catch (e) {
-        console.warn('Failed to parse notes from localStorage:', e);
-      }
-    }
+    // Directly fetch from API instead of localStorage
+    fetchNotes();
   }, []);
 
   // Fetch notes from all available sources
@@ -125,131 +113,20 @@ const Notes = () => {
       setLoading(true);
       console.log('Fetching all notes...');
 
-      // Create a variable to store all fetched notes from multiple sources
-      let allNotes = [];
-      let debugData = {};
-
-      // Try multiple endpoints in sequence and collect all results
-      const endpoints = ['/notes', '/notes/all'];
-      for (const endpoint of endpoints) {
-        try {
-          console.log(`Trying endpoint: ${endpoint}`);
-          const resp = await api.get(endpoint);
-          debugData[endpoint] = resp;
-
-          if (resp && resp.notes && Array.isArray(resp.notes)) {
-            console.log(`Found ${resp.notes.length} notes with ${endpoint}`);
-            // Add notes from this endpoint to our collection, avoiding duplicates
-            resp.notes.forEach(note => {
-              // Check if note already exists in allNotes
-              if (!allNotes.some(existingNote => existingNote.id === note.id)) {
-                allNotes.push(note);
-              }
-            });
-          } else {
-            console.log(`Endpoint ${endpoint} returned no notes or unexpected format`);
-          }
-        } catch (err) {
-          console.log(`Failed to fetch from ${endpoint}: ${err.message}`);
-          debugData[`${endpoint}_error`] = err.message;
-        }
-      }
-
-      // Also try to fetch notes for each meeting
       try {
-        const meetingsResp = await api.get('/meetings');
-        if (meetingsResp && meetingsResp.meetings && Array.isArray(meetingsResp.meetings)) {
-          for (const meeting of meetingsResp.meetings) {
-            const meetingId = meeting.meeting_id || meeting.id;
-            if (meetingId) {
-              try {
-                console.log(`Fetching notes for meeting ${meetingId}`);
-                const meetingNotesResp = await api.get(`/notes/meeting/${meetingId}`);
-                if (meetingNotesResp && meetingNotesResp.notes && Array.isArray(meetingNotesResp.notes)) {
-                  console.log(`Found ${meetingNotesResp.notes.length} notes for meeting ${meetingId}`);
-                  // Add meeting notes to our collection, avoiding duplicates
-                  meetingNotesResp.notes.forEach(note => {
-                    if (!allNotes.some(existingNote => existingNote.id === note.id)) {
-                      allNotes.push(note);
-                    }
-                  });
-                }
-              } catch (err) {
-                console.log(`Failed to fetch notes for meeting ${meetingId}: ${err.message}`);
-              }
-            }
-          }
+        const resp = await api.get('/notes');
+        if (resp && resp.notes && Array.isArray(resp.notes)) {
+          console.log(`Found ${resp.notes.length} notes`);
+          setNotes(resp.notes);
+        } else {
+          setNotes([]);
         }
       } catch (err) {
-        console.log(`Failed to fetch meetings: ${err.message}`);
-      }
-
-      // Try direct database query as a last resort
-      if (allNotes.length === 0) {
-        console.log('No notes found from any endpoint, checking direct DB query');
-        try {
-          const dbNotes = await fetch('/api/debug/notes').then(res => res.json());
-          if (dbNotes && dbNotes.length > 0) {
-            console.log(`Found ${dbNotes.length} notes directly from DB`);
-            const transformedDbNotes = dbNotes.map(note => ({
-              id: note.note_id,
-              content: note.note_text || '',
-              meetingId: note.meeting_id ? String(note.meeting_id) : '',
-              meetingTitle: note.meeting_id ? `Meeting ${note.meeting_id}` : 'Personal Note',
-              meetingDate: new Date().toLocaleDateString(),
-              createdAt: note.created_at || new Date().toISOString(),
-              updatedAt: note.created_at || new Date().toISOString(),
-              createdBy: { id: note.firebase_uid, name: 'User' }
-            }));
-
-            // Add these notes to our collection
-            transformedDbNotes.forEach(note => {
-              if (!allNotes.some(existingNote => existingNote.id === note.id)) {
-                allNotes.push(note);
-              }
-            });
-          }
-        } catch (dbErr) {
-          console.log('Direct DB query failed:', dbErr);
-        }
-      }
-
-      // Local storage fallback - add notes from localStorage if they exist
-      try {
-        const storedNotes = localStorage.getItem('kumeet_notes');
-        if (storedNotes) {
-          const parsedNotes = JSON.parse(storedNotes);
-          if (Array.isArray(parsedNotes) && parsedNotes.length > 0) {
-            console.log(`Found ${parsedNotes.length} notes in localStorage`);
-            // Add localStorage notes to our collection, avoiding duplicates
-            parsedNotes.forEach(note => {
-              if (!allNotes.some(existingNote => existingNote.id === note.id)) {
-                allNotes.push(note);
-              }
-            });
-          }
-        }
-      } catch (localStorageErr) {
-        console.log('Failed to load notes from localStorage:', localStorageErr);
-      }
-
-      // Set the state with all collected notes
-      if (allNotes.length > 0) {
-        console.log(`Total unique notes found: ${allNotes.length}`);
-        setNotes(allNotes);
-
-        // Save to localStorage for persistence
-        try {
-          localStorage.setItem('kumeet_notes', JSON.stringify(allNotes));
-        } catch (e) {
-          console.warn('Failed to save notes to localStorage:', e);
-        }
-      } else {
-        console.warn('No notes found from any source');
+        console.error('Failed to fetch notes:', err);
+        setError(err.message || 'Failed to fetch notes');
         setNotes([]);
       }
 
-      setDebugInfo(debugData);
       setLoading(false);
     } catch (err) {
       console.error('Error fetching notes:', err);
@@ -258,33 +135,7 @@ const Notes = () => {
       setNotes([]);
     }
   };
-
-  // Fetch notes on component mount
   useEffect(() => {
-    fetchNotes();
-
-    // Also fetch available meetings for the dropdown
-    const fetchMeetings = async () => {
-      try {
-        let meetingsResponse = await api.get('/meetings');
-
-        let meetings = [];
-        if (meetingsResponse && meetingsResponse.meetings) {
-          meetings = meetingsResponse.meetings;
-        } else if (meetingsResponse && Array.isArray(meetingsResponse)) {
-          meetings = meetingsResponse;
-        }
-
-        setMeetingOptions(meetings.map(meeting => ({
-          id: meeting.meeting_id || meeting.id,
-          title: meeting.title
-        })));
-      } catch (err) {
-        console.error('Error fetching meetings:', err);
-      }
-    };
-
-    fetchMeetings();
   }, []);
 
   // Search notes
@@ -352,13 +203,6 @@ const Notes = () => {
       setSelectedNote(updatedNote);
       setEditMode(false);
 
-      // Update localStorage for persistence
-      try {
-        localStorage.setItem('kumeet_notes', JSON.stringify(updatedNotes));
-      } catch (e) {
-        console.warn('Failed to save notes to localStorage:', e);
-      }
-
       // Call API to update server
       const response = await api.put(`/notes/${selectedNote.id}`, updatedData);
       console.log('Update response:', response);
@@ -377,12 +221,6 @@ const Notes = () => {
         setNotes(notesWithServerUpdate);
         setSelectedNote(serverUpdatedNote);
 
-        // Update localStorage with server data
-        try {
-          localStorage.setItem('kumeet_notes', JSON.stringify(notesWithServerUpdate));
-        } catch (e) {
-          console.warn('Failed to save notes to localStorage:', e);
-        }
       }
     } catch (error) {
       console.error('Failed to update note:', error);
@@ -405,12 +243,6 @@ const Notes = () => {
       setNotes(updatedNotes);
       setSelectedNote(null);
 
-      // Update localStorage for persistence
-      try {
-        localStorage.setItem('kumeet_notes', JSON.stringify(updatedNotes));
-      } catch (e) {
-        console.warn('Failed to save notes to localStorage:', e);
-      }
 
       // Call API to delete
       await api.del(`/notes/${selectedNote.id}`);
@@ -499,13 +331,6 @@ const Notes = () => {
         setSelectedNote(createdNote);
         setEditMode(false);
         setIsNewNote(false);
-
-        // Update localStorage
-        try {
-          localStorage.setItem('kumeet_notes', JSON.stringify(updatedNotes));
-        } catch (e) {
-          console.warn('Failed to save notes to localStorage:', e);
-        }
       }
     } catch (error) {
       console.error('Failed to create note:', error);

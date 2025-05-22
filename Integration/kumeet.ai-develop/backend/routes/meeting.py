@@ -103,11 +103,13 @@ async def get_meetings_post(
 
 @router.get("/recent")
 async def get_recent_meetings(
-        limit: int = Query(5, description="Number of meetings to return")
+        limit: int = Query(5, description="Number of meetings to return"),
+        current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Get recent meetings"""
     try:
-        meetings = MeetingService.get_recent_meetings(limit=limit)
+        user_id = current_user.get("uid")
+        meetings = MeetingService.get_recent_meetings(user_id=user_id, limit=limit)  # ✅ user_id ekle
         return success_response({"meetings": meetings})
     except Exception as e:
         logger.error(f"Error in get_recent_meetings: {e}")
@@ -129,11 +131,20 @@ async def get_upcoming_meetings(
 
 
 @router.get("/today")
-async def get_today_meetings():
-    """Get today's meetings"""
+async def get_today_meetings(
+        current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Get today's meetings for the current user"""
     try:
-        meetings = MeetingService.get_today_meetings()
+        user_id = current_user.get("uid")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Authentication required")
+
+        logger.info(f"Getting today's meetings for user ID: {user_id}")
+        meetings = MeetingService.get_today_meetings(user_id=user_id)
         return success_response({"meetings": meetings})
+    except HTTPException as e:
+        raise e
     except Exception as e:
         logger.error(f"Error in get_today_meetings: {e}")
         return error_response(str(e))

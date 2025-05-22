@@ -64,24 +64,6 @@ class NotesService:
                     notes_data = cur.fetchall()
                     logger.info(f"Found {len(notes_data)} notes")
 
-                    # If no notes found with user filter but there are notes in the DB,
-                    # it might be an authentication issue. Return all notes as fallback.
-                    if len(notes_data) == 0 and total_notes > 0 and user_id:
-                        logger.warning(
-                            f"No notes found for user {user_id}, but DB has {total_notes} notes. Returning all notes.")
-                        cur.execute("""
-                            SELECT 
-                                n.note_id, n.note_text, n.firebase_uid, n.meeting_id, n.created_at,
-                                u.first_name, u.last_name,
-                                m.title as meeting_title, m.meeting_date
-                            FROM notes n
-                            LEFT JOIN users u ON n.firebase_uid = u.firebase_uid
-                            LEFT JOIN meetings m ON n.meeting_id = m.meeting_id
-                            ORDER BY n.created_at DESC
-                        """)
-                        notes_data = cur.fetchall()
-                        logger.info(f"Found {len(notes_data)} notes after removing user filter")
-
                     # Format notes for frontend
                     notes = []
                     for note in notes_data:
