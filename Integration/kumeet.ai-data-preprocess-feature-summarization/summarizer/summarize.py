@@ -3,6 +3,7 @@ import pandas as pd
 import json
 
 import google.generativeai as genai
+import re
 
 from config import (
     MAX_TOKENS_PER_CHUNK,
@@ -20,7 +21,33 @@ from db import (
 
 # Configure the genai client with the API key
 genai.configure(api_key=GEMINI_API_KEY)
-import re, json
+
+def generate_meeting_abstract(bullet_summary: str, meeting_type: str) -> str:
+    """
+    Turn a bullet list into a 1–2 sentence executive overview.
+    """
+    prompt = (
+        f"You are an expert meeting assistant.\n"
+        f"This was a {meeting_type}.\n\n"
+        "Below are the key take-away bullets.  In ONE or TWO crisp, plain-English sentences, "
+        "summarise what the meeting was about and its headline outcome. "
+        "Do NOT list bullets, timestamps, or scores.  Just prose.\n\n"
+        "BULLETS:\n"
+        f"{bullet_summary.strip()}\n\n"
+        "===\n"
+        "Respond with the overview only."
+    )
+
+    model = genai.GenerativeModel(
+        "gemini-2.0-flash",
+        generation_config={"temperature": 0.4}
+    )
+    try:
+        response = model.generate_content(prompt)
+        return response.text.strip()
+    except Exception as e:
+        print(f"Error generating meeting abstract: {e}")
+        return "Could not generate abstract."
 
 def safe_json_loads(raw: str):
     """
@@ -39,6 +66,7 @@ def safe_json_loads(raw: str):
 def _load_json_from_gemini(raw):
     data = safe_json_loads(raw)
     return data if isinstance(data, list) else []
+
 def extract_decisions_gemini(text, chunk_idx, chunk_start, chunk_end):
     """
     Extract decisions from transcript chunk text.
@@ -414,6 +442,8 @@ def summarize_transcript(session_id, output_dir, meeting_type=None, min_importan
     
     # Create the merged summary with most important points
     merged_summary = merge_summaries(final_data, min_importance=min_importance)
+    abstract_text = generate_meeting_abstract(merged_summary, meeting_type)
+
     
     # Build the final output
     final_output = ""
@@ -443,7 +473,8 @@ def summarize_transcript(session_id, output_dir, meeting_type=None, min_importan
     final_output += "\n\n=== DETAILED SUMMARY BY SECTION ===\n\n" + chunk_summary
     
     # Save to database
-    save_summary_in_db(session_id, final_output)
+    save_summary_in_db(session_id, final_output, abstract_text)
+
     
     try:
         # Create output directory if it doesn't exist
@@ -477,6 +508,12 @@ def summarize_transcript(session_id, output_dir, meeting_type=None, min_importan
         with open(act_path, "w", encoding="utf-8") as f:
             json.dump(all_actions, f, ensure_ascii=False, indent=2)
         print(f"Saved {len(all_actions)} action items to: {act_path}")
+        
+        # Save overview.txt
+        abstract_path = os.path.join(output_dir, "overview.txt")
+        with open(abstract_path, "w", encoding="utf-8") as f:
+            f.write(abstract_text)
+        print(f"Saved 2-sentence overview to: {abstract_path}")
         
         print(f"All outputs successfully saved to {output_dir}")
     except Exception as e:

@@ -27,11 +27,12 @@ def init_db():
     c.execute("""
     CREATE TABLE IF NOT EXISTS summaries (
         session_id TEXT PRIMARY KEY,
-        summary_text TEXT
+        summary_text TEXT,
+        abstract_text TEXT
     )
     """)
 
-    # action_items (with optional assignee 'who')
+    # action_items
     c.execute("""
     CREATE TABLE IF NOT EXISTS action_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,8 +40,8 @@ def init_db():
         chunk_idx INTEGER,
         description TEXT,
         importance_score INTEGER,
-        timestamp TEXT  
-      )
+        timestamp TEXT
+    )
     """)
 
     # decisions
@@ -99,23 +100,28 @@ def load_transcript_from_db(session_id):
         return json.loads(row[0])
     return None
 
-def save_summary_in_db(session_id, summary_text):
+def save_summary_in_db(session_id, summary_text, abstract_text=""):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("REPLACE INTO summaries (session_id, summary_text) VALUES (?, ?)",
-              (session_id, summary_text))
+    c.execute(""" 
+        REPLACE INTO summaries (session_id, summary_text, abstract_text)
+        VALUES (?, ?, ?)
+    """, (session_id, summary_text, abstract_text))
     conn.commit()
     conn.close()
 
 def load_summary_from_db(session_id):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("SELECT summary_text FROM summaries WHERE session_id=?",
-              (session_id,))
+    c.execute("""
+        SELECT summary_text, abstract_text
+        FROM summaries
+        WHERE session_id=?
+    """, (session_id,))
     row = c.fetchone()
     conn.close()
     if row:
-        return row[0]
+        return {"summary_text": row[0], "abstract_text": row[1]}
     return None
 
 def save_summary_items_in_db(session_id, chunk_idx, items):
@@ -143,7 +149,7 @@ def save_summary_items_in_db(session_id, chunk_idx, items):
 def save_action_items_in_db(session_id, chunk_idx, items):
     """
     items: list of dict
-    each item has: description, importance_score, timestamp, who (optional)
+    each item has: description, importance_score, timestamp
     """
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -162,27 +168,18 @@ def save_action_items_in_db(session_id, chunk_idx, items):
     conn.commit()
     conn.close()
 
-def load_action_items_from_db(session_id, only_assigned=False):
+def load_action_items_from_db(session_id):
     """
     Returns all action items for a given session_id.
-    Set only_assigned=True to only get items with a 'who' value.
     """
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    if only_assigned:
-        c.execute("""
-        SELECT chunk_idx, description, importance_score, timestamp, who
-        FROM action_items
-        WHERE session_id=? AND who IS NOT NULL AND TRIM(who) != ''
-        ORDER BY chunk_idx
-        """, (session_id,))
-    else:
-        c.execute("""
-        SELECT chunk_idx, description, importance_score, timestamp, who
-        FROM action_items
-        WHERE session_id=?
-        ORDER BY chunk_idx
-        """, (session_id,))
+    c.execute("""
+    SELECT chunk_idx, description, importance_score, timestamp
+    FROM action_items
+    WHERE session_id=?
+    ORDER BY chunk_idx
+    """, (session_id,))
     rows = c.fetchall()
     conn.close()
     items = []
@@ -191,8 +188,7 @@ def load_action_items_from_db(session_id, only_assigned=False):
             "chunk_idx": r[0],
             "description": r[1],
             "importance_score": r[2],
-            "timestamp": r[3],
-            "who": r[4]
+            "timestamp": r[3]
         })
     return items
 
