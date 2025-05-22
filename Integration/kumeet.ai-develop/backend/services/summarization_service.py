@@ -67,6 +67,7 @@ class SummarizationService:
 #SBATCH --time=00:30:00
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
+#SBATCH --nodelist=ai03
 
 mkdir -p {settings.CLUSTER_REMOTE_DIR}/results/{session_id}
 cd {settings.CLUSTER_REMOTE_DIR}
@@ -156,7 +157,7 @@ python /kuacc/users/eerbil20/kumeet_summarizer/summarizer/main.py {remote_path} 
             return {"success": False, "error": str(e)}
 
     @staticmethod
-    def _save_to_postgres(meeting_id, summary, transcript, action_items):
+    def _save_to_postgres(meeting_id, summary, transcript, action_items, decisions):
 
         try:
             logger.info(f"Starting database update for meeting {meeting_id}")
@@ -169,7 +170,7 @@ python /kuacc/users/eerbil20/kumeet_summarizer/summarizer/main.py {remote_path} 
                     ON CONFLICT (meeting_id, summary_type) 
                     DO UPDATE SET content = EXCLUDED.content
                     """, (meeting_id, "general", summary))
-                    logger.info(f"Summary saved for meeting {meeting_id}")
+                    logger.info(f"Overview saved for meeting {meeting_id}")
 
 
                     if transcript:
@@ -232,8 +233,8 @@ python /kuacc/users/eerbil20/kumeet_summarizer/summarizer/main.py {remote_path} 
                         if firebase_uid:
                             for item in action_items:
                                 try:
-                                    description = item.get('description', '')
-                                    if description:  # Boş description'ları engelle
+                                    description = item.get('action', '') or item.get('description', '')
+                                    if description:
                                         cursor.execute("""
                                         INSERT INTO action_items 
                                         (firebase_uid, meeting_id, description, due_date, status)
@@ -248,6 +249,19 @@ python /kuacc/users/eerbil20/kumeet_summarizer/summarizer/main.py {remote_path} 
                         else:
                             logger.warning(
                                 f"Could not find firebase_uid for meeting {meeting_id}, action items not saved")
+                    if decisions:
+                        logger.info(f"Saving {len(decisions)} decisions for meeting {meeting_id}")
+                        for decision in decisions:
+                            try:
+                                decision_text = decision.get('decision', '') or decision.get('description', '')
+                                if decision_text:  # Boş decision'ları engelle
+                                    cursor.execute("""
+                                                        INSERT INTO decisions 
+                                                        (meeting_id, description)
+                                                        VALUES (%s, %s)
+                                                        """, (meeting_id, decision_text))
+                            except Exception as dec_err:
+                                logger.error(f"Error inserting decision: {str(dec_err)}")
 
                     try:
                         SummarizationService._calculate_speaker_statistics(meeting_id)
@@ -271,9 +285,9 @@ python /kuacc/users/eerbil20/kumeet_summarizer/summarizer/main.py {remote_path} 
 
             # Expected output files with different possible naming patterns
             file_candidates = {
-                "summary": [
-                    os.path.join(results_dir, "summary.txt"),
-                    os.path.join(results_dir, f"{session_id}_summary.txt")
+                "overview": [
+                    os.path.join(results_dir, "overview.txt"),
+                    os.path.join(results_dir, f"{session_id}_overview.txt")
                 ],
                 "transcript_csv": [
                     os.path.join(results_dir, "transcript.csv"),
@@ -284,12 +298,16 @@ python /kuacc/users/eerbil20/kumeet_summarizer/summarizer/main.py {remote_path} 
                     os.path.join(results_dir, f"{session_id}_transcript.json")
                 ],
                 "action_items": [
-                    os.path.join(results_dir, "summary.csv"),
-                    os.path.join(results_dir, f"{session_id}_summary.csv")
+                    os.path.join(results_dir, "action_items.json"),
+                    os.path.join(results_dir, f"{session_id}_action_items.json")
+                ],
+                "decisions": [
+                    os.path.join(results_dir, "decisions.json"),
+                    os.path.join(results_dir, f"{session_id}_decisions.json")
                 ],
                 "summary_json": [
                     os.path.join(results_dir, "summary.json"),
-                    os.path.join(results_dir, f"{session_id}_summary.json")
+                    os.path.join(results_dir, f"{session_id}_summary.json"),
                 ]
             }
 
@@ -303,17 +321,17 @@ python /kuacc/users/eerbil20/kumeet_summarizer/summarizer/main.py {remote_path} 
                         break
 
             # Check if summary file exists (required)
-            if "summary" not in found_files:
+            if "overview" not in found_files:
                 logger.error(f"Summary file not found in {results_dir}")
                 return False
 
             # Warning for missing files
-            for file_type in ["transcript_csv", "transcript_json", "action_items", "summary_json"]:
+            for file_type in ["transcript_csv", "transcript_json", "action_items", "summary_json", "decisions"]:
                 if file_type not in found_files:
                     logger.warning(f"{file_type} file not found in {results_dir}")
 
             # Read the summary file
-            with open(found_files["summary"], 'r', encoding='utf-8') as f:
+            with open(found_files["overview"], 'r', encoding='utf-8') as f:
                 summary = f.read()
 
             # Parse transcript
@@ -330,14 +348,18 @@ python /kuacc/users/eerbil20/kumeet_summarizer/summarizer/main.py {remote_path} 
             # Parse action items CSV if it exists
             action_items = []
             if "action_items" in found_files:
-                action_items = SummarizationService._parse_action_items_csv(found_files["action_items"])
+                action_items = SummarizationService._parse_action_items_json(found_files["action_items"])
 
+            decisions = []
+            if "decisions" in found_files:
+                decisions = SummarizationService._parse_decisions_json(found_files["decisions"])
 
             logger.info(f"Summary length: {len(summary)}")
             logger.info(f"Transcript entries: {len(transcript)}")
             logger.info(f"Action items count: {len(action_items)}")
+            logger.info(f"Decisions count: {len(decisions)}")
 
-            db_success = SummarizationService._save_to_postgres(meeting_id, summary, transcript, action_items)
+            db_success = SummarizationService._save_to_postgres(meeting_id, summary, transcript, action_items, decisions)
             if not db_success:
                 logger.error(f"Failed to save data to database for meeting {meeting_id}")
                 return False
@@ -423,6 +445,79 @@ python /kuacc/users/eerbil20/kumeet_summarizer/summarizer/main.py {remote_path} 
         except Exception as e:
             logger.error(f"Error processing summary.json: {str(e)}")
             return False
+
+    @staticmethod
+    def _parse_action_items_json(file_path):
+        """Parse action items JSON file into list format"""
+        action_items = []
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                action_items_data = json.load(f)
+
+            if isinstance(action_items_data, list):
+                # If it's a list of action items
+                for item in action_items_data:
+                    if isinstance(item, dict):
+                        action_items.append({
+                            'action': item.get('action', '') or item.get('description', ''),
+                            'importance_score': item.get('importance', 5),
+                            'timestamp': item.get('timestamp', '')
+                        })
+                    elif isinstance(item, str):
+                        # If it's just a string
+                        action_items.append({
+                            'action': item,
+                            'importance_score': 5,
+                            'timestamp': ''
+                        })
+            elif isinstance(action_items_data, dict):
+                # If it's a single action item
+                action_items.append({
+                    'action': action_items_data.get('action', '') or action_items_data.get('description', ''),
+                    'importance_score': action_items_data.get('importance', 5),
+                    'timestamp': action_items_data.get('timestamp', '')
+                })
+
+            logger.info(f"Parsed {len(action_items)} action items from JSON")
+            return action_items
+        except Exception as e:
+            logger.error(f"Error parsing action items JSON: {str(e)}")
+            return []
+
+    @staticmethod
+    def _parse_decisions_json(file_path):
+        """Parse decisions JSON file into list format"""
+        decisions = []
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                decisions_data = json.load(f)
+
+            if isinstance(decisions_data, list):
+                # If it's a list of decisions
+                for item in decisions_data:
+                    if isinstance(item, dict):
+                        decisions.append({
+                            'decision': item.get('decision', '') or item.get('description', ''),
+                            'timestamp': item.get('timestamp', '')
+                        })
+                    elif isinstance(item, str):
+                        # If it's just a string
+                        decisions.append({
+                            'decision': item,
+                            'timestamp': ''
+                        })
+            elif isinstance(decisions_data, dict):
+                # If it's a single decision
+                decisions.append({
+                    'decision': decisions_data.get('decision', '') or decisions_data.get('description', ''),
+                    'timestamp': decisions_data.get('timestamp', '')
+                })
+
+            logger.info(f"Parsed {len(decisions)} decisions from JSON")
+            return decisions
+        except Exception as e:
+            logger.error(f"Error parsing decisions JSON: {str(e)}")
+            return []
 
     @staticmethod
     def _parse_transcript_json(file_path):
