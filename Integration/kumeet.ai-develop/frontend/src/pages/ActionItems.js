@@ -1,22 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import * as api from '../utils/api';
+import useActionItems from '../hooks/useActionItems';
+import ROUTES from '../constants/routes';
 import {
   FaPlus,
-  FaTimes,
   FaCalendarAlt,
   FaCheck,
-  FaUser,
-  FaBuilding,
-  FaTrash,
+  FaTimes,
   FaEdit,
+  FaTrash,
+  FaFilter,
   FaChevronLeft,
+  FaBuilding,
   FaSync,
   FaExclamationTriangle
 } from 'react-icons/fa';
-import { useTranslation } from 'react-i18next';
-import ROUTES from '../constants/routes';
-import * as api from '../utils/api';
-import useActionItems from '../hooks/useActionItems';
+import AddToCalendarButton from '../components/calendar/AddToCalendarButton';
 
 // Modal component for adding/editing action items
 const ActionItemModal = ({ isOpen, onClose, onSave, initialData = {}, meetings = [], isEditing = false }) => {
@@ -260,7 +261,21 @@ const ActionItem = ({ item, onToggleComplete, onEdit, onDelete }) => {
         </div>
       </div>
 
-      <div className="ml-3 flex-shrink-0 flex">
+      <div className="ml-3 flex-shrink-0 flex items-center">
+        {item.due_date && (
+          <div className="mr-2">
+            <AddToCalendarButton 
+              item={{
+                id: item.id,
+                title: item.description,
+                dueDate: item.due_date
+              }}
+              type="action-item"
+              buttonText=""
+              className="p-2 text-sm"
+            />
+          </div>
+        )}
         <button
           onClick={() => onEdit(item)}
           className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 mr-2"

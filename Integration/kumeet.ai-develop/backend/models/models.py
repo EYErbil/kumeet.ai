@@ -3,6 +3,7 @@ from psycopg2 import sql
 import logging
 import sys
 from db import get_db_connection, execute_query, test_connection
+from models.calendar_tables import init_calendar_tables, logger as calendar_logger
 
 # Set up logger
 logging.basicConfig(level=logging.INFO,
@@ -161,6 +162,14 @@ def init_db():
                 # Commit the transaction
             conn.commit()
         logger.info("All database tables created successfully")
+        
+        # Initialize calendar-related tables
+        calendar_success = init_calendar_tables()
+        if calendar_success:
+            logger.info("Calendar integration tables created successfully")
+        else:
+            logger.warning("Failed to create calendar integration tables")
+            
         return True
     except Exception as e:
         logger.error(f"Error initializing database: {e}")

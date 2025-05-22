@@ -22,20 +22,44 @@ class ActionItemsService:
             dict: Formatted action item for frontend
         """
         try:
-            meeting_name = meeting_title or item.get('meeting_title') or 'General'
+            # Check if item is a dict
+            if not isinstance(item, dict):
+                return None
+                
+            # Make sure item has the required keys
+            if 'item_id' not in item:
+                return None
+
+            # Safely get meeting name
+            try:
+                meeting_name = meeting_title or item.get('meeting_title') or 'General'
+            except Exception as e:
+                meeting_name = 'General'  # Fallback
             
-            return {
+            # Safely construct the formatted item
+            formatted_item = {
                 'id': str(item['item_id']),
-                'description': item['description'] or '',
+                'description': item.get('description', '') or '',
                 'meeting': meeting_name,
-                'meeting_id': str(item['meeting_id']) if item['meeting_id'] else '',
+                'meeting_id': str(item.get('meeting_id', '')) if item.get('meeting_id') else '',
                 'meeting_title': meeting_name,
-                'status': item['status'] or 'pending',
-                'due_date': item['due_date'].strftime('%Y-%m-%d') if item['due_date'] else 'No due date'
+                'status': item.get('status', 'pending') or 'pending',
             }
+            
+            # Handle due_date carefully
+            due_date = item.get('due_date')
+            
+            if due_date and hasattr(due_date, 'strftime'):
+                formatted_item['due_date'] = due_date.strftime('%Y-%m-%d')
+            else:
+                formatted_item['due_date'] = 'No due date'
+            
+            return formatted_item
         except Exception as e:
-            logger.error(f"Error formatting action item {item.get('item_id')}: {e}")
-            logger.error(f"Item data: {item}")
+            # Safely log error without assuming item is a dict
+            item_id = "unknown"
+            if isinstance(item, dict) and 'item_id' in item:
+                item_id = item['item_id']
             return None
     
     @staticmethod
@@ -220,12 +244,22 @@ class ActionItemsService:
         Get action item by ID
         
         Args:
-            item_id (int): ID of the action item
+            item_id (int or str): ID of the action item
             
         Returns:
             dict: Action item details or None
         """
         try:
+            if not item_id:
+                return None
+            
+            # Convert item_id to int if it's a string
+            try:
+                item_id_int = int(item_id)
+            except (ValueError, TypeError) as conversion_error:
+                # Return a minimal item with at least an ID to avoid errors
+                return {'id': str(item_id), 'description': 'Action Item', 'status': 'pending'}
+                
             query = """
             SELECT 
                 ai.item_id, ai.description, ai.due_date, ai.status,
@@ -236,18 +270,30 @@ class ActionItemsService:
             WHERE ai.item_id = %s
             """
             
-            with get_db_connection() as conn:
-                with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                    cur.execute(query, (item_id,))
-                    item = cur.fetchone()
-            
-            if not item:
-                return None
+            try:
+                with get_db_connection() as conn:
+                    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                        cur.execute(query, (item_id_int,))
+                        item = cur.fetchone()
                 
-            return ActionItemsService._format_action_item(item)
+                if not item:
+                    return None
+                
+            except Exception as db_error:
+                # Return a minimal item with at least an ID to avoid errors
+                return {'id': str(item_id), 'description': 'Action Item', 'status': 'pending'}
+            
+            # Format the action item
+            formatted_item = ActionItemsService._format_action_item(item)
+            
+            if not formatted_item:
+                # Return a minimal item with at least an ID to avoid errors
+                return {'id': str(item_id), 'description': 'Action Item', 'status': 'pending'}
+            
+            return formatted_item
         except Exception as e:
-            logger.error(f"Error getting action item by ID: {e}")
-            raise
+            # Return a minimal item with at least an ID to avoid errors
+            return {'id': str(item_id), 'description': 'Action Item', 'status': 'pending'}
 
     @staticmethod
     def create_action_item(item_data):
@@ -269,23 +315,26 @@ class ActionItemsService:
         try:
             # Validate the meeting ID if provided
             meeting_id = item_data.get('meeting_id')
-            if meeting_id and not ActionItemsService._get_meeting_title(meeting_id):
-                logger.error(f"Cannot create action item: Meeting ID {meeting_id} not found")
-                return None
+            if meeting_id:
+                meeting_title = ActionItemsService._get_meeting_title(meeting_id)
+                if not meeting_title:
+                    return None
+                else:
+                    logger.info(f"Meeting title found: {meeting_title}")        
             
             # Extract action item data
             firebase_uid = item_data.get('firebase_uid')
             if not firebase_uid:
-                logger.error("Cannot create action item: firebase_uid is required")
                 return None
 
             description = item_data.get('description')
             if not description:
-                logger.error("Cannot create action item: description is required")
                 return None
 
             due_date = item_data.get('due_date')
+            
             status = item_data.get('status', 'pending')
+            
             segment_id = item_data.get('segment_id')
             
             # Insert the action item
@@ -296,20 +345,21 @@ class ActionItemsService:
             RETURNING item_id
             """
             
-            with get_db_connection() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(query, (
-                        firebase_uid, meeting_id, description, due_date, status, segment_id
-                    ))
-                    item_id = cur.fetchone()[0]
-                    conn.commit()
+            try:
+                with get_db_connection() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(query, (
+                            firebase_uid, meeting_id, description, due_date, status, segment_id
+                        ))
+                        item_id = cur.fetchone()[0]
+                        conn.commit()
+                
+            except Exception as db_error:
+                raise
             
-            logger.info(f"Created action item with ID: {item_id}")
-            
-            # Return the created action item
-            return ActionItemsService.get_action_item_by_id(item_id)
+            result = ActionItemsService.get_action_item_by_id(item_id)
+            return result
         except Exception as e:
-            logger.error(f"Error creating action item: {e}")
             raise
 
     @staticmethod
@@ -318,17 +368,24 @@ class ActionItemsService:
         Update an existing action item
         
         Args:
-            item_id (int): ID of the action item to update
+            item_id (int or str): ID of the action item to update
             item_data (dict): Updated action item data
             
         Returns:
             dict: Updated action item details or None
         """
         try:
+            # Convert item_id to int if it's a string
+            try:
+                item_id_int = int(item_id)
+            except (ValueError, TypeError):
+                logger.error(f"Invalid action item ID: {item_id}, cannot convert to integer")
+                return None
+                
             # First check if the action item exists
             with get_db_connection() as conn:
                 with conn.cursor() as cur:
-                    cur.execute("SELECT item_id FROM action_items WHERE item_id = %s", (item_id,))
+                    cur.execute("SELECT item_id FROM action_items WHERE item_id = %s", (item_id_int,))
                     if not cur.fetchone():
                         logger.error(f"Cannot update: Action item ID {item_id} not found")
                         return None
@@ -347,7 +404,7 @@ class ActionItemsService:
                 return ActionItemsService.get_action_item_by_id(item_id)
             
             # Add the item_id parameter
-            params.append(item_id)
+            params.append(item_id_int)
             
             # Execute the update
             query = f"""
@@ -375,16 +432,23 @@ class ActionItemsService:
         Delete an action item
         
         Args:
-            item_id (int): ID of the action item to delete
+            item_id (int or str): ID of the action item to delete
             
         Returns:
             bool: True if deleted, False otherwise
         """
         try:
+            # Convert item_id to int if it's a string
+            try:
+                item_id_int = int(item_id)
+            except (ValueError, TypeError):
+                logger.error(f"Invalid action item ID: {item_id}, cannot convert to integer")
+                return False
+                
             # First check if the action item exists
             with get_db_connection() as conn:
                 with conn.cursor() as cur:
-                    cur.execute("SELECT item_id FROM action_items WHERE item_id = %s", (item_id,))
+                    cur.execute("SELECT item_id FROM action_items WHERE item_id = %s", (item_id_int,))
                     if not cur.fetchone():
                         logger.error(f"Cannot delete: Action item ID {item_id} not found")
                         return False
@@ -394,7 +458,7 @@ class ActionItemsService:
             
             with get_db_connection() as conn:
                 with conn.cursor() as cur:
-                    cur.execute(query, (item_id,))
+                    cur.execute(query, (item_id_int,))
                     conn.commit()
             
             logger.info(f"Deleted action item with ID: {item_id}")

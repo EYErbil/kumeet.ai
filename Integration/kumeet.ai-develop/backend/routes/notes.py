@@ -42,16 +42,9 @@ async def get_notes(
         # Try to get user from auth, but don't require it
         user_id = None
         try:
-            # Get the authorization header
-            auth_header = request.headers.get('Authorization')
-            logger.debug(f"Auth header: {auth_header}")
-
-            if auth_header and auth_header.startswith('Bearer '):
-                # Process the token and get the user
-                token = auth_header.replace('Bearer ', '')
-                user = await get_current_user(token)
-                user_id = user.get("uid")
-                logger.info(f"Authenticated user: {user_id}")
+            # Current_user is now a string directly containing the user ID
+            user_id = current_user
+            logger.info(f"Authenticated user: {user_id}")
         except Exception as auth_err:
             logger.warning(f"Authentication error but continuing: {auth_err}")
 
@@ -71,7 +64,8 @@ async def get_notes(
 async def get_all_notes_all_meetings(current_user: dict = Depends(get_current_user)):
     """Get all notes for all meetings for the current user"""
     try:
-        user_id = current_user.get("uid")
+        # Current_user is now a string containing the user ID directly
+        user_id = current_user
         logger.info(f"GET /notes/all endpoint called for user: {user_id}")
 
         if not user_id:
@@ -107,7 +101,8 @@ async def create_note(note: NoteCreate, current_user: dict = Depends(get_current
     Create a new note
     """
     try:
-        user_id = current_user.get("uid")
+        # Current_user is now a string containing the user ID directly
+        user_id = current_user
         if not user_id:
             raise HTTPException(status_code=401, detail="Authentication required")
 

@@ -87,7 +87,9 @@ const useActionItems = (meeting_id = null) => {
   // Create a new action item
   const createActionItem = async (itemData) => {
     try {
+      console.log('[DEBUG] Creating action item with data:', itemData);
       const tempId = generateTempId();
+      console.log('[DEBUG] Generated temporary ID:', tempId);
 
       // Prepare the optimistic item
       const optimisticItem = {
@@ -99,9 +101,12 @@ const useActionItems = (meeting_id = null) => {
         due_date: itemData.due_date || new Date().toISOString().split('T')[0],
         isTemp: true
       };
+      
+      console.log('[DEBUG] Created optimistic item:', optimisticItem);
 
       // Update state optimistically
       setActionItems([...actionItems, optimisticItem]);
+      console.log('[DEBUG] Updated state with optimistic item');
 
       // Call the API
       const payload = {
@@ -110,18 +115,38 @@ const useActionItems = (meeting_id = null) => {
         due_date: itemData.due_date || null,
         status: itemData.status || 'pending'
       };
-
-      const response = await api.post('/action-items', payload);
       
-      if (!response) {
-        throw new Error('No response from server');
+      console.log('[DEBUG] Calling API with payload:', payload);
+      console.log('[DEBUG] API endpoint:', '/action-items');
+
+      // More detailed logging for the API call
+      try {
+        const response = await api.post('/action-items', payload);
+        console.log('[DEBUG] API response:', response);
+        
+        if (!response) {
+          console.error('[DEBUG] No response from server');
+          throw new Error('No response from server');
+        }
+      } catch (apiError) {
+        console.error('[DEBUG] API error:', apiError);
+        console.error('[DEBUG] API error details:', {
+          message: apiError.message,
+          status: apiError.status,
+          response: apiError.response,
+        });
+        throw apiError;
       }
 
       // Refresh the list from server to ensure consistency
+      console.log('[DEBUG] Refreshing action items from server');
       await fetchActionItems();
+      console.log('[DEBUG] Action items refreshed successfully');
 
     } catch (err) {
-      console.error('Error creating action item:', err);
+      console.error('[DEBUG] Error creating action item:', err);
+      console.error('[DEBUG] Error type:', typeof err);
+      console.error('[DEBUG] Error stack:', err.stack);
       setError(err.message || 'Failed to create action item');
       // Remove optimistic update on error
       setActionItems(actionItems.filter(item => !item.isTemp));
