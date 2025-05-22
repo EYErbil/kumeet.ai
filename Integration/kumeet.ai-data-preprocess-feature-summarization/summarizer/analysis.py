@@ -13,6 +13,57 @@ from db import (
 
 # Configure the genai client with the API key
 genai.configure(api_key=GEMINI_API_KEY)
+def extract_decisions_gemini(text, chunk_idx, chunk_start, chunk_end):
+    """
+    Extracts DECISIONS made in the chunk using Gemini.
+    Returns a list of dicts with 'description' and 'timestamp'.
+    """
+    prompt = (
+        "You are analyzing a meeting transcript chunk below. "
+        "Extract only clear DECISIONS made in this section (explicit choices, agreements, commitments). "
+        "Return a valid JSON array, each with: description, timestamp. If none found, return [].\n\n"
+        f"CHUNK (approx {chunk_start:.2f}-{chunk_end:.2f} sec):\n{text}"
+    )
+    model = genai.GenerativeModel("gemini-2.0-flash")
+    response = model.generate_content(contents=prompt)
+    raw = response.text
+    try:
+        data = json.loads(raw)
+        if isinstance(data, list):
+            for item in data:
+                if "timestamp" not in item:
+                    item["timestamp"] = f"{chunk_start:.2f}-{chunk_end:.2f}"
+            return data
+        else:
+            return []
+    except:
+        return []
+
+def extract_action_items_gemini(text, chunk_idx, chunk_start, chunk_end):
+    """
+    Extracts ACTION ITEMS (tasks assigned) in the chunk using Gemini.
+    Returns a list of dicts with 'description', 'who', and 'timestamp'.
+    """
+    prompt = (
+        "You are analyzing a meeting transcript chunk below. "
+        "Extract only ACTION ITEMS (tasks or follow-ups assigned to someone) from this section. "
+        "Return a valid JSON array, each with: description, who, timestamp. If none found, return [].\n\n"
+        f"CHUNK (approx {chunk_start:.2f}-{chunk_end:.2f} sec):\n{text}"
+    )
+    model = genai.GenerativeModel("gemini-2.0-flash")
+    response = model.generate_content(contents=prompt)
+    raw = response.text
+    try:
+        data = json.loads(raw)
+        if isinstance(data, list):
+            for item in data:
+                if "timestamp" not in item:
+                    item["timestamp"] = f"{chunk_start:.2f}-{chunk_end:.2f}"
+            return data
+        else:
+            return []
+    except:
+        return []
 
 def extract_items_with_scores_gemini(text, chunk_idx, chunk_start, chunk_end):
     """
