@@ -76,7 +76,7 @@ async def get_meetings(
 ):
     """Get all meetings"""
     try:
-        user_id = current_user if current_user else None
+        user_id = current_user.get("uid") if current_user else None
         logger.info(f"Getting meetings for user: {user_id} with limit: {limit}, offset: {offset}")
         meetings = MeetingService.get_meetings(user_id=user_id, limit=limit, offset=offset)
         return success_response({"meetings": meetings})
@@ -93,7 +93,7 @@ async def get_meetings_post(
 ):
     """Get all meetings via POST method (fallback for frontend compatibility)"""
     try:
-        user_id = current_user if current_user else None
+        user_id = current_user.get("uid") if current_user else None
         logger.info(f"Getting meetings (POST method) for user: {user_id} with limit: {limit}, offset: {offset}")
         meetings = MeetingService.get_meetings(user_id=user_id, limit=limit, offset=offset)
         return success_response({"meetings": meetings})
@@ -108,8 +108,8 @@ async def get_recent_meetings(
 ):
     """Get recent meetings"""
     try:
-        user_id = current_user.get("uid")
-        meetings = MeetingService.get_recent_meetings(user_id=user_id, limit=limit)  # ✅ user_id ekle
+        user_id = current_user  # Use current_user directly as it is the uid string
+        meetings = MeetingService.get_recent_meetings(user_id=user_id, limit=limit)
         return success_response({"meetings": meetings})
     except Exception as e:
         logger.error(f"Error in get_recent_meetings: {e}")
@@ -136,7 +136,7 @@ async def get_today_meetings(
 ):
     """Get today's meetings for the current user"""
     try:
-        user_id = current_user.get("uid")
+        user_id = current_user  # Use current_user directly as it is the uid string
         if not user_id:
             raise HTTPException(status_code=401, detail="Authentication required")
 
@@ -418,7 +418,7 @@ async def create_meeting(
         # Check for authentication
         user_id = None
         if current_user:
-            user_id = current_user
+            user_id = current_user.get("uid")
             logger.info(f"Authenticated user ID: {user_id}")
         else:
             logger.warning("No authenticated user found")
@@ -539,17 +539,11 @@ async def create_test_user():
 async def count_meetings_last_30_days(
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Get count of meetings in the last 30 days for the current user"""
+    """Count meetings in the last 30 days"""
     try:
-        user_id = current_user if current_user else None
-        if not user_id:
-            raise HTTPException(status_code=401, detail="Authentication required")
-            
-        logger.info(f"Getting meeting count for user ID: {user_id}")
+        user_id = current_user  # Use current_user directly as it is the uid string
         count = MeetingService.count_meetings_last_30_days(user_id)
         return success_response({"count": count})
-    except HTTPException as e:
-        raise e
     except Exception as e:
         logger.error(f"Error in count_meetings_last_30_days: {e}")
         return error_response(str(e))
@@ -558,17 +552,11 @@ async def count_meetings_last_30_days(
 async def get_total_meeting_time_last_30_days(
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Get total meeting time in seconds for the last 30 days for the current user"""
+    """Get total meeting time in the last 30 days"""
     try:
-        user_id = current_user if current_user else None
-        if not user_id:
-            raise HTTPException(status_code=401, detail="Authentication required")
-            
-        logger.info(f"Getting total meeting time for user ID: {user_id}")
-        total_seconds = MeetingService.get_total_meeting_time_last_30_days(user_id)
-        return success_response({"total_seconds": total_seconds})
-    except HTTPException as e:
-        raise e
+        user_id = current_user  # Use current_user directly as it is the uid string
+        total_minutes = MeetingService.get_total_meeting_time_last_30_days(user_id)
+        return success_response({"totalMinutes": total_minutes})
     except Exception as e:
         logger.error(f"Error in get_total_meeting_time_last_30_days: {e}")
         return error_response(str(e))

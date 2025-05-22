@@ -164,6 +164,6 @@ async def debug_notes(current_user: dict = Depends(get_current_user)):  # ✅ Au
     if not settings.DEBUG:
         return {"error": "Debug endpoints only available in development mode"}
 
-    user_id = current_user.get("uid")
+    user_id = current_user  # Use current_user directly as it is the uid string
     if not user_id:
         raise HTTPException(status_code=401, detail="Authentication required")
