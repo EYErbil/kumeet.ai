@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from routes import auth, meeting, notes, actionItem, user, feedback
+from routes import auth, meeting, notes, actionItem, user, feedback, calendar
 from utils.logger import setup_logger
 from config.firebase import initialize_firebase
 import time
@@ -60,6 +60,7 @@ app.include_router(notes.router, prefix="/api/notes")
 app.include_router(actionItem.router, prefix="/api/action-items")
 app.include_router(user.router, prefix="/api")
 app.include_router(feedback.router, prefix="/api")
+app.include_router(calendar.router, prefix="/api/calendar")
 
 # Log all registered routes for debugging
 for route in app.routes:

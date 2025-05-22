@@ -21,6 +21,11 @@ const ROUTES = {
     ACTION_ITEMS: '/action-items',
     SNIPPETS: '/snippets',
     SETTINGS: '/settings',
+    CALENDAR: {
+      ROOT: '/calendar',
+      GOOGLE_CALLBACK: '/calendar/google/callback',
+      OUTLOOK_CALLBACK: '/calendar/outlook/callback'
+    }
   };
   
   export default ROUTES;

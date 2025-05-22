@@ -34,7 +34,9 @@ async def get_action_items_for_user(
 ):
     """Get action items for the current authenticated user"""
     try:
-        user_id = current_user.get("uid")
+        # Current_user is now a string containing the user ID directly, not a dictionary
+        user_id = current_user
+        
         if not user_id:
             raise HTTPException(status_code=401, detail="Authentication required")
 
@@ -70,28 +72,54 @@ async def create_action_item(
 ):
     """Create a new action item"""
     try:
-        user_id = current_user.get("uid")
+        # Current_user is now a string containing the user ID directly, not a dictionary
+        user_id = current_user
+        
         if not user_id:
+            logger.error("Authentication required - user_id is None")
             raise HTTPException(status_code=401, detail="Authentication required")
-
         # Map frontend fields to backend fields
         item_data = {
             "firebase_uid": user_id,
-            "meeting_id": item.meeting_id if hasattr(item, 'meeting_id') else None,
             "description": item.description,
             "due_date": item.due_date,
             "status": item.status
         }
+        
+        # Handle meeting_id - convert to int if it's a valid number, otherwise set to None
+        if hasattr(item, 'meeting_id') and item.meeting_id:
+            try:
+                item_data["meeting_id"] = int(item.meeting_id)
+            except (ValueError, TypeError):
+                # If the meeting_id can't be converted to int, set it to None
+                item_data["meeting_id"] = None
+        else:
+            item_data["meeting_id"] = None
 
-        logger.info(f"Creating action item: {item_data}")
-        created_item = ActionItemsService.create_action_item(item_data)
-        logger.info(f"Created action item with ID: {created_item['id']}")
+        
+        # Wrap the service call in a try-except to isolate any service errors
+        try:
+            created_item = ActionItemsService.create_action_item(item_data)
+        except Exception as service_error:
+            raise HTTPException(status_code=500, detail=f"Failed to create action item: {str(service_error)}")
+        
+        # Make sure created_item is not None
+        if not created_item:
+            raise HTTPException(status_code=500, detail="Failed to create action item, service returned None")
+        
+        # Safely log the item ID - check that created_item is actually a dict first
+        if not isinstance(created_item, dict):
+            raise HTTPException(status_code=500, detail=f"Invalid response from service: expected dict, got {type(created_item)}")
+            
+        item_id = created_item.get('id', 'unknown')
+            
         return created_item
     except ValueError as e:
-        logger.error(f"Value error in create_action_item: {e}")
         raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException as e:
+        # Re-raise HTTP exceptions to preserve status codes and details
+        raise e
     except Exception as e:
-        logger.error(f"Error in create_action_item: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -103,7 +131,6 @@ async def update_action_item(
 ):
     """Update an existing action item"""
     try:
-        # Map frontend fields to backend fields
         item_data = {}
 
         if item.description is not None:
@@ -118,9 +145,7 @@ async def update_action_item(
         if item.status is not None:
             item_data["status"] = item.status
 
-        logger.info(f"Updating action item {item_id}: {item_data}")
         updated_item = ActionItemsService.update_action_item(item_id, item_data)
-        logger.info(f"Updated action item {item_id}")
         return updated_item
     except ValueError as e:
         logger.error(f"Value error in update_action_item: {e}")
@@ -137,9 +162,7 @@ async def delete_action_item(
 ):
     """Delete an action item"""
     try:
-        logger.info(f"Deleting action item {item_id}")
         success = ActionItemsService.delete_action_item(item_id)
-        logger.info(f"Deleted action item {item_id}")
         return {"success": success}
     except ValueError as e:
         logger.error(f"Value error in delete_action_item: {e}")
@@ -186,11 +209,10 @@ async def get_pending_action_items_count(
 ):
     """Get count of pending action items for the current authenticated user"""
     try:
-        user_id = current_user.get("uid")
+        user_id = current_user
+        
         if not user_id:
             raise HTTPException(status_code=401, detail="Authentication required")
-
-        logger.info(f"Getting pending action items count for user ID: {user_id}")
         count = ActionItemsService.count_pending_action_items(user_id)
         return {"count": count}
     except HTTPException as e:

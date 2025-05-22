@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaUser, FaGlobe, FaBell, FaPlug, FaCreditCard, FaCommentDots, FaFileContract } from 'react-icons/fa';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
 
 // Settings page components
 import ProfileSettings from '../components/settings/ProfileSettings';
@@ -13,6 +14,7 @@ import LegalSettings from '../components/settings/LegalSettings';
 
 const Settings = () => {
   const { t } = useTranslation();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState('profile');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
@@ -25,6 +27,39 @@ const Settings = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Check URL parameters for active tab
+  useEffect(() => {
+    // Get tab from URL parameter or hash
+    const params = new URLSearchParams(location.search);
+    const tabParam = params.get('tab');
+    const hash = location.hash.replace('#', '');
+
+    // Determine which tab to show
+    let newTab = activeTab;
+    
+    // First check URL parameter
+    if (tabParam && tabs.some(tab => tab.id === tabParam)) {
+      newTab = tabParam;
+    } 
+    // Then check for hash fragment
+    else if (hash && tabs.some(tab => tab.id === hash)) {
+      newTab = hash;
+    }
+    // Check for specific actions/flags
+    else if (
+      params.get('completeGoogleAuth') === 'true' || 
+      params.get('completeOutlookAuth') === 'true'
+    ) {
+      newTab = 'integrations';
+    }
+    
+    // Update the active tab if needed
+    if (newTab !== activeTab) {
+      setActiveTab(newTab);
+      console.log('Setting active tab to:', newTab, 'based on URL parameters');
+    }
+  }, [location]);
 
   // Tab configuration
   const tabs = [

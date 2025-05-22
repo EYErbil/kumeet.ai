@@ -76,7 +76,7 @@ async def get_meetings(
 ):
     """Get all meetings"""
     try:
-        user_id = current_user.get("uid") if current_user else None
+        user_id = current_user if current_user else None
         logger.info(f"Getting meetings for user: {user_id} with limit: {limit}, offset: {offset}")
         meetings = MeetingService.get_meetings(user_id=user_id, limit=limit, offset=offset)
         return success_response({"meetings": meetings})
@@ -93,7 +93,7 @@ async def get_meetings_post(
 ):
     """Get all meetings via POST method (fallback for frontend compatibility)"""
     try:
-        user_id = current_user.get("uid") if current_user else None
+        user_id = current_user if current_user else None
         logger.info(f"Getting meetings (POST method) for user: {user_id} with limit: {limit}, offset: {offset}")
         meetings = MeetingService.get_meetings(user_id=user_id, limit=limit, offset=offset)
         return success_response({"meetings": meetings})
@@ -418,7 +418,7 @@ async def create_meeting(
         # Check for authentication
         user_id = None
         if current_user:
-            user_id = current_user.get("uid")
+            user_id = current_user
             logger.info(f"Authenticated user ID: {user_id}")
         else:
             logger.warning("No authenticated user found")
@@ -541,7 +541,7 @@ async def count_meetings_last_30_days(
 ):
     """Get count of meetings in the last 30 days for the current user"""
     try:
-        user_id = current_user.get("uid")
+        user_id = current_user if current_user else None
         if not user_id:
             raise HTTPException(status_code=401, detail="Authentication required")
             
@@ -560,7 +560,7 @@ async def get_total_meeting_time_last_30_days(
 ):
     """Get total meeting time in seconds for the last 30 days for the current user"""
     try:
-        user_id = current_user.get("uid")
+        user_id = current_user if current_user else None
         if not user_id:
             raise HTTPException(status_code=401, detail="Authentication required")
             

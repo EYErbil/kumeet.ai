@@ -3,6 +3,7 @@ from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel, EmailStr
 from services.auth_service import create_user, verify_token, get_user_by_id
 from utils.logger import setup_logger
+from typing import Optional
 
 # Set up logger
 logger = setup_logger(__name__)
@@ -44,49 +45,26 @@ class AuthResponse(BaseModel):
     user: UserResponse | dict
 
 
-# This is the function that was missing
-async def get_current_user(authorization: str = Header(None)):
-    """
-    Dependency to get the current authenticated user
-
-    Args:
-        authorization (str): Authorization header with Bearer token
-
-    Returns:
-        dict: User information
-
-    Raises:
-        HTTPException: If token is invalid or expired
-    """
+# Dependency to get the current user from the Authorization header
+async def get_current_user(authorization: Optional[str] = Header(None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        logger.warning("Missing or invalid Authorization header")
+        raise HTTPException(
+            status_code=401,
+            detail="Missing or invalid Authorization header"
+        )
+    
+    token = authorization.replace("Bearer ", "")
+    
     try:
-        if not authorization:
-            raise HTTPException(
-                status_code=401,
-                detail="Authorization header is missing",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-            
-        if not authorization.startswith('Bearer '):
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid authorization format. Use Bearer token",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-            
-        # Extract token from header
-        token = authorization.replace('Bearer ', '')
-        
-        # Verify the token and get user info
-        user = await verify_token(token)
-        return user
-    except HTTPException:
-        raise
+        decoded_token = await verify_token(token)
+        logger.info(f"Successfully authenticated user: {decoded_token.get('uid')}")
+        return decoded_token.get('uid')
     except Exception as e:
         logger.error(f"Authentication error: {str(e)}")
         raise HTTPException(
             status_code=401,
-            detail="Invalid authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail="Invalid authentication credentials"
         )
 
 

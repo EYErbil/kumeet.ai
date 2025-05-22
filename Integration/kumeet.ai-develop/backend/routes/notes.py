@@ -37,11 +37,22 @@ async def get_notes(
     Get notes with optional filtering by meeting_id
     """
     try:
-        user_id = current_user.get("uid")  # ✅ Bunu ekle
-        if not user_id:
-            raise HTTPException(status_code=401, detail="Authentication required")
+        logger.info("GET /notes endpoint called")
 
-        notes = NotesService.get_all_notes(user_id)  # ✅ user_id kullan
+        # Try to get user from auth, but don't require it
+        user_id = None
+        try:
+            # Current_user is now a string directly containing the user ID
+            user_id = current_user
+            logger.info(f"Authenticated user: {user_id}")
+        except Exception as auth_err:
+            logger.warning(f"Authentication error but continuing: {auth_err}")
+
+        # Get notes, with or without user filter
+        notes = NotesService.get_all_notes(user_id)
+        logger.info(f"Returning {len(notes)} notes")
+
+        # Return notes in the expected format
         return {"notes": notes}
     except HTTPException:
         raise
@@ -53,7 +64,8 @@ async def get_notes(
 async def get_all_notes_all_meetings(current_user: dict = Depends(get_current_user)):
     """Get all notes for all meetings for the current user"""
     try:
-        user_id = current_user.get("uid")
+        # Current_user is now a string containing the user ID directly
+        user_id = current_user
         logger.info(f"GET /notes/all endpoint called for user: {user_id}")
 
         if not user_id:
@@ -89,7 +101,8 @@ async def create_note(note: NoteCreate, current_user: dict = Depends(get_current
     Create a new note
     """
     try:
-        user_id = current_user.get("uid")
+        # Current_user is now a string containing the user ID directly
+        user_id = current_user
         if not user_id:
             raise HTTPException(status_code=401, detail="Authentication required")
 
