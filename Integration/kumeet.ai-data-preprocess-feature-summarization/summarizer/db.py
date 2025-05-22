@@ -1,5 +1,3 @@
-# db.py
-
 import sqlite3
 import json
 import os
@@ -10,7 +8,8 @@ def init_db():
     Creates required tables:
       transcripts -> store transcripts
       summaries -> store final text summary
-      action_items -> store bullet items with importance + timestamp
+      action_items -> store bullet items with importance + timestamp + who (assignee)
+      decisions -> store decisions with timestamp
       questions -> store custom Q&A
     """
     conn = sqlite3.connect(DB_PATH)
@@ -28,7 +27,8 @@ def init_db():
     c.execute("""
     CREATE TABLE IF NOT EXISTS summaries (
         session_id TEXT PRIMARY KEY,
-        summary_text TEXT
+        summary_text TEXT,
+        abstract_text TEXT
     )
     """)
 
@@ -44,6 +44,17 @@ def init_db():
     )
     """)
 
+    # decisions
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS decisions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id TEXT,
+        chunk_idx INTEGER,
+        description TEXT,
+        timestamp TEXT
+    )
+    """)
+
     # questions
     c.execute("""
     CREATE TABLE IF NOT EXISTS questions (
@@ -51,6 +62,18 @@ def init_db():
         session_id TEXT,
         question_text TEXT,
         answer_text TEXT
+    )
+    """)
+
+    # New table for general summary items
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS summary_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id TEXT,
+        chunk_idx INTEGER,
+        description TEXT,
+        importance_score INTEGER,
+        timestamp TEXT
     )
     """)
 
@@ -77,24 +100,51 @@ def load_transcript_from_db(session_id):
         return json.loads(row[0])
     return None
 
-def save_summary_in_db(session_id, summary_text):
+def save_summary_in_db(session_id, summary_text, abstract_text=""):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("REPLACE INTO summaries (session_id, summary_text) VALUES (?, ?)",
-              (session_id, summary_text))
+    c.execute(""" 
+        REPLACE INTO summaries (session_id, summary_text, abstract_text)
+        VALUES (?, ?, ?)
+    """, (session_id, summary_text, abstract_text))
     conn.commit()
     conn.close()
 
 def load_summary_from_db(session_id):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("SELECT summary_text FROM summaries WHERE session_id=?",
-              (session_id,))
+    c.execute("""
+        SELECT summary_text, abstract_text
+        FROM summaries
+        WHERE session_id=?
+    """, (session_id,))
     row = c.fetchone()
     conn.close()
     if row:
-        return row[0]
+        return {"summary_text": row[0], "abstract_text": row[1]}
     return None
+
+def save_summary_items_in_db(session_id, chunk_idx, items):
+    """
+    items: list of dict
+    each item has: description, importance_score, timestamp
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    for it in items:
+        c.execute("""
+        INSERT INTO summary_items (session_id, chunk_idx, description, importance_score, timestamp)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (
+            session_id,
+            chunk_idx,
+            it.get("description",""),
+            it.get("importance_score", 5), # Default importance if not provided
+            it.get("timestamp","")
+        ))
+    conn.commit()
+    conn.close()
 
 def save_action_items_in_db(session_id, chunk_idx, items):
     """
@@ -120,7 +170,7 @@ def save_action_items_in_db(session_id, chunk_idx, items):
 
 def load_action_items_from_db(session_id):
     """
-    Returns all action items for a given session_id
+    Returns all action items for a given session_id.
     """
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -139,6 +189,49 @@ def load_action_items_from_db(session_id):
             "description": r[1],
             "importance_score": r[2],
             "timestamp": r[3]
+        })
+    return items
+
+def save_decisions_in_db(session_id, chunk_idx, decisions):
+    """
+    decisions: list of dicts, each with: description, timestamp
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    for dec in decisions:
+        c.execute("""
+        INSERT INTO decisions (session_id, chunk_idx, description, timestamp)
+        VALUES (?, ?, ?, ?)
+        """,
+        (
+            session_id,
+            chunk_idx,
+            dec.get("description", ""),
+            dec.get("timestamp", "")
+        ))
+    conn.commit()
+    conn.close()
+
+def load_decisions_from_db(session_id):
+    """
+    Returns all decisions for a given session_id
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+    SELECT chunk_idx, description, timestamp
+    FROM decisions
+    WHERE session_id=?
+    ORDER BY chunk_idx
+    """, (session_id,))
+    rows = c.fetchall()
+    conn.close()
+    items = []
+    for r in rows:
+        items.append({
+            "chunk_idx": r[0],
+            "description": r[1],
+            "timestamp": r[2]
         })
     return items
 

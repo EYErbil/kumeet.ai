@@ -1,24 +1,165 @@
-# summarize.py
-
 import os
 import pandas as pd
 import json
 
-# Fix the import for Google Generative AI
 import google.generativeai as genai
+import re
 
 from config import (
     MAX_TOKENS_PER_CHUNK,
     MEETING_TYPE,
     FOCUS_REQUEST,
-    GEMINI_API_KEY  # Import the key from config
+    GEMINI_API_KEY
 )
-from db import load_transcript_from_db, save_summary_in_db
-from analysis import extract_items_with_scores_gemini, save_extracted_items_in_db
+from db import (
+    load_transcript_from_db,
+    save_summary_in_db,
+    save_summary_items_in_db,
+    save_decisions_in_db,
+    save_action_items_in_db
+)
 
 # Configure the genai client with the API key
 genai.configure(api_key=GEMINI_API_KEY)
 
+def generate_meeting_abstract(bullet_summary: str, meeting_type: str) -> str:
+    """
+    Turn a bullet list into a 1–2 sentence executive overview.
+    """
+    prompt = (
+        f"You are an expert meeting assistant.\n"
+        f"This was a {meeting_type}.\n\n"
+        "Below are the key take-away bullets.  In ONE or TWO crisp, plain-English sentences, "
+        "summarise what the meeting was about and its headline outcome. "
+        "Do NOT list bullets, timestamps, or scores.  Just prose.\n\n"
+        "BULLETS:\n"
+        f"{bullet_summary.strip()}\n\n"
+        "===\n"
+        "Respond with the overview only."
+    )
+
+    model = genai.GenerativeModel(
+        "gemini-2.0-flash",
+        generation_config={"temperature": 0.4}
+    )
+    try:
+        response = model.generate_content(prompt)
+        return response.text.strip()
+    except Exception as e:
+        print(f"Error generating meeting abstract: {e}")
+        return "Could not generate abstract."
+
+def safe_json_loads(raw: str):
+    """
+    Removes ```json fences or other backticks and tries to load JSON.
+    Returns None on failure instead of raising.
+    """
+    # remove triple-backtick blocks
+    cleaned = re.sub(r"```(?:json)?\s*([\s\S]*?)```", r"\1", raw).strip()
+    # fall back: maybe the whole thing was fenced
+    cleaned = cleaned.strip("` \n")
+    try:
+        return json.loads(cleaned)
+    except Exception:
+        return None
+
+def _load_json_from_gemini(raw):
+    data = safe_json_loads(raw)
+    return data if isinstance(data, list) else []
+
+def extract_decisions_gemini(text, chunk_idx, chunk_start, chunk_end):
+    """
+    Extract decisions from transcript chunk text.
+    Returns a list of decisions, each with description and timestamp.
+    """
+    prompt = (
+        "You are analyzing a meeting transcript chunk below. "
+        "Extract only clear DECISIONS made in this section "
+        "(explicit choices, agreements, commitments). "
+        "Return a valid JSON array, each with: description, timestamp. "
+        "If none found, return [].\n\n"
+        f"CHUNK (approx {chunk_start:.2f}-{chunk_end:.2f} sec):\n{text}"
+    )
+    
+    model = genai.GenerativeModel("gemini-2.0-flash",generation_config={"response_mime_type": "application/json"})
+    response = model.generate_content(contents=prompt)
+    
+    raw = response.text
+    try:
+        data = json.loads(raw)
+        if isinstance(data, list):
+            for item in data:
+                if "timestamp" not in item:
+                    item["timestamp"] = f"{chunk_start:.2f}-{chunk_end:.2f}"
+            return data
+        else:
+            return []
+    except:
+        print(f"Failed to parse JSON from extract_decisions_gemini: {raw}")
+        return []
+
+def extract_action_items_gemini(text, chunk_idx, chunk_start, chunk_end):
+    """
+    Extract action items from transcript chunk text.
+    Returns a list of action items, each with description and timestamp.
+    """
+    prompt = (
+        "You are analyzing a meeting transcript chunk below. "
+        "Extract only ACTION ITEMS (tasks or follow-ups assigned to someone, has to answer what should a person do watching this recording?) "
+        "from this section. Return a valid JSON array, each with: "
+        "description, timestamp. If none found, return [].\n\n"
+        f"CHUNK (approx {chunk_start:.2f}-{chunk_end:.2f} sec):\n{text}"
+    )
+    
+    model = genai.GenerativeModel("gemini-2.0-flash",generation_config={"response_mime_type": "application/json"})
+    response = model.generate_content(contents=prompt)
+    
+    raw = response.text
+    try:
+        data = json.loads(raw)
+        if isinstance(data, list):
+            for item in data:
+                if "timestamp" not in item:
+                    item["timestamp"] = f"{chunk_start:.2f}-{chunk_end:.2f}"
+            return data
+        else:
+            return []
+    except:
+        print(f"Failed to parse JSON from extract_action_items_gemini: {raw}")
+        return []
+
+def extract_items_with_scores_gemini(text, chunk_idx, chunk_start, chunk_end):
+    """
+    Asks gemini to parse 'text' and produce an array of bullet items with:
+      description, importance_score(1-10), timestamp
+    If no items, return [].
+    We'll fallback to the chunk range as the timestamp if the model doesn't provide one.
+    """
+    prompt = (
+        "Below is a partial summary of a meeting chunk. "
+        "I want a list of bullet items, each with: description, importance_score (1-10), and timestamp. "
+        "Return them as valid JSON. If none found, return [].\n\n"
+        f"CHUNK (approx {chunk_start:.2f}-{chunk_end:.2f} sec):\n"
+        f"{text}"
+    )
+
+    model = genai.GenerativeModel("gemini-2.0-flash",generation_config={"response_mime_type": "application/json"})
+    response = model.generate_content(contents=prompt)
+    
+    raw = response.text
+    try:
+        data = json.loads(raw)
+        if isinstance(data, list):
+            for item in data:
+                # if no timestamp, fallback
+                if "timestamp" not in item:
+                    item["timestamp"] = f"{chunk_start:.2f}-{chunk_end:.2f}"
+            return data
+        else:
+            return []
+    except:
+        print(f"Failed to parse JSON from extract_items_with_scores_gemini: {raw}")
+        return []
 
 def chunk_transcript_data(transcript, max_tokens=800):
     """
@@ -198,6 +339,7 @@ def summarize_transcript(session_id, output_dir, meeting_type=None, min_importan
     """
     transcript = load_transcript_from_db(session_id)
     if not transcript:
+        print("Transcript not found in DB for session:", session_id)
         return None
         
     # Use meeting_type from parameter if provided, otherwise use default
@@ -206,8 +348,10 @@ def summarize_transcript(session_id, output_dir, meeting_type=None, min_importan
 
     chunks = chunk_transcript_data(transcript, max_tokens=800)
     final_data = []
+    all_decisions = []
+    all_actions = []
 
-    print("Summarizing transcript, extracting bullet items with scores...")
+    print("Summarizing transcript, extracting bullet items, decisions, and actions...")
     for idx, ch in enumerate(chunks):
         # Use only Gemini for summarization
         summary = summarize_chunk(
@@ -221,7 +365,21 @@ def summarize_transcript(session_id, output_dir, meeting_type=None, min_importan
         items = extract_items_with_scores_gemini(summary, idx + 1, ch["start"], ch["end"])
         # store them in DB
         if items:
-            save_extracted_items_in_db(session_id, idx + 1, items)
+            save_summary_items_in_db(session_id, idx + 1, items)
+            
+        # Extract decisions from transcript chunk (not from summary)
+        decisions = extract_decisions_gemini(ch["chunk_text"], idx + 1, ch["start"], ch["end"])
+        if decisions:
+            save_decisions_in_db(session_id, idx + 1, decisions)
+            all_decisions.extend(decisions)
+            print(f"Found {len(decisions)} decisions in chunk {idx+1}")
+
+        # Extract action items from transcript chunk (not from summary)
+        actions = extract_action_items_gemini(ch["chunk_text"], idx + 1, ch["start"], ch["end"])
+        if actions:
+            save_action_items_in_db(session_id, idx + 1, actions)
+            all_actions.extend(actions)
+            print(f"Found {len(actions)} action items in chunk {idx+1}")
 
         final_data.append({
             "idx": idx + 1,
@@ -284,32 +442,84 @@ def summarize_transcript(session_id, output_dir, meeting_type=None, min_importan
     
     # Create the merged summary with most important points
     merged_summary = merge_summaries(final_data, min_importance=min_importance)
+    abstract_text = generate_meeting_abstract(merged_summary, meeting_type)
+
     
-    # Add focus question to the output if provided
+    # Build the final output
     final_output = ""
     if focus_question:
         final_output = f"FOCUS QUESTION: {focus_question}\n\n"
         
-    # Add the merged and detailed summaries
-    final_output += merged_summary + "\n\n=== DETAILED SUMMARY BY SECTION ===\n\n" + chunk_summary
+    # Add the merged summary
+    final_output += merged_summary
+    print("I will hopefully get action itemsinsahha")
+    # Add decisions section if any were found
+    final_output += "\n\n=== DECISIONS MADE ===\n"
+    if all_decisions:
+        for d in all_decisions:
+            final_output += f"- {d['description']} [timestamp: {d['timestamp']}]\n"
+    else:
+        final_output += "No decisions recorded for this meeting.\n"
+    
+    # Add action items section if any were found
+    final_output += "\n\n=== ACTION ITEMS ===\n"
+    if all_actions:
+        for a in all_actions:
+            final_output += f"- {a['description']} [timestamp: {a['timestamp']}]\n"
+    else:
+        final_output += "No action items recorded for this meeting.\n"
+    
+    # Add the detailed chunk-by-chunk summary
+    final_output += "\n\n=== DETAILED SUMMARY BY SECTION ===\n\n" + chunk_summary
     
     # Save to database
-    save_summary_in_db(session_id, final_output)
+    save_summary_in_db(session_id, final_output, abstract_text)
+
     
-    # Save TXT output
-    txt_path = os.path.join(output_dir, "summary.txt")
-    with open(txt_path, "w", encoding="utf-8") as f:
-        f.write(final_output)
-    
-    # Save JSON output
-    json_path = os.path.join(output_dir, "summary.json")
-    with open(json_path, "w", encoding="utf-8") as f:
-        json.dump(summary_items, f, ensure_ascii=False, indent=2)
-    
-    # Save CSV output
-    csv_path = os.path.join(output_dir, "summary.csv")
-    pd.DataFrame(summary_items).to_csv(csv_path, index=False, encoding="utf-8")
-    
-    print(f"Summary saved to {txt_path}, {json_path}, and {csv_path}")
+    try:
+        # Create output directory if it doesn't exist
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # Save TXT output
+        txt_path = os.path.join(output_dir, "summary.txt")
+        with open(txt_path, "w", encoding="utf-8") as f:
+            f.write(final_output)
+        print(f"Saved summary text to: {txt_path}")
+        
+        # Save JSON output (summary items)
+        json_path = os.path.join(output_dir, "summary.json")
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(summary_items, f, ensure_ascii=False, indent=2)
+        print(f"Saved summary points to: {json_path}")
+        
+        # Save CSV output
+        csv_path = os.path.join(output_dir, "summary.csv")
+        pd.DataFrame(summary_items).to_csv(csv_path, index=False, encoding="utf-8")
+        print(f"Saved summary CSV to: {csv_path}")
+        
+        # Save decisions.json
+        dec_path = os.path.join(output_dir, "decisions.json")
+        with open(dec_path, "w", encoding="utf-8") as f:
+            json.dump(all_decisions, f, ensure_ascii=False, indent=2)
+        print(f"Saved {len(all_decisions)} decisions to: {dec_path}")
+        
+        # Save action_items.json
+        act_path = os.path.join(output_dir, "action_items.json")
+        with open(act_path, "w", encoding="utf-8") as f:
+            json.dump(all_actions, f, ensure_ascii=False, indent=2)
+        print(f"Saved {len(all_actions)} action items to: {act_path}")
+        
+        # Save overview.txt
+        abstract_path = os.path.join(output_dir, "overview.txt")
+        with open(abstract_path, "w", encoding="utf-8") as f:
+            f.write(abstract_text)
+        print(f"Saved 2-sentence overview to: {abstract_path}")
+        
+        print(f"All outputs successfully saved to {output_dir}")
+    except Exception as e:
+        print(f"ERROR saving outputs: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
     
     return final_output
+

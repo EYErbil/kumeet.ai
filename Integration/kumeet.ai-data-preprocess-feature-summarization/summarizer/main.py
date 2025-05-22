@@ -89,4 +89,7 @@ def main():
 
 if __name__ == "__main__":
     os.makedirs(RESULTS_DIR, exist_ok=True)
+    print(f"[DEBUG] Using RESULTS_DIR: {RESULTS_DIR}")
+    print(f"[DEBUG] __file__ = {__file__}")
+
     main()
