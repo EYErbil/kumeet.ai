@@ -262,20 +262,18 @@ const ActionItem = ({ item, onToggleComplete, onEdit, onDelete }) => {
       </div>
 
       <div className="ml-3 flex-shrink-0 flex items-center">
-        {item.due_date && (
-          <div className="mr-2">
-            <AddToCalendarButton 
-              item={{
-                id: item.id,
-                title: item.description,
-                dueDate: item.due_date
-              }}
-              type="action-item"
-              buttonText=""
-              className="p-2 text-sm"
-            />
-          </div>
-        )}
+        <div className="mr-2">
+          <AddToCalendarButton 
+            item={{
+              id: item.id,
+              title: item.description,
+              dueDate: item.due_date
+            }}
+            type="action-item"
+            buttonText=""
+            className="p-2 text-sm"
+          />
+        </div>
         <button
           onClick={() => onEdit(item)}
           className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 mr-2"

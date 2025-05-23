@@ -2,8 +2,6 @@ import axios from 'axios';
 import { getAuthToken, getCurrentUser } from './auth';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
-// Test user ID to use as fallback when no authenticated user is found
-const TEST_USER_ID = '81ESCpHJI3cQeuFbvgcruRCFyj63';
 
 // Helper function to get headers with auth token
 const getHeaders = async () => {
@@ -22,17 +20,20 @@ export const getCalendarStatus = async () => {
     const headers = await getHeaders();
     console.log('Fetching calendar status from API...');
     
-    // Get the current user from Firebase Auth with fallback to test user ID
+    // Get the current user from Firebase Auth
     const currentUser = getCurrentUser();
-    let userId = currentUser?.uid;
     
-    // If no user ID is found, use the test user ID as fallback
-    if (!userId) {
-      console.log('No authenticated user found in getCalendarStatus, using test user ID:', TEST_USER_ID);
-      userId = TEST_USER_ID;
+    // If no user is found, return a default response
+    if (!currentUser) {
+      console.log('No authenticated user found in getCalendarStatus');
+      return {
+        googleCalendar: { connected: false, email: '', lastSync: '' },
+        outlookCalendar: { connected: false, email: '', lastSync: '' }
+      };
     }
     
     // Add user_id as a query parameter
+    const userId = currentUser.uid;
     const response = await axios.get(`${API_URL}/calendar/status?user_id=${userId}`, headers);
     console.log('Raw calendar status response:', response.data);
     
@@ -50,63 +51,20 @@ export const getCalendarStatus = async () => {
       }
     };
     
-    // If Google Calendar is not connected according to the general status, check directly
-    if (!result.googleCalendar.connected) {
-      try {
-        console.log('Google Calendar not connected according to general status, checking directly...');
-        const googleStatus = await checkGoogleConnection();
-        console.log('Direct Google connection check:', googleStatus);
-        
-        if (googleStatus.connected) {
-          console.log('Google Calendar is connected according to direct check');
-          result.googleCalendar.connected = true;
-          result.googleCalendar.email = googleStatus.email || '';
-          // Set a last sync time if we don't have one
-          if (!result.googleCalendar.lastSync) {
-            result.googleCalendar.lastSync = new Date().toISOString();
-          }
-        }
-      } catch (googleError) {
-        console.error('Error checking Google connection directly:', googleError);
-      }
+    // Store the status in localStorage for quick access
+    try {
+      localStorage.setItem('calendarStatus', JSON.stringify(result));
+    } catch (storageError) {
+      console.error('Error storing calendar status in localStorage:', storageError);
     }
-    
-    // Store the connection status in localStorage for persistence across page navigations
-    localStorage.setItem('calendarStatus', JSON.stringify(result));
-    console.log('Stored calendar status in localStorage:', result);
     
     return result;
   } catch (error) {
     console.error('Error getting calendar status:', error);
-    if (error.response) {
-      console.error('Response data:', error.response.data);
-      console.error('Response status:', error.response.status);
-    }
-    
-    // Try to get the status from localStorage if the API call fails
-    try {
-      const storedStatus = localStorage.getItem('calendarStatus');
-      if (storedStatus) {
-        const parsedStatus = JSON.parse(storedStatus);
-        console.log('Retrieved calendar status from localStorage:', parsedStatus);
-        return parsedStatus;
-      }
-    } catch (storageError) {
-      console.error('Error retrieving calendar status from localStorage:', storageError);
-    }
-    
-    // Return a default response if all else fails
+    // Return a default response instead of throwing an error
     return {
-      googleCalendar: {
-        connected: false,
-        email: '',
-        lastSync: ''
-      },
-      outlookCalendar: {
-        connected: false,
-        email: '',
-        lastSync: ''
-      }
+      googleCalendar: { connected: false, email: '', lastSync: '' },
+      outlookCalendar: { connected: false, email: '', lastSync: '' }
     };
   }
 };
@@ -354,17 +312,20 @@ export const checkGoogleConnection = async () => {
     const headers = await getHeaders();
     console.log('Checking Google Calendar connection...');
     
-    // Get the current user from Firebase Auth with fallback to test user ID
+    // Get the current user from Firebase Auth
     const currentUser = getCurrentUser();
-    let userId = currentUser?.uid;
     
-    // If no user ID is found, use the test user ID as fallback
-    if (!userId) {
-      console.log('No authenticated user found in checkGoogleConnection, using test user ID:', TEST_USER_ID);
-      userId = TEST_USER_ID;
+    // If no user is found, return a default response
+    if (!currentUser) {
+      console.log('No authenticated user found in checkGoogleConnection');
+      return {
+        connected: false,
+        email: "",
+        message: "Authentication required to check calendar connection"
+      };
     }
     
-    const response = await axios.get(`${API_URL}/calendar/google-status?user_id=${userId}`, headers);
+    const response = await axios.get(`${API_URL}/calendar/google-status?user_id=${currentUser.uid}`, headers);
     console.log('Google Calendar connection check response:', response.data);
     
     return response.data;

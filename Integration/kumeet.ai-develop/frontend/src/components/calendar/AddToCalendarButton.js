@@ -49,9 +49,7 @@ const AddToCalendarButton = ({ item, type, buttonText, className = '' }) => {
   // Function to check which calendars are available
   const checkCalendars = async () => {
     try {
-      console.log('Checking calendar availability...');
       const status = await getCalendarStatus();
-      console.log('Calendar status response:', status);
       
       // Get Google status directly as a backup
       let googleAvailable = status.googleCalendar.connected;
@@ -62,7 +60,6 @@ const AddToCalendarButton = ({ item, type, buttonText, className = '' }) => {
         try {
           const { checkGoogleConnection } = await import('../../services/api/calendar');
           const googleStatus = await checkGoogleConnection();
-          console.log('Direct Google connection check:', googleStatus);
           
           // Update Google availability based on direct check
           googleAvailable = googleStatus.connected || false;
@@ -70,8 +67,6 @@ const AddToCalendarButton = ({ item, type, buttonText, className = '' }) => {
           console.error('Error checking Google connection directly:', googleError);
         }
       }
-      
-      console.log('Final calendar status:', { google: googleAvailable, outlook: outlookAvailable });
       
       setCalendarStatus({
         google: googleAvailable,
@@ -107,8 +102,6 @@ const AddToCalendarButton = ({ item, type, buttonText, className = '' }) => {
     setResult(null);
     
     try {
-      console.log(`Adding ${type} to ${calendarType} calendar:`, item);
-      
       let response;
       
       if (type === 'meeting') {
@@ -118,8 +111,6 @@ const AddToCalendarButton = ({ item, type, buttonText, className = '' }) => {
       } else {
         throw new Error('Invalid item type');
       }
-      
-      console.log(`${type} added to calendar response:`, response);
       
       // Check if we need to authenticate
       if (!response.success && 
@@ -137,11 +128,9 @@ const AddToCalendarButton = ({ item, type, buttonText, className = '' }) => {
             if (calendarType === 'google' && parsedStatus.googleCalendar) {
               parsedStatus.googleCalendar.connected = false;
               localStorage.setItem('calendarStatus', JSON.stringify(parsedStatus));
-              console.log('Reset Google Calendar connection status in localStorage');
             } else if (calendarType === 'outlook' && parsedStatus.outlookCalendar) {
               parsedStatus.outlookCalendar.connected = false;
               localStorage.setItem('calendarStatus', JSON.stringify(parsedStatus));
-              console.log('Reset Outlook Calendar connection status in localStorage');
             }
           }
         } catch (storageError) {
@@ -285,8 +274,25 @@ const AddToCalendarButton = ({ item, type, buttonText, className = '' }) => {
     }
   };
 
-  // If no calendars are connected, show a disabled button
-  const noCalendarsConnected = !calendarStatus.google && !calendarStatus.outlook;
+  // Check if the item has a valid due date (for action items)
+  const hasValidDueDate = () => {
+    if (type !== 'action-item') return true;
+    return item && item.dueDate && item.dueDate !== 'No due date';
+  };
+  
+  // If no calendars are connected or no valid due date, show a disabled button
+  const isDisabled = !calendarStatus.google && !calendarStatus.outlook || isLoading || !hasValidDueDate();
+  
+  // Get the appropriate tooltip message
+  const getTooltipMessage = () => {
+    if (!hasValidDueDate()) {
+      return 'This item has no due date set';
+    }
+    if (!calendarStatus.google && !calendarStatus.outlook) {
+      return 'No calendars connected. Go to Settings > Integrations to connect a calendar.';
+    }
+    return '';
+  };
   
   // Default button text based on type
   const defaultButtonText = type === 'meeting' ? 'Add to Calendar' : 'Add Due Date to Calendar';
@@ -296,14 +302,14 @@ const AddToCalendarButton = ({ item, type, buttonText, className = '' }) => {
       {/* Main Button */}
       <button
         type="button"
-        onClick={() => noCalendarsConnected ? null : setShowDropdown(!showDropdown)}
-        disabled={isLoading || noCalendarsConnected}
+        onClick={() => isDisabled ? null : setShowDropdown(!showDropdown)}
+        disabled={isDisabled}
         className={`flex items-center px-3 py-2 text-sm font-medium rounded-md 
-          ${noCalendarsConnected 
+          ${isDisabled 
             ? 'bg-gray-200 text-gray-500 cursor-not-allowed dark:bg-gray-700 dark:text-gray-400' 
             : 'bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900 dark:text-purple-300 dark:hover:bg-purple-800'
           } ${className}`}
-        title={noCalendarsConnected ? 'No calendars connected. Go to Settings > Integrations to connect a calendar.' : ''}
+        title={getTooltipMessage()}
         ref={buttonRef}
       >
         {isLoading ? (

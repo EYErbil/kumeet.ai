@@ -15,13 +15,21 @@ const CalendarCallback = () => {
   useEffect(() => {
     const processCallback = async () => {
       try {
-        // Check if user is authenticated
+        // Get the user ID from Firebase Auth
         const currentUser = getCurrentUser();
-        if (!currentUser) {
-          console.log('No authenticated user found. Redirecting to login...');
-          setStatus('Authentication required. Redirecting to login...');
-          setTimeout(() => navigate('/login?redirect=/settings'), 3000);
-          return;
+        console.log('CalendarCallback: Current user from Firebase:', 
+          currentUser ? { uid: currentUser.uid, email: currentUser.email } : 'No user');
+        
+        // First try Firebase auth, then try state parameter
+        if (!currentUser || !currentUser.uid) {
+          if (stateUserId) {
+            console.log('No Firebase user found, but found user ID in state parameter. Using state user ID:', stateUserId);
+          } else {
+            console.log('No authenticated user found and no user ID in state. Redirecting to login...');
+            setStatus('Authentication required. Redirecting to login...');
+            setTimeout(() => navigate('/login?redirect=/settings'), 3000);
+            return;
+          }
         }
         
         // Get the query parameters
@@ -36,6 +44,20 @@ const CalendarCallback = () => {
           state,
           path: location.pathname
         });
+        
+        // Try to get user ID from state parameter if it exists
+        let stateUserId = null;
+        if (state) {
+          try {
+            const stateObj = JSON.parse(decodeURIComponent(state));
+            if (stateObj && stateObj.userId) {
+              stateUserId = stateObj.userId;
+              console.log('Found user ID in state parameter:', stateUserId);
+            }
+          } catch (e) {
+            console.error('Error parsing state parameter:', e);
+          }
+        }
         
         // Check if there's an error
         if (error) {
@@ -73,8 +95,12 @@ const CalendarCallback = () => {
         // Determine which calendar type based on the URL path
         const path = location.pathname;
         
-        // Get the user ID from Firebase Auth
-        const userId = currentUser.uid;
+        // Get the user ID from the current authenticated user or from state
+        const userId = currentUser?.uid || stateUserId;
+        
+        if (!userId || userId.trim() === '') {
+          throw new Error('User ID is empty. Authentication required.');
+        }
         
         if (path.includes('/calendar/google/callback')) {
           setStatus('Processing Google Calendar authorization...');
@@ -84,6 +110,7 @@ const CalendarCallback = () => {
             console.log('Calling public endpoint to save Google credentials with user ID:', userId);
             console.log('Full URL path:', location.pathname);
             console.log('Full code length:', code.length);
+            console.log(`Making request to: ${API_URL}/calendar/public-save-google-credentials`);
             
             const response = await axios.get(
               `${API_URL}/calendar/public-save-google-credentials?code=${encodeURIComponent(code)}&user_id=${userId}`
@@ -115,6 +142,19 @@ const CalendarCallback = () => {
               localStorage.setItem('calendarStatus', JSON.stringify(calendarStatus));
               console.log('Stored calendar status in localStorage:', calendarStatus);
               
+              // Immediately check status from server to confirm
+              try {
+                console.log('Verifying calendar status with server...');
+                const statusResponse = await axios.get(`${API_URL}/calendar/status?user_id=${userId}`);
+                console.log('Server calendar status response:', statusResponse.data);
+                
+                if (!statusResponse.data.google) {
+                  console.error('WARNING: Server says Google Calendar is not connected!');
+                }
+              } catch (statusError) {
+                console.error('Error checking calendar status:', statusError);
+              }
+              
               setStatus('Successfully connected to Google Calendar! Redirecting...');
               
               // Redirect to settings page with integrations tab active
@@ -124,6 +164,7 @@ const CalendarCallback = () => {
               }, 3000);
             } else if (response.data && response.data.error) {
               console.error('Error from API:', response.data.error);
+              console.error('Full error response:', response.data);
               
               // Format a more user-friendly error message
               let errorMessage = response.data.error || 'Unknown error';
@@ -135,6 +176,8 @@ const CalendarCallback = () => {
                 errorMessage = 'Invalid client credentials. Please contact support.';
               } else if (errorMessage.includes('access_denied') || errorDetails.includes('access_denied')) {
                 errorMessage = 'Access denied. You may have declined the permission request.';
+              } else if (errorMessage.includes('User') && errorMessage.includes('does not exist')) {
+                errorMessage = 'Your user account was not found in our database. Please try logging out and back in.';
               }
               
               setStatus(`${errorMessage}. Redirecting to settings...`);
@@ -169,6 +212,14 @@ const CalendarCallback = () => {
             }
           } catch (apiError) {
             console.error('Error calling public endpoint:', apiError);
+            console.error('Full error object:', JSON.stringify({
+              message: apiError.message,
+              response: apiError.response ? {
+                status: apiError.response.status,
+                data: apiError.response.data
+              } : 'No response',
+              request: apiError.request ? 'Request made but no response' : 'No request'
+            }));
             
             let errorMessage = 'Error connecting to Google Calendar';
             let errorDetails = '';
@@ -186,6 +237,8 @@ const CalendarCallback = () => {
                   errorMessage = 'Authorization code has expired or already been used. Please try connecting again.';
                 } else if (responseData.error && responseData.error.includes('invalid_client')) {
                   errorMessage = 'Invalid client credentials. Please contact support.';
+                } else if (responseData.error && responseData.error.includes('User') && responseData.error.includes('does not exist')) {
+                  errorMessage = 'Your user account was not found in our database. Please try logging out and back in.';
                 } else if (responseData.error) {
                   errorMessage = responseData.error;
                 }
@@ -208,45 +261,50 @@ const CalendarCallback = () => {
             }, 3000);
           }
         } else if (path.includes('/calendar/outlook/callback')) {
-          // Handle Outlook callback here if needed
-          setStatus('Processing Outlook Calendar authorization...');
-          // Similar implementation as Google callback
-          // ...
+          setStatus('Redirecting to complete Outlook Calendar authorization...');
+          // Store the code for later use
+          localStorage.setItem('pendingOutlookAuthCode', code);
           
+          // Mark this code as processed
+          processedCodes.push(code);
+          sessionStorage.setItem('processedAuthCodes', JSON.stringify(processedCodes));
+          
+          // Redirect to settings page with integrations tab active
           setTimeout(() => {
             setIsProcessing(false);
-            navigate('/settings?tab=integrations#integrations');
-          }, 3000);
+            navigate('/settings?tab=integrations&completeOutlookAuth=true#integrations');
+          }, 1000);
         } else {
-          setStatus('Unknown calendar provider');
-          setError('The URL path does not match any known calendar provider');
+          setStatus('Unknown calendar type');
+          setError(`Unrecognized callback path: ${path}`);
+          setIsProcessing(false);
           setTimeout(() => navigate('/settings'), 3000);
         }
-      } catch (e) {
-        console.error('Error in calendar callback:', e);
-        setStatus(`Error: ${e.message}. Redirecting to settings...`);
-        setError(e.message);
-        
-        setTimeout(() => {
-          setIsProcessing(false);
-          navigate('/settings?tab=integrations#integrations');
-        }, 3000);
+      } catch (error) {
+        console.error('Error processing callback:', error);
+        setStatus('An error occurred while connecting your calendar');
+        setError(error.message);
+        setIsProcessing(false);
+        setTimeout(() => navigate('/settings'), 3000);
       }
     };
-
+    
     processCallback();
-  }, [navigate, location, isProcessing]);
+  }, [location, navigate, isProcessing]);
 
   return (
-    <div className="container mx-auto p-4 text-center mt-20">
-      <h1 className="text-2xl font-bold mb-4">Calendar Authorization</h1>
-      <div className="mb-4">
-        <p>{status}</p>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 max-w-md w-full text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mx-auto mb-4"></div>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Calendar Integration</h2>
+        <p className="text-gray-600 dark:text-gray-400">{status}</p>
         {error && (
-          <p className="text-red-500 mt-2">
-            Error: {error}
-          </p>
+          <div className="mt-4 p-3 bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100 rounded-lg text-sm">
+            <p className="font-semibold">Error Details:</p>
+            <p className="break-words">{error}</p>
+          </div>
         )}
+        <p className="text-sm text-gray-500 dark:text-gray-500 mt-4">Please wait while we process your request...</p>
       </div>
     </div>
   );

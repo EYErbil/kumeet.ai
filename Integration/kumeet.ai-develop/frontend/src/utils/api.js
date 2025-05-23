@@ -316,3 +316,23 @@ export const uploadFile = async (endpoint, formData, options = {}) => {
     throw error;
   }
 };
+
+/**
+ * Get API headers with authentication token
+ * @returns {Promise<Object>} Headers object for API requests
+ */
+export const getApiHeaders = async () => {
+  // Get auth token if available
+  const token = await getAuthToken();
+
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+
+  // Add auth header if token exists
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  return { headers };
+};

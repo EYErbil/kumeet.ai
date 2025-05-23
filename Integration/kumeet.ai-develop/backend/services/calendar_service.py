@@ -14,10 +14,10 @@ class CalendarService:
         self.google_service = GoogleCalendarService()
         self.outlook_service = OutlookCalendarService()
     
-    def get_authorization_url(self, calendar_type: Literal["google", "outlook"]) -> str:
+    def get_authorization_url(self, calendar_type: Literal["google", "outlook"], state: str = None) -> str:
         """Get the authorization URL for the specified calendar type."""
         if calendar_type == "google":
-            return self.google_service.get_authorization_url()
+            return self.google_service.get_authorization_url(state=state)
         elif calendar_type == "outlook":
             return self.outlook_service.get_authorization_url()
         else:

@@ -24,7 +24,7 @@ calendar_repository = CalendarRepository()
 # Remove this endpoint that we added earlier to create a test user
 @router.get("/create-test-user")
 async def create_calendar_test_user():
-    """Create the test user that matches the TEST_USER_ID used in the frontend."""
+    """This endpoint is deprecated. Users should be properly authenticated."""
     # Return an error since we don't want to support test users anymore
     return {
         "message": "This endpoint is deprecated. Please use proper authentication.",
@@ -168,92 +168,147 @@ async def check_google_calendar_status(user_id: str = Depends(get_current_user))
         }
 
 @router.get("/public-save-google-credentials")
-async def public_save_google_credentials(code: str, user_id: str):
+async def public_save_google_credentials(code: str, user_id: str, state: str = None):
     """Public endpoint to directly save Google Calendar credentials to the database without requiring authentication."""
     try:
         from config.calendar import GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
         from services.google_calendar_service import SCOPES
         from services.user_service import UserService
         
-        logger.info(f"Saving Google Calendar credentials for user {user_id} without authentication")
-        logger.info(f"Using redirect URI: {GOOGLE_REDIRECT_URI}")
-        logger.info(f"Code length: {len(code)} characters, first 10 chars: {code[:10]}...")
+        if state:
+            try:
+                import json
+                state_obj = json.loads(state)
+                logger.info(f"Decoded state object: {state_obj}")
+                if 'userId' in state_obj:
+                    logger.info(f"User ID from state: {state_obj['userId']}")
+            except:
+                logger.warning(f"Could not decode state parameter: {state}")
         
-        # First, verify that the user exists in the database
-        user_service = UserService()
-        if not user_service.user_exists(user_id):
+        # Validate user_id parameter
+        if not user_id or user_id.strip() == "":
+            logger.error("Empty user_id provided to public_save_google_credentials")
+            return {
+                "status": "error",
+                "error": "User ID is required"
+            }
+        
+        # Check if the user exists in the database
+        user_exists = False
+        try:
+            user_service = UserService()
+            user_details = await user_service.get_user_by_id(user_id)
+            if user_details:
+                user_exists = True
+        except Exception as user_details_error:
+            logger.error(f"Error getting user details: {str(user_details_error)}")
+            user_exists = False
+        
+        # If user doesn't exist in the database, check directly
+        if not user_exists:
+            try:
+                from database.db import get_db_connection
+                with get_db_connection() as conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute(
+                            "SELECT COUNT(*) FROM users WHERE firebase_uid = %s",
+                            (user_id,)
+                        )
+                        result = cursor.fetchone()
+                        user_exists = result[0] > 0
+            except Exception as db_error:
+                logger.error(f"Error checking user directly in database: {str(db_error)}")
+        
+        if not user_exists:
             logger.error(f"User {user_id} does not exist in the database")
             return {
-                "message": "Error saving Google Calendar credentials",
-                "error": "User does not exist in the database. Please ensure you are logged in properly.",
-                "status": "error"
+                "status": "error",
+                "error": f"User with ID {user_id} not found",
+                "error_details": "User must exist in the database before connecting to Google Calendar"
             }
-            
-        # Check if this code has already been processed
+        
+        # Check if we've already processed this code to prevent duplicate processing
+        processed_auth_codes = {}
+        
+        # Track all processed auth codes in memory
         if code in processed_auth_codes:
             logger.info(f"This authorization code has already been processed at {processed_auth_codes[code]}")
             return {
-                "message": "This authorization code has already been processed",
                 "status": "success",
-                "already_processed": True
+                "message": "This authorization code has already been processed."
             }
         
-        # Create a simple OAuth flow to test the configuration
-        from google_auth_oauthlib.flow import Flow
-        from google.oauth2.credentials import Credentials
+        # Process the code
+        from models.calendar import CalendarCredentials, GoogleCalendarCredentials
+        from services.calendar_repository import CalendarRepository
         
-        # First, check if we already have valid credentials for this user
-        existing_credentials = calendar_repository.get_credentials(user_id, "google")
-        if existing_credentials and existing_credentials.access_token and existing_credentials.refresh_token:
+        # Check if user already has Google Calendar credentials
+        calendar_repo = CalendarRepository()
+        existing_credentials = await calendar_repo.get_calendar_credentials(
+            user_id=user_id, 
+            calendar_type="google"
+        )
+        
+        if existing_credentials:
             logger.info(f"User {user_id} already has Google Calendar credentials")
             
+            # Create a service using the existing credentials
+            from services.google_calendar_service import GoogleCalendarService
+            google_calendar_service = GoogleCalendarService()
+            
+            # Try to use the existing credentials
             try:
-                # Test if the existing credentials are valid
-                from google.oauth2.credentials import Credentials
-                from googleapiclient.discovery import build
-                
-                google_creds = Credentials(
-                    token=existing_credentials.access_token,
-                    refresh_token=existing_credentials.refresh_token,
-                    token_uri=existing_credentials.token_uri or "https://oauth2.googleapis.com/token",
-                    client_id=existing_credentials.client_id,
-                    client_secret=existing_credentials.client_secret,
-                    scopes=existing_credentials.scopes
+                # Load the credentials from the database
+                google_credentials = GoogleCalendarCredentials(
+                    user_id=user_id,
+                    calendar_type="google",
+                    access_token=existing_credentials.get("access_token"),
+                    refresh_token=existing_credentials.get("refresh_token"),
+                    token_expiry=existing_credentials.get("token_expiry"),
+                    client_id=GOOGLE_CLIENT_ID,
+                    client_secret=GOOGLE_CLIENT_SECRET,
+                    token_uri="https://oauth2.googleapis.com/token",
+                    scopes=existing_credentials.get("scopes", SCOPES)
                 )
                 
-                # Try to refresh the token if it's expired
-                if existing_credentials.token_expiry and existing_credentials.token_expiry < datetime.now():
+                # Check if token is expired and needs refresh
+                import datetime
+                if google_credentials.token_expiry and google_credentials.token_expiry < datetime.datetime.now():
                     logger.info("Existing token is expired, attempting to refresh")
-                    refreshed_credentials = calendar_service.refresh_token_if_needed(existing_credentials)
-                    if refreshed_credentials:
-                        existing_credentials = refreshed_credentials
-                        logger.info("Successfully refreshed existing token")
+                    google_service = await google_calendar_service.get_service(google_credentials)
+                    # If this succeeds, the credentials are refreshed
+                    google_credentials = google_calendar_service.credentials
+                    logger.info("Successfully refreshed existing token")
                 
-                # Test the credentials with a simple API call
-                service = build('calendar', 'v3', credentials=google_creds)
-                calendar_list = service.calendarList().list(maxResults=1).execute()
-                
+                # Test the credentials by fetching calendars
+                google_service = await google_calendar_service.get_service(google_credentials)
+                calendar_list = await google_calendar_service.list_calendars(google_service)
                 logger.info(f"Existing credentials are valid, found {len(calendar_list.get('items', []))} calendars")
                 
-                # Mark this code as processed
-                processed_auth_codes[code] = datetime.now()
+                # Store the refreshed credentials
+                await calendar_repo.save_credentials(google_credentials)
                 
-                # Return success with existing credentials
+                # Mark this code as processed
+                from datetime import datetime
+                processed_auth_codes[code] = datetime.now().isoformat()
+                
                 return {
-                    "message": "Using existing Google Calendar credentials",
-                    "credentials_id": existing_credentials.id,
-                    "email": getattr(existing_credentials, "email", None),
-                    "token_info": {
-                        "access_token_valid": True,
-                        "has_refresh_token": bool(existing_credentials.refresh_token),
-                        "expiry": str(existing_credentials.token_expiry) if existing_credentials.token_expiry else None
-                    },
-                    "status": "success"
+                    "status": "success",
+                    "message": "Google Calendar connection refreshed successfully",
+                    "email": google_credentials.email if hasattr(google_credentials, "email") else None
                 }
+                
             except Exception as e:
+                # If we can't use the existing credentials, we'll create new ones
                 logger.warning(f"Existing credentials are invalid, will create new ones: {str(e)}")
-                # Continue with the flow to get new credentials
         
+        # Create new OAuth flow and exchange the authorization code for tokens
+        logger.info(f"Creating OAuth flow for user {user_id}")
+        
+        from google_auth_oauthlib.flow import Flow
+        import googleapiclient.discovery
+        
+        # Create a flow instance to manage the OAuth 2.0 Authorization Grant Flow steps
         flow = Flow.from_client_config(
             {
                 "web": {
@@ -264,127 +319,210 @@ async def public_save_google_credentials(code: str, user_id: str):
                     "redirect_uris": [GOOGLE_REDIRECT_URI]
                 }
             },
-            scopes=SCOPES  # Use the same scopes as GoogleCalendarService
+            scopes=SCOPES,
+            redirect_uri=GOOGLE_REDIRECT_URI
         )
-        flow.redirect_uri = GOOGLE_REDIRECT_URI
         
         try:
-            # Exchange code for tokens
+            # Exchange authorization code for tokens
             logger.info("Attempting to exchange code for tokens...")
+            
+            # Use the authorization code to get tokens
             flow.fetch_token(code=code)
             credentials = flow.credentials
-            
             logger.info("Successfully exchanged code for tokens")
             logger.info(f"Access token received: {bool(credentials.token)}")
             logger.info(f"Refresh token received: {bool(credentials.refresh_token)}")
             logger.info(f"Token expiry: {credentials.expiry}")
             
-            # Create a GoogleCredentials object
-            # Ensure SCOPES is properly handled as a list
-            scopes_list = SCOPES
-            if isinstance(SCOPES, str):
-                scopes_list = [SCOPES]
-            elif not isinstance(SCOPES, list):
-                scopes_list = list(SCOPES)  # Convert other iterables to list
+            # Mark this code as processed
+            from datetime import datetime
+            processed_auth_codes[code] = datetime.now().isoformat()
             
+            # Create calendar credentials model
+            scopes_list = credentials.scopes if hasattr(credentials, "scopes") else SCOPES
             logger.info(f"Using scopes: {scopes_list}")
-            
-            google_credentials = GoogleCredentials(
+                
+            google_credentials = GoogleCalendarCredentials(
                 user_id=user_id,
                 calendar_type="google",
                 access_token=credentials.token,
                 refresh_token=credentials.refresh_token,
-                token_expiry=datetime.now() + timedelta(seconds=credentials.expiry.timestamp() - datetime.now().timestamp()) if credentials.expiry else None,
+                token_expiry=credentials.expiry,
                 client_id=GOOGLE_CLIENT_ID,
                 client_secret=GOOGLE_CLIENT_SECRET,
-                scopes=scopes_list,  # Now properly handled as a List[str]
-                token_uri="https://oauth2.googleapis.com/token"
+                token_uri=credentials.token_uri,
+                scopes=scopes_list
             )
             
-            # Delete any existing credentials first to avoid conflicts
-            calendar_repository.delete_credentials(user_id, "google")
-            
             # Save credentials to database
-            credentials_id = calendar_repository.save_credentials(google_credentials)
-            logger.info(f"Saved credentials with ID: {credentials_id}")
+            try:
+                # Delete any existing credentials first
+                logger.info(f"Deleting any existing credentials for user {user_id}")
+                await calendar_repo.delete_calendar_credentials(user_id, "google")
+                
+                # Save the new credentials
+                logger.info(f"Saving credentials to database for user {user_id}")
+                credentials_id = await calendar_repo.save_credentials(google_credentials)
+                logger.info(f"Saved credentials with ID: {credentials_id}")
+            except Exception as db_error:
+                logger.error(f"Error saving to database: {str(db_error)}")
+                raise
             
-            # Test the credentials by making a simple API call
-            from googleapiclient.discovery import build
-            service = build('calendar', 'v3', credentials=credentials)
+            # Test the saved credentials
+            logger.info(f"Testing saved credentials for user {user_id}")
+            from services.google_calendar_service import GoogleCalendarService
+            google_calendar_service = GoogleCalendarService()
+            google_service = await google_calendar_service.get_service(google_credentials)
             
-            # Get the user's calendar list
-            calendar_list = service.calendarList().list().execute()
+            # Test listinq calendars
+            calendar_list = await google_calendar_service.list_calendars(google_service)
             logger.info(f"Successfully retrieved {len(calendar_list.get('items', []))} calendars")
             
-            # Get the user's email
+            # Try to get user email
             try:
-                profile = service.calendarList().get(calendarId='primary').execute()
-                if 'id' in profile:
-                    google_credentials.email = profile['id']  # This is the user's email
-                    logger.info(f"Retrieved user email: {google_credentials.email}")
-                    # Update the credentials with the email
-                    google_credentials.id = credentials_id
-                    calendar_repository.update_credentials(google_credentials)
-                    logger.info(f"Updated credentials with email: {google_credentials.email}")
+                # Get user profile
+                user_info_service = googleapiclient.discovery.build(
+                    'oauth2', 'v2',
+                    credentials=credentials
+                )
+                user_info = user_info_service.userinfo().get().execute()
+                google_credentials.email = user_info.get('email')
+                logger.info(f"Retrieved user email: {google_credentials.email}")
+                
+                # Update credentials with email
+                await calendar_repo.update_credentials_email(user_id, "google", google_credentials.email)
+                logger.info(f"Updated credentials with email: {google_credentials.email}")
             except Exception as email_error:
                 logger.warning(f"Could not retrieve user email: {str(email_error)}")
-                # Even if we couldn't get the email through the API, try to update with what we have
-                if hasattr(google_credentials, 'email') and google_credentials.email:
-                    try:
-                        google_credentials.id = credentials_id
-                        calendar_repository.update_credentials(google_credentials)
+                try:
+                    if hasattr(credentials, 'id_token') and credentials.id_token:
+                        # Try to get email from ID token if available
+                        import jwt
+                        decoded = jwt.decode(credentials.id_token, options={"verify_signature": False})
+                        google_credentials.email = decoded.get('email')
+                        await calendar_repo.update_credentials_email(user_id, "google", google_credentials.email)
                         logger.info(f"Updated credentials with existing email: {google_credentials.email}")
-                    except Exception as update_error:
-                        logger.warning(f"Could not update credentials with email: {str(update_error)}")
+                except Exception as update_error:
+                    logger.warning(f"Could not update credentials with email: {str(update_error)}")
             
-            # Mark this code as processed
-            processed_auth_codes[code] = datetime.now()
-            
+            # Success response
+            logger.info(f"Successfully completed credential saving for user {user_id}")
             return {
-                "message": "Successfully saved Google Calendar credentials",
-                "credentials_id": credentials_id,
-                "email": getattr(google_credentials, "email", None),
-                "token_info": {
-                    "access_token_valid": bool(credentials.token),
-                    "has_refresh_token": bool(credentials.refresh_token),
-                    "expiry": str(credentials.expiry) if credentials.expiry else None
-                },
-                "calendar_count": len(calendar_list.get('items', [])),
-                "status": "success"
+                "status": "success",
+                "message": "Google Calendar connected successfully",
+                "email": google_credentials.email if hasattr(google_credentials, "email") else None
             }
-        except Exception as token_error:
-            logger.error(f"Error exchanging code for tokens: {str(token_error)}")
-            error_details = str(token_error)
             
-            # Provide more detailed error information
-            if "invalid_grant" in error_details:
+        except Exception as token_error:
+            import traceback
+            logger.error(f"Error in token exchange or credential saving: {str(token_error)}")
+            logger.error(traceback.format_exc())
+            
+            error_message = str(token_error)
+            error_details = ""
+            
+            if "invalid_grant" in error_message.lower():
                 logger.error("Invalid grant error - the authorization code may have expired or been used already")
-                return {
-                    "message": "Error saving Google Calendar credentials",
-                    "error": "The authorization code is invalid or has expired. Please try connecting again.",
-                    "error_details": error_details,
-                    "status": "error"
-                }
-            elif "redirect_uri_mismatch" in error_details:
+                error_message = "Authorization code has expired or already been used"
+                error_details = "Please try connecting to Google Calendar again"
+            elif "redirect_uri_mismatch" in error_message.lower():
+                error_message = "Redirect URI mismatch"
+                error_details = f"The redirect URI in the request: {GOOGLE_REDIRECT_URI} does not match the one authorized for the OAuth client"
                 logger.error(f"Redirect URI mismatch. Using: {GOOGLE_REDIRECT_URI}")
-                return {
-                    "message": "Error saving Google Calendar credentials",
-                    "error": "The redirect URI doesn't match what's configured in Google Cloud Console.",
-                    "configured_uri": GOOGLE_REDIRECT_URI,
-                    "error_details": error_details,
-                    "status": "error"
-                }
+            elif "invalid_client" in error_message.lower():
+                error_message = "Invalid client credentials"
+                error_details = "Please check your Google API credentials configuration"
+            elif "access_denied" in error_message.lower():
+                error_message = "Access denied"
+                error_details = "You may have declined the permission request"
             
             return {
-                "message": "Error saving Google Calendar credentials",
-                "error": error_details,
-                "status": "error"
+                "status": "error",
+                "error": error_message,
+                "error_details": error_details
             }
     except Exception as e:
-        logger.error(f"Error saving Google Calendar credentials: {str(e)}")
+        import traceback
+        logger.error(f"Unhandled exception in credential saving: {str(e)}")
+        logger.error(traceback.format_exc())
         
         return {
-            "message": "Error saving Google Calendar credentials",
+            "status": "error",
+            "error": "An unexpected error occurred",
+            "error_details": str(e)
+        }
+
+@router.get("/diagnose-user/{user_id}")
+async def diagnose_user(user_id: str):
+    """Diagnostic endpoint to check if a user exists and has calendar credentials."""
+    try:
+        from services.user_service import UserService
+        
+        user_service = UserService()
+        logger.info(f"Diagnosing user {user_id}")
+        
+        # Check if user exists
+        user_exists = user_service.user_exists(user_id)
+        logger.info(f"User exists check result: {user_exists}")
+        
+        # Get detailed information about the user
+        user_details = None
+        try:
+            user_details = user_service.get_user_by_firebase_uid(user_id)
+            logger.info(f"User details lookup result: {user_details}")
+        except Exception as user_details_error:
+            logger.error(f"Error getting user details: {str(user_details_error)}")
+        
+        # Check for calendar credentials
+        google_credentials = None
+        try:
+            google_credentials = calendar_repository.get_credentials(user_id, "google")
+            logger.info(f"Google credentials found: {google_credentials is not None}")
+            if google_credentials:
+                logger.info(f"Google credentials email: {getattr(google_credentials, 'email', 'None')}")
+        except Exception as creds_error:
+            logger.error(f"Error getting Google credentials: {str(creds_error)}")
+        
+        # Check users table directly using raw SQL
+        sql_result = None
+        try:
+            from database.connection import get_db_connection
+            from psycopg2.extras import RealDictCursor
+            
+            with get_db_connection() as conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                    cursor.execute("SELECT * FROM users WHERE firebase_uid = %s", (user_id,))
+                    sql_result = cursor.fetchone()
+        except Exception as db_error:
+            logger.error(f"Error checking user directly in database: {str(db_error)}")
+        
+        # Check calendar_credentials table directly
+        cal_creds_result = None
+        try:
+            from database.connection import get_db_connection
+            from psycopg2.extras import RealDictCursor
+            
+            with get_db_connection() as conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                    cursor.execute("SELECT * FROM calendar_credentials WHERE user_id = %s", (user_id,))
+                    cal_creds_result = cursor.fetchall()
+        except Exception as db_error:
+            logger.error(f"Error checking calendar credentials in database: {str(db_error)}")
+        
+        return {
+            "user_id": user_id,
+            "user_exists": user_exists,
+            "user_details": user_details,
+            "google_credentials_exist": google_credentials is not None,
+            "sql_user_result": sql_result,
+            "calendar_credentials": cal_creds_result,
+            "status": "success"
+        }
+    except Exception as e:
+        logger.error(f"Error diagnosing user: {str(e)}")
+        return {
+            "message": "Error diagnosing user",
             "error": str(e),
             "status": "error"
         } 

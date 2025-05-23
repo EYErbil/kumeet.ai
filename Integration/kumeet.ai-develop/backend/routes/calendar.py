@@ -24,13 +24,24 @@ calendar_repository = CalendarRepository()
 # Authentication routes
 
 @router.get("/auth/{calendar_type}")
-async def authorize_calendar(calendar_type: str, request: Request, user_id: str = Depends(get_current_user)):
+async def authorize_calendar(calendar_type: str, request: Request, state: Optional[str] = None, user_id: str = Depends(get_current_user)):
     """Get authorization URL for the specified calendar type."""
     if calendar_type not in ["google", "outlook"]:
         raise HTTPException(status_code=400, detail=f"Unsupported calendar type: {calendar_type}")
     
     try:
-        auth_url = calendar_service.get_authorization_url(calendar_type)
+
+        if state:
+            try:
+                import json
+                state_obj = json.loads(state)
+                logger.info(f"Decoded state object: {state_obj}")
+                if 'userId' in state_obj:
+                    logger.info(f"User ID from state: {state_obj['userId']}")
+            except:
+                logger.warning(f"Could not decode state parameter: {state}")
+        
+        auth_url = calendar_service.get_authorization_url(calendar_type, state=state)
         return {"authorization_url": auth_url}
     except Exception as e:
         logger.error(f"Error getting authorization URL: {str(e)}")
@@ -467,15 +478,9 @@ async def delete_action_item_events(action_item_id: str, user_id: str = Depends(
 # Calendar status routes
 
 @router.get("/status")
-async def get_calendar_status(user_id: Optional[str] = None):
+async def get_calendar_status(user_id: str = Depends(get_current_user)):
     """Get the connection status for all calendar types."""
     try:
-        # If no user_id is provided, try to get it from the request
-        if not user_id:
-            # Default to a test user ID
-            user_id = "81ESCpHJI3cQeuFbvgcruRCFyj63"
-            logger.info(f"No user_id provided, using default: {user_id}")
-        
         # Try to get credentials, but handle errors gracefully
         google_connected = False
         outlook_connected = False
@@ -535,24 +540,12 @@ async def get_calendar_status(user_id: Optional[str] = None):
         }
 
 @router.get("/status/{calendar_type}")
-async def get_specific_calendar_status(calendar_type: str, user_id: Optional[str] = None):
+async def get_specific_calendar_status(calendar_type: str, user_id: str = Depends(get_current_user)):
     """Get the connection status for a specific calendar type."""
     if calendar_type not in ["google", "outlook"]:
         raise HTTPException(status_code=400, detail=f"Unsupported calendar type: {calendar_type}")
     
     try:
-        # If no user_id is provided, use a default
-        if not user_id:
-            user_id = "81ESCpHJI3cQeuFbvgcruRCFyj63"
-            logger.info(f"No user_id provided, using default: {user_id}")
-        
-        # For the specific user ID, always return that Google Calendar is connected
-        if user_id == "81ESCpHJI3cQeuFbvgcruRCFyj63" and calendar_type == "google":
-            logger.info(f"Forcing Google Calendar connected status for user {user_id}")
-            return {
-                "connected": True
-            }
-        
         connected = False
         try:
             credentials = calendar_repository.get_credentials(user_id, calendar_type)
@@ -1446,15 +1439,9 @@ async def direct_add_action_item(
         }
 
 @router.get("/google-status")
-async def check_google_calendar_status(user_id: Optional[str] = None):
+async def check_google_calendar_status(user_id: str = Depends(get_current_user)):
     """Check the connection status for Google Calendar."""
     try:
-        # If no user_id is provided, try to get it from the request
-        if not user_id:
-            # Default to a test user ID
-            user_id = "81ESCpHJI3cQeuFbvgcruRCFyj63"
-            logger.info(f"No user_id provided, using default: {user_id}")
-        
         # Try to get credentials, but handle errors gracefully
         google_connected = False
         google_email = ""

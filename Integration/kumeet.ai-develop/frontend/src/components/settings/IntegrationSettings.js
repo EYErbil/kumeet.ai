@@ -10,7 +10,9 @@ import {
   handleOutlookCalendarCallback,
   checkGoogleConnection
 } from '../../services/api/calendar';
+import { getCurrentUser } from '../../services/api/auth';
 import axios from 'axios';
+import { getApiHeaders } from '../../utils/api';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
@@ -182,7 +184,30 @@ const IntegrationSettings = () => {
   const handleConnectGoogle = async () => {
     try {
       setLoading(true);
-      const authUrl = await getGoogleCalendarAuthUrl();
+      
+      // Get the current user ID
+      const currentUser = getCurrentUser();
+      if (!currentUser || !currentUser.uid) {
+        showNotification('Please log in before connecting to Google Calendar', 'error');
+        setLoading(false);
+        return;
+      }
+      
+      // Create a state parameter that includes the user ID
+      const stateObj = { 
+        userId: currentUser.uid,
+        timestamp: Date.now() 
+      };
+      const stateParam = encodeURIComponent(JSON.stringify(stateObj));
+      
+      // Get the authorization URL with state parameter
+      const headers = await getApiHeaders();
+      const response = await axios.get(
+        `${API_URL}/calendar/auth/google?state=${stateParam}`,
+        headers
+      );
+      
+      const authUrl = response.data.authorization_url;
       showNotification('Redirecting to Google for authorization...', 'success');
       setTimeout(() => { window.location.href = authUrl; }, 1000);
     } catch (error) {

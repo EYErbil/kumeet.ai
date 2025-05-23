@@ -4,8 +4,6 @@ import axios from 'axios';
 import { getCurrentUser } from '../../services/api/auth';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
-// Test user ID to use as fallback when no authenticated user is found
-const TEST_USER_ID = '81ESCpHJI3cQeuFbvgcruRCFyj63';
 
 const CalendarCallback = () => {
   const navigate = useNavigate();
@@ -23,12 +21,18 @@ const CalendarCallback = () => {
         const error = params.get('error');
         const state = params.get('state');
         
-        console.log('CalendarCallback: Processing callback with params:', { 
-          code: code ? code.substring(0, 10) + '...' : null,
-          error,
-          state,
-          path: location.pathname
-        });
+        // Try to get user ID from state parameter if it exists
+        let stateUserId = null;
+        if (state) {
+          try {
+            const stateObj = JSON.parse(decodeURIComponent(state));
+            if (stateObj && stateObj.userId) {
+              stateUserId = stateObj.userId;
+            }
+          } catch (e) {
+            console.error('Error parsing state parameter:', e);
+          }
+        }
         
         // Check if there's an error
         if (error) {
@@ -49,7 +53,6 @@ const CalendarCallback = () => {
         // Check if we've already processed this code
         const processedCodes = JSON.parse(sessionStorage.getItem('processedAuthCodes') || '[]');
         if (processedCodes.includes(code)) {
-          console.log('This authorization code has already been processed');
           setStatus('This authorization code has already been processed. Redirecting...');
           setTimeout(() => navigate('/settings?completeGoogleAuth=true'), 2000);
           return;
@@ -57,7 +60,6 @@ const CalendarCallback = () => {
         
         // Prevent duplicate processing
         if (isProcessing) {
-          console.log('Already processing a request, skipping');
           return;
         }
         
@@ -66,14 +68,27 @@ const CalendarCallback = () => {
         // Determine which calendar type based on the URL path
         const path = location.pathname;
         
-        // Get the user ID from Firebase Auth with fallback to test user ID
+        // Get the user ID from Firebase Auth
         const currentUser = getCurrentUser();
-        let userId = currentUser?.uid;
         
-        // If no user ID is found, use the test user ID as fallback
-        if (!userId) {
-          console.log('No authenticated user found, using test user ID:', TEST_USER_ID);
-          userId = TEST_USER_ID;
+        // First try Firebase auth, then try state parameter
+        if (!currentUser || !currentUser.uid) {
+          if (stateUserId) {
+            // We can use the state user ID
+          } else {
+            setStatus('Authentication required. Redirecting to login...');
+            setTimeout(() => navigate('/login?redirect=/settings'), 3000);
+            return;
+          }
+        }
+        
+        // Get the user ID from the current authenticated user or from state
+        const userId = currentUser?.uid || stateUserId;
+        
+        if (!userId || userId.trim() === '') {
+          setStatus('Authentication required. Redirecting to login...');
+          setTimeout(() => navigate('/login?redirect=/settings'), 3000);
+          return;
         }
         
         if (path.includes('/calendar/google/callback')) {
@@ -81,15 +96,9 @@ const CalendarCallback = () => {
           
           try {
             // Use the public endpoint that doesn't require authentication
-            console.log('Calling public endpoint to save Google credentials with user ID:', userId);
-            console.log('Full URL path:', location.pathname);
-            console.log('Full code length:', code.length);
-            
             const response = await axios.get(
-              `${API_URL}/calendar/public-save-google-credentials?code=${encodeURIComponent(code)}&user_id=${userId}`
+              `${API_URL}/calendar/public-save-google-credentials?code=${encodeURIComponent(code)}&user_id=${userId}&state=${encodeURIComponent(state || '')}`
             );
-            
-            console.log('Public save Google credentials response:', response.data);
             
             // Mark this code as processed
             processedCodes.push(code);
@@ -113,7 +122,6 @@ const CalendarCallback = () => {
               };
               
               localStorage.setItem('calendarStatus', JSON.stringify(calendarStatus));
-              console.log('Stored calendar status in localStorage:', calendarStatus);
               
               setStatus('Successfully connected to Google Calendar! Redirecting...');
               
@@ -148,7 +156,6 @@ const CalendarCallback = () => {
                   if (parsedStatus.googleCalendar) {
                     parsedStatus.googleCalendar.connected = false;
                     localStorage.setItem('calendarStatus', JSON.stringify(parsedStatus));
-                    console.log('Reset Google Calendar connection status in localStorage due to error');
                   }
                 }
               } catch (storageError) {
@@ -199,7 +206,6 @@ const CalendarCallback = () => {
                 if (parsedStatus.googleCalendar) {
                   parsedStatus.googleCalendar.connected = false;
                   localStorage.setItem('calendarStatus', JSON.stringify(parsedStatus));
-                  console.log('Reset Google Calendar connection status in localStorage due to error');
                 }
               }
             } catch (storageError) {

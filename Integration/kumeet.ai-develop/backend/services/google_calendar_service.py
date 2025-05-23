@@ -32,7 +32,7 @@ class GoogleCalendarService:
             logger.error("Google Calendar credentials not properly configured")
             raise ValueError("Google Calendar credentials not properly configured")
     
-    def get_authorization_url(self) -> str:
+    def get_authorization_url(self, state: str = None) -> str:
         """Generate the authorization URL for Google Calendar OAuth flow."""
         flow = Flow.from_client_config(
             {
@@ -51,7 +51,8 @@ class GoogleCalendarService:
         authorization_url, _ = flow.authorization_url(
             access_type='offline',
             include_granted_scopes='true',
-            prompt='consent'
+            prompt='consent',
+            state=state
         )
         
         return authorization_url
