@@ -1,0 +1,33 @@
+# Optional private-cluster override. Copy this file to
+# docker-compose.cluster.yml and provide the required variables locally.
+services:
+  backend:
+    environment:
+      PROCESSING_MODE: cluster
+      CLUSTER_HOST: ${CLUSTER_HOST:?Set CLUSTER_HOST}
+      CLUSTER_USER: ${CLUSTER_USER:?Set CLUSTER_USER}
+      CLUSTER_REMOTE_DIR: ${CLUSTER_REMOTE_DIR:?Set CLUSTER_REMOTE_DIR}
+      CLUSTER_WORKER_SCRIPT: ${CLUSTER_WORKER_SCRIPT:?Set CLUSTER_WORKER_SCRIPT}
+      CLUSTER_PYTHON_EXECUTABLE: ${CLUSTER_PYTHON_EXECUTABLE:-python}
+      CLUSTER_SETUP_COMMANDS: ${CLUSTER_SETUP_COMMANDS:-}
+      CLUSTER_SSH_KEY_PATH: /run/secrets/cluster_ssh_key
+      CLUSTER_KNOWN_HOSTS_PATH: /run/secrets/cluster_known_hosts
+      CLUSTER_POLL_INTERVAL_SECONDS: ${CLUSTER_POLL_INTERVAL_SECONDS:-10}
+      CLUSTER_JOB_TIMEOUT_SECONDS: ${CLUSTER_JOB_TIMEOUT_SECONDS:-1800}
+      SLURM_PARTITION: ${SLURM_PARTITION:-}
+      SLURM_ACCOUNT: ${SLURM_ACCOUNT:-}
+      SLURM_QOS: ${SLURM_QOS:-}
+      SLURM_GRES: ${SLURM_GRES:-gpu:1}
+      SLURM_TIME: ${SLURM_TIME:-00:30:00}
+      SLURM_CPUS_PER_TASK: ${SLURM_CPUS_PER_TASK:-4}
+      SLURM_MEMORY: ${SLURM_MEMORY:-16G}
+      SLURM_NODELIST: ${SLURM_NODELIST:-}
+    volumes:
+      - type: bind
+        source: ${CLUSTER_SSH_KEY_FILE:?Set CLUSTER_SSH_KEY_FILE}
+        target: /run/secrets/cluster_ssh_key
+        read_only: true
+      - type: bind
+        source: ${CLUSTER_KNOWN_HOSTS_FILE:?Set CLUSTER_KNOWN_HOSTS_FILE}
+        target: /run/secrets/cluster_known_hosts
+        read_only: true

@@ -1,65 +1,81 @@
-# To built image:
-# docker-compose build
-
-# To start:
-# docker-compose up
-
-version: "3.8"
-
 services:
+  db:
+    image: postgres:14
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kumeet}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kumeet-local-only}
+      POSTGRES_DB: ${POSTGRES_DB:-kumeet}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: ${POSTGRES_DB:-kumeet}
+      DB_USER: ${POSTGRES_USER:-kumeet}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-kumeet-local-only}
+      DEBUG: ${DEBUG:-false}
+      CORS_ORIGINS: '["http://localhost:3000"]'
+      SHARED_VOLUME_PATH: /app/shared_data
+      UPLOAD_DIR: /app/shared_data/uploads
+      FIREBASE_DEVELOPMENT_MODE: ${FIREBASE_DEVELOPMENT_MODE:-true}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:3000/calendar/google/callback}
+      OUTLOOK_CLIENT_ID: ${OUTLOOK_CLIENT_ID:-}
+      OUTLOOK_TENANT_ID: ${OUTLOOK_TENANT_ID:-}
+      OUTLOOK_CLIENT_SECRET: ${OUTLOOK_CLIENT_SECRET:-}
+      OUTLOOK_REDIRECT_URI: ${OUTLOOK_REDIRECT_URI:-http://localhost:3000/calendar/outlook/callback}
+      PROCESSING_MODE: ${PROCESSING_MODE:-disabled}
     ports:
       - "8000:8000"
-    environment:
-      - DATABASE_URL=postgresql://postgres:PASSWORD@db:5432/postgres
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_NAME=postgres
-      - DB_USER=postgres
-      - DB_PASSWORD=PASSWORD
+    volumes:
+      - shared_data:/app/shared_data
     depends_on:
-      - db
-    networks:
-      - app-network
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 12
 
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: ${REACT_APP_API_URL:-/api}
+        REACT_APP_FIREBASE_API_KEY: ${REACT_APP_FIREBASE_API_KEY:-}
+        REACT_APP_FIREBASE_AUTH_DOMAIN: ${REACT_APP_FIREBASE_AUTH_DOMAIN:-}
+        REACT_APP_FIREBASE_PROJECT_ID: ${REACT_APP_FIREBASE_PROJECT_ID:-}
+        REACT_APP_FIREBASE_STORAGE_BUCKET: ${REACT_APP_FIREBASE_STORAGE_BUCKET:-}
+        REACT_APP_FIREBASE_MESSAGING_SENDER_ID: ${REACT_APP_FIREBASE_MESSAGING_SENDER_ID:-}
+        REACT_APP_FIREBASE_APP_ID: ${REACT_APP_FIREBASE_APP_ID:-}
+        REACT_APP_FIREBASE_MEASUREMENT_ID: ${REACT_APP_FIREBASE_MEASUREMENT_ID:-}
+    restart: unless-stopped
     ports:
       - "3000:3000"
-    environment:
-      - REACT_APP_API_URL=http://localhost:8000/api
-      - CHOKIDAR_USEPOLLING=true
-      - NODE_ENV=development
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
     depends_on:
-      - backend
-    networks:
-      - app-network
-
-  db:
-    image: postgres:14
-    restart: always
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: PASSWORD
-      POSTGRES_DB: postgres
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    networks:
-      - app-network
-
-networks:
-  app-network:
-    driver: bridge
+      backend:
+        condition: service_healthy
 
 volumes:
-  pgdata:
+  postgres_data:
+  shared_data:

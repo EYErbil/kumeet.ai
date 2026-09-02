@@ -1,0 +1,13 @@
+# Optional production-style Firebase Admin credential mount.
+# Set FIREBASE_CREDENTIALS_FILE to a local service-account JSON file, then run:
+# docker compose -f docker-compose.yml -f docker-compose.firebase.yml up --build
+services:
+  backend:
+    environment:
+      FIREBASE_DEVELOPMENT_MODE: "false"
+      FIREBASE_CREDENTIALS_PATH: /run/secrets/firebase_admin
+    volumes:
+      - type: bind
+        source: ${FIREBASE_CREDENTIALS_FILE:?Set FIREBASE_CREDENTIALS_FILE}
+        target: /run/secrets/firebase_admin
+        read_only: true
